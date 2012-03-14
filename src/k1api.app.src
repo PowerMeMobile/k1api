@@ -1,11 +1,12 @@
 {application, k1api,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "OneAPI server for OpenAlley"},
+  {vsn, "0.1.0"},
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+		  lager
                  ]},
   {mod, { k1api_app, []}},
   {env, []}
