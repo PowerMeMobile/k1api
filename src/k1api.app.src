@@ -1,0 +1,12 @@
+{application, k1api,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { k1api_app, []}},
+  {env, []}
+ ]}.
