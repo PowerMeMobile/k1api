@@ -1,0 +1,15 @@
+{application, eoneapi,
+ [
+  {description, "Erlang OneAPI library on top of cowboy"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  iso8601,
+                  inets
+				  %rfc4627_jsonrpc
+                 ]},
+  {mod, { eoneapi_app, []}},
+  {env, []}
+ ]}.
