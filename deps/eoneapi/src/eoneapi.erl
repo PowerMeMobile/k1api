@@ -11,9 +11,9 @@
 	code/3
 	]).
 
--export([
-	test/0
-	]).
+% -export([
+% 	test/0
+% 	]).
 %%%%%%%%%%%%%%%%
 %% API functions
 %%%%%%%%%%%%%%%%
