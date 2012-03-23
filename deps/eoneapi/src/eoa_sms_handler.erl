@@ -2,34 +2,18 @@
 
 -behaviour(cowboy_http_handler).
 
--export([init/3, handle/2, terminate/2]).
+-export([
+	init/3, 
+	handle/2,
+	terminate/2
+]).
 
 -export([behaviour_info/1]).
 
 -compile([{parse_transform, lager_transform}]).
 
 -include("logging.hrl").
-
 -include("eoneapi.hrl").
-
-% -define(gmv(ReqPropList, Key),
-% 	lists:flatten(
-% 		lists:map(fun({EKey, EValue})->
-% 			case EKey of
-% 				Key -> EValue;
-% 				_ -> []
-% 			end
-% 		end, ReqPropList)
-% 		)
-% 	).
-
-% -define(gv(ReqPropList, Key),
-% 	case lists:keytake(Key, 1, ReqPropList) of
-% 		{value, {_, Value}, _TupleList2} -> Value;
-% 		_ -> undefined
-% 	end
-% 	).
-
 
 -record(state, {
 	req :: term(),
@@ -37,7 +21,9 @@
 	mstate :: term(),
 	creds :: credentials(),
 	protocol :: binary(),
-	sender_addr :: binary()
+	sender_addr :: binary(),
+	thendo :: fun(),
+	thendo_args :: term()
 	}).
 
 %%%%%%%%%%%%%%%%
@@ -57,49 +43,22 @@ behaviour_info(callbacks) ->
 	].
 
 init({_Any, http}, Req, [Module]) ->
-	% ?log_debug("Req: ~p", [Req]),
-	% case credentials_check(Req) of 
-	% 	{ok, {SysId, User, Pass}} ->
-	% 		Creds = #credentials{system_id = SysId, user = User, password = Pass},
-	% 		{Path, Req} = cowboy_http_req:path(Req),
-	% 		{Method, Req} = cowboy_http_req:method(Req),
-	% 		% handle_req(Method, Path, State#state{req = Req, creds = Creds});
-	% 		check_req_type(Method, Path, #state{mod = Module, req = Req, creds = Creds});
-	% 	{error, Error} ->
-	% 		?log_debug("Error: ~p", [Error]),
-	% 		eoneapi:code(401, Req, State)		
-	% end.
-	% auth(Creds, Module),
 	?log_debug("Req: ~p", [Req]),
-	{ok, Req, #state{mod = Module}}.
+	{ok, Req, #state{mod = Module, req = Req}}.
 
-% check_req_type(
-% 		'POST',
-% 		[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>],
-% 		State = #state{creds = Creds}) ->
-% 	case parse_sender_addr(SenderAddr) of
-% 		{ok, {Protocol, Addr}} ->
-% 			process_outbound_sms_req(State#state{protocol = Protocol, sender_addr = SenderAddr});
-% 		Error ->
-% 			?log_error("Unexpected error: ~p", [Error]),
-% 			eoneapi:code(500, Req, State)
-% 	end;
-
-handle(Req, State = #state{mod = Mod}) ->
-	case credentials_check(Req) of
+handle(Req, State = #state{}) ->
+	{Path, Req} = cowboy_http_req:path(Req),
+	{Method, Req} = cowboy_http_req:method(Req),
+	case credentials_check(Req) of 
 		{ok, {SysId, User, Pass}} ->
-			?log_debug("SysId: ~p, User: ~p Pass: ~p", [SysId, User, Pass]),
 			Creds = #credentials{system_id = SysId, user = User, password = Pass},
-			% {Path, Req} = cowboy_http_req:path(Req),
-			% {Method, Req} = cowboy_http_req:method(Req),
-			% handle_req(Method, Path, State#state{req = Req, creds = Creds});
-			do_init(State#state{req = Req, creds = Creds});
-		{error, 'Unauthorized'} ->
-			?log_debug("Error: ~p", ['Unauthorized']),
-			eoneapi:code(401, Req, State);
+			handle_req(Method, Path, State#state{creds = Creds});
+		{error, Error} ->
+			?log_debug("Error: ~p", [Error]),
+			eoneapi:code(401, Req, []);
 		Error ->
 			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
+			eoneapi:code(500, Req, [])	
 	end.
 
 terminate(_Req, _State) ->
@@ -109,13 +68,125 @@ terminate(_Req, _State) ->
 %% Local functions
 %%%%%%%%%%%%%%%%%%
 
-do_init(State = #state{mod = Mod, req = Req, creds = Creds}) ->
+	%% Parsing http requests
+
+handle_req(	'POST',
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>],
+			State = #state{req = Req, creds = Creds}) ->
+	case parse_sender_addr(SenderAddr) of
+		{ok, {Protocol, Addr}} ->
+			AfterInit = fun(Args, St) -> process_outbound_sms_req(Args,St) end,
+			Args = [],
+			do_init(State#state{
+							protocol = Protocol,
+							sender_addr = Addr,
+							thendo = AfterInit,
+							thendo_args = Args,
+							creds = Creds#credentials{type = transmitter}});
+		Error ->
+			?log_error("Unexpected error: ~p", [Error]),
+			eoneapi:code(500, Req, State)
+	end;
+
+handle_req(	'GET',
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>, ReqId, <<"deliveryInfos">>],
+			State = #state{req = Req, creds = Creds}) ->
+	case parse_sender_addr(SenderAddr) of
+		{ok, {Protocol, Addr}} ->
+			AfterInit = fun(Args, St) -> process_delivery_status_req(Args,St) end,
+			Args = binary_to_list(ReqId),
+			do_init(State#state{
+							protocol = Protocol,
+							sender_addr = Addr,
+							thendo = AfterInit,
+							thendo_args = Args,
+							creds = Creds#credentials{type = dlvrReceiptReceiver}});
+		Error ->
+			?log_error("Unexpected error: ~p", [Error]),
+			eoneapi:code(500, Req, State)
+	end;
+
+handle_req(	'POST',
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"subscriptions">>],
+						State = #state{req = Req, creds = Creds}) ->
+	case parse_sender_addr(SenderAddr) of
+		{ok, {Protocol, Addr}} ->
+			AfterInit = fun(Args, St) -> process_sms_delivery_report_subscribe_req(Args,St) end,
+			Args = [],
+			do_init(State#state{
+							protocol = Protocol,
+							sender_addr = Addr,
+							thendo = AfterInit,
+							thendo_args = Args,
+							creds = Creds#credentials{type = dlvrReceiptReceiver}});
+		Error ->
+			?log_error("Unexpected error: ~p", [Error]),
+			eoneapi:code(500, Req, State)
+	end;
+
+handle_req(	'DELETE',
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"subscriptions">>, SubId],
+						State = #state{req = Req, creds = Creds}) ->
+	case parse_sender_addr(SenderAddr) of
+		{ok, {Protocol, Addr}} ->
+			AfterInit = fun(Args, St) -> process_sms_delivery_report_unsubscribe_req(Args,St) end,
+			Args = binary_to_list(SubId),
+			do_init(State#state{
+							protocol = Protocol,
+							sender_addr = Addr,
+							thendo = AfterInit,
+							thendo_args = Args,
+							creds = Creds#credentials{type = dlvrReceiptReceiver}});
+		Error ->
+			?log_error("Unexpected error: ~p", [Error]),
+			eoneapi:code(500, Req, State)
+	end;
+
+handle_req(	'GET',
+			[_Ver,<<"smsmessaging">>,<<"inbound">>, <<"registrations">>, RegId,<<"messages">>],
+			State = #state{req = Req, creds = Creds}) ->
+	AfterInit = fun(Args, St) -> process_retrieve_sms_req(Args,St) end,
+	Args = RegId,
+	do_init(State#state{
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds#credentials{type = incomingSMSReceiver}});
+
+handle_req('POST',
+			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
+			State = #state{req = Req, creds = Creds}) ->
+	AfterInit = fun(Args, St) -> process_sms_delivery_subscribe_req(Args,St) end,
+	Args = [],
+	do_init(State#state{
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds#credentials{type = incomingSMSReceiver}});
+
+handle_req('DELETE',
+			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>, SubId],
+			State = #state{req = Req, creds = Creds}) ->
+	AfterInit = fun(Args, St) -> process_sms_delivery_unsubscribe_req(Args,St) end,
+	Args = SubId,
+	do_init(State#state{
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds#credentials{type = incomingSMSReceiver}});
+
+handle_req(_Method, _Path, State = #state{req = Req}) ->
+	eoneapi:code(404, Req, State).
+
+  %% Hanler initialization
+
+do_init(State = #state{
+					thendo = Fun,
+					thendo_args = Args,
+					mod = Mod,
+					req = Req,
+					creds = Creds}) ->
 	InitResult = Mod:init(Creds),
 	case InitResult of
 		{ok, MState} ->	
-			{Path, Req} = cowboy_http_req:path(Req),
-			{Method, Req} = cowboy_http_req:method(Req),
-			handle_req(Method, Path, State#state{mstate = MState});
+			Fun(Args, State#state{mstate = MState});
 		{error, dinied} ->
 			?log_debug("Authentication failured", []),
 			eoneapi:code(401, Req, State);
@@ -124,106 +195,17 @@ do_init(State = #state{mod = Mod, req = Req, creds = Creds}) ->
 			eoneapi:code(500, Req, State)
 	end.
 
-%%%%%%%%%%%%%%% Credentials check %%%%%%%%%%%%%%%%
-
-credentials_check(Req) ->
-	{Header, Req} = cowboy_http_req:header('Authorization', Req),
-	% ?log_debug("Header: ~p", [Header]),
-	case application:get_env(eoneapi, sysid_user_delimiter) of
-		{ok, Delimiter} ->
-			% ?log_debug("Delimiter: ~p", [Delimiter]),
-			parse_credential_header(Header, [Delimiter]);
-		undefined ->
-			parse_credential_header(Header, [])
-	end.
-
-
-parse_credential_header(undefined, _Delimiter) ->
-	{error, 'Unauthorized'};
-parse_credential_header(Header, Delimiter) ->
-	RawList = binary:split(Header, [<<"Basic">>, <<" ">>],[global]),
-	[Base64Bin] = lists:filter(fun(Elem) -> Elem =/= <<>> end, RawList),
-	% ?log_debug("Base64Bin: ~p", [Base64Bin]),
-	UserPassBin = base64:decode(Base64Bin),
-	[SysIdBin, UserBin, PassBin] = binary:split(UserPassBin, [<<":">>] ++ Delimiter,[global]),
-	% ?log_debug("SysIdBin: ~p, UserBin: ~p, PassBin: ~p", [SysIdBin, UserBin, PassBin]),
-	{ok, {binary_to_list(SysIdBin), binary_to_list(UserBin), binary_to_list(PassBin)}}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-	%% Parsing http requests
-
-handle_req('POST',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>],
-			State = #state{req = Req}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			process_outbound_sms_req({Protocol, Addr}, State);
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
-
-handle_req('GET',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>, ReqId, <<"deliveryInfos">>],
-			State = #state{req = Req}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			process_delivery_status_req({Protocol, Addr}, ReqId, State);
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
-
-handle_req('POST',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"subscriptions">>],
-			State = #state{req = Req}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			process_sms_delivery_report_subscribe_req({Protocol, Addr}, State);
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
-
-handle_req('DELETE',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"subscriptions">>, SubId],
-			State = #state{req = Req}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			process_sms_delivery_report_unsubscribe_req({Protocol, Addr}, SubId, State);
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
-
-handle_req('GET',
-			[_Ver,<<"smsmessaging">>,<<"inbound">>, <<"registrations">>, RegId,<<"messages">>],
-			State = #state{req = Req}) ->
-	process_retrieve_sms_req(RegId, State);
-
-handle_req('POST',
-			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
-			State = #state{req = Req}) ->
-	process_sms_delivery_subscribe_req(State);
-
-handle_req('DELETE',
-			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>, SubId],
-			State = #state{req = Req}) ->
-	process_sms_delivery_unsubscribe_req(SubId, State);
-
-handle_req(_Method, _Path, State = #state{req = Req}) ->
-	eoneapi:code(404, Req, State).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	%% Outbound sms request processor
 
-process_outbound_sms_req({Protocol, ID}, State = #state{
+process_outbound_sms_req( _ , State = #state{
 										mstate = MState,
 										mod = Mod,
 										creds = Creds,
-										req = Req}) ->
+										req = Req,
+										protocol = Protocol,
+										sender_addr = Addr}) ->		
 	{ok, ReqPropList} = get_prop_list(Req),
 	SendSmsReq = #outbound_sms{
 					address = gmv(ReqPropList, <<"address">>),
@@ -252,13 +234,14 @@ process_outbound_sms_req({Protocol, ID}, State = #state{
 
 	% delivery status request processor
 
-process_delivery_status_req(SenderAddr, ReqId,
+process_delivery_status_req(ReqId,
 									State = #state{
 												mod = Mod,
 												mstate = MState,
 												creds = Creds,
-												req = Req}) ->
-	Response = Mod:handle_delivery_status_req(Creds, SenderAddr, ReqId, MState),
+												req = Req,
+												sender_addr = SAddr}) ->
+	Response = Mod:handle_delivery_status_req(Creds, SAddr, ReqId, MState),
 	case Response of
 		{ok, ResponseList} ->
 			Reports = bjoin_comma_delimited(
@@ -293,11 +276,13 @@ process_delivery_status_req(SenderAddr, ReqId,
 
 	%% Start subscribe to SMS delivery notifications
 
-process_sms_delivery_report_subscribe_req({Protocol, Addr}, State = #state{
+process_sms_delivery_report_subscribe_req(_, State = #state{
 																req = Req,
 																mod = Mod,
 																mstate = MState,
-																creds = Creds	
+																creds = Creds,
+																protocol = Protocol,
+																sender_addr = Addr	
 															}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	Request = #del_rec_subscribe{
@@ -327,11 +312,13 @@ process_sms_delivery_report_subscribe_req({Protocol, Addr}, State = #state{
 
 	%% Stop the subscription to delivery notifications
 
-process_sms_delivery_report_unsubscribe_req({Protocol, Addr}, SubscribeId, State = #state{
+process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 																req = Req,
 																mod = Mod,
 																mstate = MState,
-																creds = Creds	
+																creds = Creds,
+																protocol = Protocol,
+																sender_addr = Addr
 															}) ->
 	Result = Mod:handle_delivery_notifications_unsubscribe(Creds, {Protocol, Addr}, SubscribeId, MState),
 	case Result of
@@ -430,7 +417,7 @@ process_retrieve_sms_req(RegId, State = #state{
 
 	%% Subscribe to notifications of messages sent to your application
 
-process_sms_delivery_subscribe_req(State = #state{
+process_sms_delivery_subscribe_req( _, State = #state{
 												req = Req,
 												mod = Mod,
 												mstate = MState,
@@ -503,8 +490,12 @@ get_prop_list(Req) ->
 	{ok, ReqPropList}.
 
 parse_sender_addr(SenderAddr) ->
-	[ProtocolBin, AddrBin] = binary:split(SenderAddr, [<<":+">>, <<":">>]),
-	{ok, {binary_to_list(ProtocolBin), binary_to_list(AddrBin)}}.
+	case binary:split(SenderAddr, [<<":+">>, <<":">>]) of
+		[ProtocolBin, AddrBin] ->
+			{ok, {binary_to_list(ProtocolBin), binary_to_list(AddrBin)}};
+		[AddrBin] ->
+			{ok, {"", binary_to_list(AddrBin)}}
+	end.
 
 build_location(Req, ItemId) ->
 	{RawHost, _} = cowboy_http_req:raw_host(Req),
@@ -549,3 +540,30 @@ bjoin_comma_delimited(List) ->
     	end
     end,
 	lists:foldr(F, <<>>, List).
+
+%%%%%%%%%%%%%%% Credentials check %%%%%%%%%%%%%%%%
+
+credentials_check(Req) ->
+	{Header, Req} = cowboy_http_req:header('Authorization', Req),
+	% ?log_debug("Header: ~p", [Header]),
+	case application:get_env(eoneapi, sysid_user_delimiter) of
+		{ok, Delimiter} ->
+			% ?log_debug("Delimiter: ~p", [Delimiter]),
+			parse_credential_header(Header, [Delimiter]);
+		undefined ->
+			parse_credential_header(Header, [])
+	end.
+
+
+parse_credential_header(undefined, _Delimiter) ->
+	{error, 'Unauthorized'};
+parse_credential_header(Header, Delimiter) ->
+	RawList = binary:split(Header, [<<"Basic">>, <<" ">>],[global]),
+	[Base64Bin] = lists:filter(fun(Elem) -> Elem =/= <<>> end, RawList),
+	% ?log_debug("Base64Bin: ~p", [Base64Bin]),
+	UserPassBin = base64:decode(Base64Bin),
+	[SysIdBin, UserBin, PassBin] = binary:split(UserPassBin, [<<":">>] ++ Delimiter,[global]),
+	% ?log_debug("SysIdBin: ~p, UserBin: ~p, PassBin: ~p", [SysIdBin, UserBin, PassBin]),
+	{ok, {binary_to_list(SysIdBin), binary_to_list(UserBin), binary_to_list(PassBin)}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

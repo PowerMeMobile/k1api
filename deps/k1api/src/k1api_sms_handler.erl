@@ -60,25 +60,6 @@ handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
 	RequestId = "mes123",
 	{ok, RequestId}.
 
-	% case k1api_cache:is_exist(Correlator) of
-	% 	no ->
-	% 		case k1api:auth() of
-	% 			ok ->
-
-	% 				{ok, RequestId};
-	% 	{yes, RequestId} ->
-	% end.
-
-	% RequestId = "abc123",
-% #outbound_sms{
-% 					address = ?gmv(ReqPropList, <<"address">>),
-% 					sender_address = gv(ReqPropList, <<"senderAddress">>),
-% 					message = gv(ReqPropList, <<"message">>),
-% 					sender_name = gv(ReqPropList, <<"senderName">>), %opt
-% 					notify_url = gv(ReqPropList, <<"notifyURL">>), %% opt
-% 					client_correlator = gv(ReqPropList, <<"clientCorrelator">>), %opt
-% 					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
-% 					},
 handle_delivery_status_req(Credentials, SenderAdress, RequestId, _State = #state{}) ->
 	?log_debug(": ~p", [SenderAdress]),
 	?log_debug(": ~p", [RequestId]),
