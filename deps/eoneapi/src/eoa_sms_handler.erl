@@ -12,30 +12,32 @@
 
 -include("eoneapi.hrl").
 
--define(gmv(ReqPropList, Key),
-	lists:flatten(
-		lists:map(fun({EKey, EValue})->
-			case EKey of
-				Key -> EValue;
-				_ -> []
-			end
-		end, ReqPropList)
-		)
-	).
+% -define(gmv(ReqPropList, Key),
+% 	lists:flatten(
+% 		lists:map(fun({EKey, EValue})->
+% 			case EKey of
+% 				Key -> EValue;
+% 				_ -> []
+% 			end
+% 		end, ReqPropList)
+% 		)
+% 	).
 
--define(gv(ReqPropList, Key),
-	case lists:keytake(Key, 1, ReqPropList) of
-		{value, {_, Value}, _TupleList2} -> Value;
-		_ -> undefined
-	end
-	).
+% -define(gv(ReqPropList, Key),
+% 	case lists:keytake(Key, 1, ReqPropList) of
+% 		{value, {_, Value}, _TupleList2} -> Value;
+% 		_ -> undefined
+% 	end
+% 	).
 
 
 -record(state, {
 	req :: term(),
 	mod :: atom(),
 	mstate :: term(),
-	creds :: credentials()
+	creds :: credentials(),
+	protocol :: binary(),
+	sender_addr :: binary()
 	}).
 
 %%%%%%%%%%%%%%%%
@@ -55,18 +57,49 @@ behaviour_info(callbacks) ->
 	].
 
 init({_Any, http}, Req, [Module]) ->
+	% ?log_debug("Req: ~p", [Req]),
+	% case credentials_check(Req) of 
+	% 	{ok, {SysId, User, Pass}} ->
+	% 		Creds = #credentials{system_id = SysId, user = User, password = Pass},
+	% 		{Path, Req} = cowboy_http_req:path(Req),
+	% 		{Method, Req} = cowboy_http_req:method(Req),
+	% 		% handle_req(Method, Path, State#state{req = Req, creds = Creds});
+	% 		check_req_type(Method, Path, #state{mod = Module, req = Req, creds = Creds});
+	% 	{error, Error} ->
+	% 		?log_debug("Error: ~p", [Error]),
+	% 		eoneapi:code(401, Req, State)		
+	% end.
+	% auth(Creds, Module),
+	?log_debug("Req: ~p", [Req]),
 	{ok, Req, #state{mod = Module}}.
 
+% check_req_type(
+% 		'POST',
+% 		[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>],
+% 		State = #state{creds = Creds}) ->
+% 	case parse_sender_addr(SenderAddr) of
+% 		{ok, {Protocol, Addr}} ->
+% 			process_outbound_sms_req(State#state{protocol = Protocol, sender_addr = SenderAddr});
+% 		Error ->
+% 			?log_error("Unexpected error: ~p", [Error]),
+% 			eoneapi:code(500, Req, State)
+% 	end;
+
 handle(Req, State = #state{mod = Mod}) ->
-	?log_debug("Req: ~p", [Req]),
 	case credentials_check(Req) of
-		{ok, {User, Pass}} ->
-			% ?log_debug("User: ~p Password: ~p", [User, Password]),
-			Creds = #credentials{system_id = User, password = Pass},
+		{ok, {SysId, User, Pass}} ->
+			?log_debug("SysId: ~p, User: ~p Pass: ~p", [SysId, User, Pass]),
+			Creds = #credentials{system_id = SysId, user = User, password = Pass},
+			% {Path, Req} = cowboy_http_req:path(Req),
+			% {Method, Req} = cowboy_http_req:method(Req),
+			% handle_req(Method, Path, State#state{req = Req, creds = Creds});
 			do_init(State#state{req = Req, creds = Creds});
-		{error, Error} ->
-			?log_error("Error: ~p", [Error]),
-			eoneapi:code(401, Req, State)			
+		{error, 'Unauthorized'} ->
+			?log_debug("Error: ~p", ['Unauthorized']),
+			eoneapi:code(401, Req, State);
+		Error ->
+			?log_error("Unexpected error: ~p", [Error]),
+			eoneapi:code(500, Req, State)
 	end.
 
 terminate(_Req, _State) ->
@@ -96,17 +129,25 @@ do_init(State = #state{mod = Mod, req = Req, creds = Creds}) ->
 credentials_check(Req) ->
 	{Header, Req} = cowboy_http_req:header('Authorization', Req),
 	% ?log_debug("Header: ~p", [Header]),
-	parse_credential_header(Header).
+	case application:get_env(eoneapi, sysid_user_delimiter) of
+		{ok, Delimiter} ->
+			% ?log_debug("Delimiter: ~p", [Delimiter]),
+			parse_credential_header(Header, [Delimiter]);
+		undefined ->
+			parse_credential_header(Header, [])
+	end.
 
-parse_credential_header(undefined) ->
+
+parse_credential_header(undefined, _Delimiter) ->
 	{error, 'Unauthorized'};
-parse_credential_header(Header) ->
+parse_credential_header(Header, Delimiter) ->
 	RawList = binary:split(Header, [<<"Basic">>, <<" ">>],[global]),
 	[Base64Bin] = lists:filter(fun(Elem) -> Elem =/= <<>> end, RawList),
 	% ?log_debug("Base64Bin: ~p", [Base64Bin]),
 	UserPassBin = base64:decode(Base64Bin),
-	[UserBin, PassBin] = binary:split(UserPassBin, [<<":">>],[global]),
-	{ok, {UserBin, PassBin}}.
+	[SysIdBin, UserBin, PassBin] = binary:split(UserPassBin, [<<":">>] ++ Delimiter,[global]),
+	% ?log_debug("SysIdBin: ~p, UserBin: ~p, PassBin: ~p", [SysIdBin, UserBin, PassBin]),
+	{ok, {binary_to_list(SysIdBin), binary_to_list(UserBin), binary_to_list(PassBin)}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -185,7 +226,7 @@ process_outbound_sms_req({Protocol, ID}, State = #state{
 										req = Req}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	SendSmsReq = #outbound_sms{
-					address = ?gmv(ReqPropList, <<"address">>),
+					address = gmv(ReqPropList, <<"address">>),
 					sender_address = gv(ReqPropList, <<"senderAddress">>),
 					message = gv(ReqPropList, <<"message">>),
 					sender_name = gv(ReqPropList, <<"senderName">>), %opt
@@ -479,6 +520,16 @@ gv(ReqPropList, Key) ->
 		{value, {_, Value}, _TupleList2} -> Value;
 		_ -> undefined
 	end.
+
+gmv(ReqPropList, Key) ->
+	lists:flatten(
+		lists:map(fun({EKey, EValue})->
+			case EKey of
+				Key -> EValue;
+				_ -> []
+			end
+		end, ReqPropList)
+		).
 
 build_resource(Req) ->
 	{RawHost, _} = cowboy_http_req:raw_host(Req),

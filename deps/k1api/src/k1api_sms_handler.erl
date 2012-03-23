@@ -3,6 +3,7 @@
 -compile([{parse_transform, lager_transform}]).
 -include("logging.hrl").
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
+-include_lib("eoneapi/include/eoneapi.hrl").
 
 %% API
 -export([
@@ -37,15 +38,47 @@ deliver_sms(NotifyURL, NotificationFormat, Req) ->
 
 %% Eoneapi sms handler callbacks
 
-init(Credentials) ->
+init(Credentials = #credentials{
+			system_id = SystemId,
+			user = User,
+			password = Password,
+			type = Type
+			}) ->
 	?log_debug("Credentials: ~p", [Credentials]),
 	{ok, #state{}}.
 
-handle_send_sms_req(_Credentials, OutboundSms, State = #state{}) ->
+handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
+										address = Address,
+										sender_address = SenderAddr,
+										message = Message,
+										sender_name = SenderName, %opt
+										notify_url = NotifyURL, %% opt
+										client_correlator = Correlator, %opt
+										callback_data = Callback % opt
+										}, State = #state{}) ->
 	?log_debug("OutboundSms: ~p", [OutboundSms]),
-	RequestId = "abc123",
+	RequestId = "mes123",
 	{ok, RequestId}.
 
+	% case k1api_cache:is_exist(Correlator) of
+	% 	no ->
+	% 		case k1api:auth() of
+	% 			ok ->
+
+	% 				{ok, RequestId};
+	% 	{yes, RequestId} ->
+	% end.
+
+	% RequestId = "abc123",
+% #outbound_sms{
+% 					address = ?gmv(ReqPropList, <<"address">>),
+% 					sender_address = gv(ReqPropList, <<"senderAddress">>),
+% 					message = gv(ReqPropList, <<"message">>),
+% 					sender_name = gv(ReqPropList, <<"senderName">>), %opt
+% 					notify_url = gv(ReqPropList, <<"notifyURL">>), %% opt
+% 					client_correlator = gv(ReqPropList, <<"clientCorrelator">>), %opt
+% 					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
+% 					},
 handle_delivery_status_req(Credentials, SenderAdress, RequestId, _State = #state{}) ->
 	?log_debug(": ~p", [SenderAdress]),
 	?log_debug(": ~p", [RequestId]),

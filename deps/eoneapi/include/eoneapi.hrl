@@ -17,8 +17,10 @@
 % 							"DeliveredToNetwork" .
 
 -record(credentials, {
-	system_id :: binary(),
-	password :: binary()
+	system_id :: string(),
+	user :: string(),
+	password :: string(),
+	type :: transmitter | dlvrReceiptReceiver | incomingSMSReceiver
 	}).
 
 -type credentials() :: #credentials{}.

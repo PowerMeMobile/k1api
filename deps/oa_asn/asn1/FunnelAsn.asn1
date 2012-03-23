@@ -7,7 +7,7 @@ BindRequest ::= SEQUENCE {
     customerId   [2] IA5String,
     userId       [3] IA5String,
     password     [4] IA5String,
-    type         [5] ENUMERATED { transmitter(0), receiver(1), transceiver(2) },
+    type         [5] ENUMERATED { transmitter(0), receiver(1), transceiver(2), dlvrReceiptReceiver(3), incomingSMSReceiver(4) },
     isCached     [6] BOOLEAN,
     timestamp    [7] PreciseTime,
     expiration   [8] PreciseTime
@@ -95,7 +95,7 @@ Connection ::= SEQUENCE {
     customerId       [2] IA5String,
     userId           [3] IA5String,
     connectedAt      [4] UTCTime,
-    type             [5] ENUMERATED { transmitter(0), receiver(1), transceiver(2) },
+    type             [5] ENUMERATED { transmitter(0), receiver(1), transceiver(2), dlvrReceiptReceiver(3), incomingSMSReceiver(4)  },
     msgsReceived     [6] INTEGER,
     msgsSent         [7] INTEGER,
     errors           [8] SEQUENCE OF Error
@@ -113,16 +113,17 @@ ConnectionUpEvent ::= SEQUENCE {
     connectionId [0] IA5String,
     customerId   [1] IA5String,
     userId       [2] IA5String,
-    type         [3] ENUMERATED { transmitter(0), receiver(1), transceiver(2) },
-    connectedAt  [4] UTCTime,
-    timestamp    [5] UTCTime
+    type         [3] ENUMERATED { transmitter(0), receiver(1), transceiver(2), deliveryReceiptSubscription(3), incomingSmsSubscription(4) },
+    interface    [4] ENUMERATED { smpp(0), oneapi(1) },
+    connectedAt  [5] UTCTime,
+    timestamp    [6] UTCTime
 }
 
 ConnectionDownEvent ::= SEQUENCE {
     connectionId     [0] IA5String,
     customerId       [1] IA5String,
     userId           [2] IA5String,
-    type             [3] ENUMERATED { transmitter(0), receiver(1), transceiver(2) },
+    type             [3] ENUMERATED { transmitter(0), receiver(1), transceiver(2), dlvrReceiptReceiver(3), incomingSMSReceiver(4) },
     connectedAt      [4] UTCTime,
     msgsReceived     [5] INTEGER,
     msgsSent         [6] INTEGER,

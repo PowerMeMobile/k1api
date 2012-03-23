@@ -1,0 +1,14 @@
+{application, oa_backend_connector,
+ [
+  {description, "Provides interaction with OpenAlley backend"},
+  {vsn, "0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  lager,
+                  amqp_client
+                 ]},
+  {mod, { oa_backend_connector_app, []}},
+  {env, []}
+ ]}.

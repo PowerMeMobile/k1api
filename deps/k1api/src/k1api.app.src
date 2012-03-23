@@ -7,7 +7,9 @@
                   kernel,
                   stdlib,
             		  lager,
-                  eoneapi
+                  eoneapi,
+                  oa_asn,
+                  oa_backend_connector
                  ]},
   {mod, { k1api_app, []}},
   {env, []}

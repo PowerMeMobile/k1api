@@ -1,7 +1,7 @@
 {application, oa_asn,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "Common OpenAlley asn1 libraries"},
+  {vsn, "0.1"},
   {registered, []},
   {applications, [
                   kernel,
