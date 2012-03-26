@@ -4,6 +4,7 @@
 -include("logging.hrl").
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
+-include_lib("oa_backend_connector/include/oabc.hrl").
 
 %% API
 -export([
@@ -38,21 +39,18 @@ deliver_sms(NotifyURL, NotificationFormat, Req) ->
 
 %% Eoneapi sms handler callbacks
 
-init(Credentials = #credentials{
-			system_id = SystemId,
-			user = User,
-			password = Password,
-			type = Type
-			}) ->
+init(Credentials = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Credentials]),
+	% AuthReasult = auth(Credentials),
+	% ?log_debug("AuthReasult", [AuthReasult]),
 	{ok, #state{}}.
 
 handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
 										address = Address,
 										sender_address = SenderAddr,
 										message = Message,
-										sender_name = SenderName, %opt
-										notify_url = NotifyURL, %% opt
+										sender_name = SenderName, % opt
+										notify_url = NotifyURL, % opt
 										client_correlator = Correlator, %opt
 										callback_data = Callback % opt
 										}, State = #state{}) ->
@@ -102,3 +100,35 @@ handle_inbound_subscribe(_Credentials, _Req, _State = #state{}) ->
 
 handle_inbound_unsubscribe(_Credentials, _SubscriptionId, _State = #state{}) ->
 	{ok, deleted}.
+
+
+
+
+% auth(#credentials{
+% 			system_id = SysId,
+% 			user = User,
+% 			password = Pass,
+% 			type = Type}) ->
+% 	BindReq = #bind_req{
+% 		connectionId = "",
+% 		remoteIp  = "",
+% 		customerId = SysId,
+% 		user = User,
+% 		password = Pass,
+% 		type = Type
+% 	},
+% 	Timeout = 5000,
+% 	oabc:bind(BindReq, Timeout).
+
+
+
+	% case k1api_cache:fetch({SystemId, User, Password, Type}) of
+	% 	not_found ->
+	% 		case oabc:bind(Credentials) of
+	% 			{ok, Resp = #bind_resp{}} ->
+	% 				k1api_cache:store({SystemId, User, Password, Type}, Resp),
+	% 				{ok, Resp};
+	% 			Error -> {error, Error}
+	% 		end;
+	% 	{ok, {Key, Value}} ->
+	% end.

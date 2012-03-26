@@ -177,7 +177,7 @@ handle_req('DELETE',
 handle_req(_Method, _Path, State = #state{req = Req}) ->
 	eoneapi:code(404, Req, State).
 
-  %% Hanler initialization
+  %% Handler initialization
 
 do_init(State = #state{
 					thendo = Fun,
@@ -189,7 +189,7 @@ do_init(State = #state{
 	case InitResult of
 		{ok, MState} ->	
 			Fun(Args, State#state{mstate = MState});
-		{error, dinied} ->
+		{error, denied} ->
 			?log_debug("Authentication failured", []),
 			eoneapi:code(401, Req, State);
 		Error ->
@@ -235,7 +235,7 @@ process_outbound_sms_req( _ , State = #state{
 	end.
 
 	% delivery status request processor
-
+	
 process_delivery_status_req(ReqId,
 									State = #state{
 												mod = Mod,
@@ -373,6 +373,7 @@ process_retrieve_sms_req(RegId, State = #state{
 						])
 				end, ListOfInboundSms)
 				),
+% <<<<<<< Updated upstream
 			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
 
 			ResourceURL = build_resource(Req),
@@ -394,6 +395,36 @@ process_retrieve_sms_req(RegId, State = #state{
 			ContentType = <<"application/json">>,
 			
 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
+% =======
+% 			% ?log_debug("tag", []),
+% 			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
+% 			% ?log_debug("tag", []),
+
+% 			ResourceURL = build_resource(Req),
+% 			% ?log_debug("tag", []),
+
+% 			PendingSmsBin = list_to_binary(integer_to_list(PendingSms)),
+% 			% ?log_debug("tag", []),
+
+% 			Body = <<
+% 				<<"{\"inboundSMSMessageList\":{\"inboundSMSMessage\":[">>/binary,
+% 				Messages/binary,
+%       			<<"],\"numberOfMessagesInThisBatch\":\"">>/binary,
+%     			ThisBatchSize/binary,
+%     			<<"\",\"resourceURL\":\"">>/binary,
+%     			ResourceURL/binary,
+%     			<<"\",\"totalNumberOfPendingMessages\":\"">>/binary,
+%     			PendingSmsBin/binary,
+%     			<<"\"}}">>/binary
+%     		>>,
+% 			% ?log_debug("tag", []),
+
+% 			ContentType = <<"application/json">>,
+% 			% ?log_debug("tag", []),
+			
+% 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
+% 			% ?log_debug("tag", []),
+% >>>>>>> Stashed changes
 			
 			{ok, Req2, State};
 		{error, denied} ->
@@ -485,15 +516,6 @@ parse_sender_addr(SenderAddr) ->
 			{ok, {"", binary_to_list(AddrBin)}}
 	end.
 
-build_location(Req, ItemId) ->
-	{RawHost, _} = cowboy_http_req:raw_host(Req),
-	{RawPath, _} = cowboy_http_req:raw_path(Req),
-	Protocol = <<"http://">>,
-	ReqIdBin = list_to_binary("/" ++ ItemId),
-	Location = <<Protocol/binary, RawHost/binary, RawPath/binary, ReqIdBin/binary>>,
-	?log_debug("Location: ~p", [Location]),
-	Location.
-
 gv(ReqPropList, Key) ->
 	case lists:keytake(Key, 1, ReqPropList) of
 		{value, {_, Value}, _TupleList2} -> Value;
@@ -509,6 +531,15 @@ gmv(ReqPropList, Key) ->
 			end
 		end, ReqPropList)
 		).
+
+build_location(Req, ItemId) ->
+	{RawHost, _} = cowboy_http_req:raw_host(Req),
+	{RawPath, _} = cowboy_http_req:raw_path(Req),
+	Protocol = <<"http://">>,
+	ReqIdBin = list_to_binary("/" ++ ItemId),
+	Location = <<Protocol/binary, RawHost/binary, RawPath/binary, ReqIdBin/binary>>,
+	?log_debug("Location: ~p", [Location]),
+	Location.
 
 build_resource(Req) ->
 	{RawHost, _} = cowboy_http_req:raw_host(Req),
