@@ -1,16 +1,24 @@
--module(oabc_worker).
+-module(oabc_producer_srv).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
--define(SERVER, ?MODULE).
+
+-include("logging.hrl").
+-include_lib("amqp_client/include/amqp_client.hrl").
+
 -record(state, {
-	chan :: pid(),
-	queue :: binary(),
-	tag :: binary()
-	}).
+    chan :: pid(),
+    gateway_queue :: binary(),
+    batches_queue :: binary(),
+    events_queue :: binary(),
+    tag :: binary()
+    }).
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0]).
+-export([
+    start_link/0
+    ]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -24,18 +32,24 @@
 %% ------------------------------------------------------------------
 
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(Args) ->
-	Chan = oabc_amqp_pool:open_channel(),
-	QName = <<"pmm.k1api.subscriptions">>,
-	ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
-    {ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
-    {ok, #state{chan = Chan, queue = QName, tag = ConsumerTag}}.
+init([]) ->
+    Chan = oabc_amqp_pool:open_channel(),
+    link(Chan),
+    {ok, GtwQName} = application:get_env(queue_gateway_prefix),
+    {ok, BatchQName} = application:get_env(queue_backend_batches),
+    oabc_amqp:queue_declare(Chan, BatchQName, true, false, false),
+    {ok, EventQName} = application:get_env(queue_backend_events),
+    oabc_amqp:queue_declare(Chan, EventQName, true, false, false),
+    {ok, #state{chan = Chan,
+                gateway_queue = GtwQName,
+                batches_queue = BatchQName,
+                events_queue = EventQName}}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -55,4 +69,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-

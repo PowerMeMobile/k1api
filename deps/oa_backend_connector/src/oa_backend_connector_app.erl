@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    oa_backend_connector_sup:start_link().
+    oabc_sup:start_link().
 
 stop(_State) ->
     ok.

@@ -23,5 +23,10 @@ start(_StartType, _StartArgs) ->
 	eoneapi:start_service(EOneAPIProps),
     k1api_sup:start_link().
 
+prep_stop(State) ->
+	%% TO DO
+	%% stop inbound & outbound prcesses before
+	State.
+
 stop(_State) ->
     ok.

@@ -1,5 +1,5 @@
 
--module(oa_backend_connector_sup).
+-module(oabc_sup).
 
 -behaviour(supervisor).
 
@@ -29,6 +29,8 @@ start_link() ->
 init([]) ->
     {ok, { {one_for_one, 5, 10}, [
     	?WORKER(oabc_amqp_pool, permanent, 5000),
-    	?SUPERVISOR(oabc_worker_sup, permanent)
+    	?WORKER(oabc_ctrl_consum_srv, permanent, 5000),
+    	?WORKER(oabc_producer_srv, permanent, 5000),
+    	?SUPERVISOR(oabc_batch_consum_srv_sup, permanent)
     ]} }.
 

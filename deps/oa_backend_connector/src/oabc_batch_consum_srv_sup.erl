@@ -1,4 +1,4 @@
--module(oabc_worker_sup).
+-module(oabc_batch_consum_srv_sup).
 
 -behaviour(supervisor).
 
@@ -26,7 +26,7 @@ start_link() ->
 
 init([subscriptions]) ->
     {ok, { {one_for_one, 5, 10}, [
-    	?WORKER(oabc_worker, permanent, 5000)
+    	?WORKER(oabc_batch_consum_srv, permanent, 5000)
     ]} };
 
 init([nodes]) ->
