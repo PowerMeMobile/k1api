@@ -373,7 +373,6 @@ process_retrieve_sms_req(RegId, State = #state{
 						])
 				end, ListOfInboundSms)
 				),
-% <<<<<<< Updated upstream
 			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
 
 			ResourceURL = build_resource(Req),
@@ -395,37 +394,7 @@ process_retrieve_sms_req(RegId, State = #state{
 			ContentType = <<"application/json">>,
 			
 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
-% =======
-% 			% ?log_debug("tag", []),
-% 			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
-% 			% ?log_debug("tag", []),
 
-% 			ResourceURL = build_resource(Req),
-% 			% ?log_debug("tag", []),
-
-% 			PendingSmsBin = list_to_binary(integer_to_list(PendingSms)),
-% 			% ?log_debug("tag", []),
-
-% 			Body = <<
-% 				<<"{\"inboundSMSMessageList\":{\"inboundSMSMessage\":[">>/binary,
-% 				Messages/binary,
-%       			<<"],\"numberOfMessagesInThisBatch\":\"">>/binary,
-%     			ThisBatchSize/binary,
-%     			<<"\",\"resourceURL\":\"">>/binary,
-%     			ResourceURL/binary,
-%     			<<"\",\"totalNumberOfPendingMessages\":\"">>/binary,
-%     			PendingSmsBin/binary,
-%     			<<"\"}}">>/binary
-%     		>>,
-% 			% ?log_debug("tag", []),
-
-% 			ContentType = <<"application/json">>,
-% 			% ?log_debug("tag", []),
-			
-% 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
-% 			% ?log_debug("tag", []),
-% >>>>>>> Stashed changes
-			
 			{ok, Req2, State};
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
