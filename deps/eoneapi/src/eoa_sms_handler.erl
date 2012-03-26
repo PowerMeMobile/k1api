@@ -1,5 +1,7 @@
 -module(eoa_sms_handler).
-
+%% TO DO 
+%% * intelligent binary join that able to exclude undefined paramaters
+%% * implement exceptions (http://oneapi.gsmworld.com/common-policy-exceptions/)
 -behaviour(cowboy_http_handler).
 
 -export([
@@ -222,7 +224,7 @@ process_outbound_sms_req( _ , State = #state{
 		{ok, ReqId} ->
 			ContentType = <<"application/json">>,
 			Location = build_location(Req, ReqId),
-			Body = << <<"{\"resourceReference\":{\"resourceURL\":\"">>/binary, Location/binary, <<"\"}}">>/binary>>,
+			Body = bjoin([<<"{\"resourceReference\":{\"resourceURL\":\"">>, Location, <<"\"}}">>]),
 			{ok, Req2} = cowboy_http_req:reply(201, [{'Content-Type', ContentType}, {'Location', Location}], Body, Req),
 			{ok, Req2, State};
 		{error, denied} ->
@@ -248,18 +250,11 @@ process_delivery_status_req(ReqId,
 			lists:map(fun({Address, DeliveryStatus})->
 				AddressBin = list_to_binary(Address),
 				DeliveryStatusBin = list_to_binary(DeliveryStatus),
-				<<
-					<<"{\"address\":\"tel:+">>/binary,
-					AddressBin/binary,
-					<<"\",\"deliveryStatus\":\"">>/binary,
-					DeliveryStatusBin/binary,
-					<<"\"}">>/binary
-				>>
+				bjoin([<<"{\"address\":\"tel:+">>, AddressBin, <<"\",\"deliveryStatus\":\"">>, DeliveryStatusBin, <<"\"}">>])
 			end, ResponseList)),
 
 			Resource = build_resource(Req),
-
-			Body = << <<"{\"deliveryInfoList\":{\"deliveryInfo\":[">>/binary, Reports/binary,<<"],\"resourceURL\":\"">>/binary, Resource/binary,<<"\"}}">>/binary >>,
+			Body = bjoin([<<"{\"deliveryInfoList\":{\"deliveryInfo\":[">>, Reports, <<"],\"resourceURL\":\"">>, Resource, <<"\"}}">>]),
 
 			ContentType = <<"application/json">>,
 
@@ -299,7 +294,8 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 			NotifyURL = gv(ReqPropList, <<"notifyURL">>),
 			Location = build_location(Req, SubscribeId),
 			ContentType = <<"application/json">>,
-			Body = << <<"{\"deliveryReceiptSubscription\":{\"callbackReference\":{\"callbackData\":\"">>/binary, CallBackData/binary, <<"\",\"notifyURL\":\"">>/binary, NotifyURL/binary, <<"\",\"criteria\":\"Urgent\"},\"resourceURL\":\"">>/binary, Location/binary, <<"\"}}">>/binary >>,
+			Criteria = gv(ReqPropList, <<"criteria">>),
+			Body = bjoin([<<"{\"deliveryReceiptSubscription\":{\"callbackReference\":{\"callbackData\":\"">>, CallBackData, <<"\",\"notifyURL\":\"">>, NotifyURL, <<"\",\"criteria\":\"">>, Criteria, <<"\"},\"resourceURL\":\"">>, Location, <<"\"}}">>]),
 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}, {'Location', Location}], Body, Req),
 			{ok, Req2, State};
 		{error, denied} ->
@@ -360,51 +356,44 @@ process_retrieve_sms_req(RegId, State = #state{
 					MessageTextBin = list_to_binary(MessId),
 					SenderAddrBin = list_to_binary(SenderAddr),
 					LocationUrl = build_location(Req, MessId),
-					<<
-					<<"{\"dateTime\":\"">>/binary,
-					DateTimeBin/binary,
-					<<"\",\"destinationAddress\":\"">>/binary,
-					RegId/binary,
-					<<"\",\"messageId\":\"">>/binary,
-					MessIdBin/binary,
-					<<"\",\"message\":\"">>/binary,
-					MessageTextBin/binary,
-					<<"\",\"resourceURL\":\"">>/binary,
-					LocationUrl/binary,
-					<<"\",\"senderAddress\":\"">>/binary,
-					SenderAddrBin/binary,
-					<<"\"}">>/binary
-					>>
+					bjoin([
+						<<"{\"dateTime\":\"">>,
+						DateTimeBin,
+						<<"\",\"destinationAddress\":\"">>,
+						RegId,
+						<<"\",\"messageId\":\"">>,
+						MessIdBin,
+						<<"\",\"message\":\"">>,
+						MessageTextBin,
+						<<"\",\"resourceURL\":\"">>,
+						LocationUrl,
+						<<"\",\"senderAddress\":\"">>,
+						SenderAddrBin,
+						<<"\"}">>
+						])
 				end, ListOfInboundSms)
 				),
-			?log_debug("tag", []),
 			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
-			?log_debug("tag", []),
 
 			ResourceURL = build_resource(Req),
-			?log_debug("tag", []),
 
 			PendingSmsBin = list_to_binary(integer_to_list(PendingSms)),
-			?log_debug("tag", []),
 
-			Body = <<
-				<<"{\"inboundSMSMessageList\":{\"inboundSMSMessage\":[">>/binary,
-				Messages/binary,
-      			<<"],\"numberOfMessagesInThisBatch\":\"">>/binary,
-    			ThisBatchSize/binary,
-    			<<"\",\"resourceURL\":\"">>/binary,
-    			ResourceURL/binary,
-    			<<"\",\"totalNumberOfPendingMessages\":\"">>/binary,
-    			PendingSmsBin/binary,
-    			<<"\"}}">>/binary
-    		>>,
-			?log_debug("tag", []),
+			Body = bjoin([
+				<<"{\"inboundSMSMessageList\":{\"inboundSMSMessage\":[">>,
+				Messages,
+				<<"],\"numberOfMessagesInThisBatch\":\"">>,
+				ThisBatchSize,
+				<<"\",\"resourceURL\":\"">>,
+				ResourceURL,
+				<<"\",\"totalNumberOfPendingMessages\":\"">>,
+				PendingSmsBin,
+				<<"\"}}">>
+				]),
 
 			ContentType = <<"application/json">>,
-			?log_debug("tag", []),
 			
 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
-			?log_debug("tag", []),
 			
 			{ok, Req2, State};
 		{error, denied} ->
@@ -436,12 +425,11 @@ process_sms_delivery_subscribe_req( _, State = #state{
 		{ok, SubId} ->
 			Location = build_location(Req, SubId),
 			ContentType = <<"application/json">>,
-			Body = 
-				<<
-				<<"{\"resourceReference\":{\"resourceURL\":\"">>/binary,
-				Location/binary,
-				<<"\"}}">>/binary
-				>>,
+			Body = bjoin([
+				<<"{\"resourceReference\":{\"resourceURL\":\"">>,
+				Location,
+				<<"\"}}">>
+				]),
 			{ok, Req2} = cowboy_http_req:reply(201, [{'Location', Location}, {'Content-Type', ContentType}], Body, Req),
 			{ok, Req2, State};
 		{error, denied} ->
@@ -514,9 +502,9 @@ gv(ReqPropList, Key) ->
 
 gmv(ReqPropList, Key) ->
 	lists:flatten(
-		lists:map(fun({EKey, EValue})->
-			case EKey of
-				Key -> EValue;
+		lists:map(fun({K, V})->
+			case K of
+				Key -> V;
 				_ -> []
 			end
 		end, ReqPropList)
@@ -529,6 +517,12 @@ build_resource(Req) ->
 	Resource = <<Protocol/binary, RawHost/binary, RawPath/binary>>,
 	?log_debug("Resource: ~p", [Resource]),
 	Resource.
+
+bjoin(List) ->
+    F = fun(A, B) ->
+    	<<A/binary, B/binary>>
+    end,
+	lists:foldr(F, <<>>, List).
 
 bjoin_comma_delimited(List) ->
     F = fun(A, B) ->
