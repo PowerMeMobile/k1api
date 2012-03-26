@@ -1,3 +1,4 @@
 ebin/
 rel/erl_crash.dump
 rel/k1api/
+deps/uuid
