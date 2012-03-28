@@ -17,7 +17,8 @@
 %% ------------------------------------------------------------------
 
 -export([
-    start_link/0
+    start_link/0,
+    send_event/1
     ]).
 
 %% ------------------------------------------------------------------
@@ -33,6 +34,9 @@
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+send_event(Event) ->
+    gen_server:cast(?MODULE, {send_event, Event}).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions

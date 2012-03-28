@@ -3,7 +3,8 @@
 -compile([{parse_transform, lager_transform}]).
 -export([
     start_control/1,
-    start_batch_receiver/1
+    start_batch_receiver/1,
+    send_event/1
 	% request_backend_auth/2
 	]).
 -include("logging.hrl").
@@ -14,6 +15,20 @@ start_control(Fun) ->
 
 start_batch_receiver(Fun) ->
     oabc_batch_consum_srv:start_batch_receiver(Fun).
+
+send_event(Event) ->
+    oabc_producer_srv:send_event().
+
+send_auth_req() -> ok.
+send_batch() -> ok.
+
+
+
+% request_backend_auth
+% notify_backend_server_up
+% notify_backend_server_down
+% notify_backend_connection_up
+% notify_backend_connection_down
 
 
 % request_backend_auth(_, _) -> ok.
