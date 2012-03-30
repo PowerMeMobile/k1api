@@ -1,6 +1,6 @@
 -module(eoa_sms_handler).
 %% TO DO 
-%% * intelligent binary join that able to exclude undefined paramaters
+%% * intelligent binary join that able to exclude undefined paramaters (callback & etc)
 %% * implement exceptions (http://oneapi.gsmworld.com/common-policy-exceptions/)
 -behaviour(cowboy_http_handler).
 
@@ -246,13 +246,13 @@ process_delivery_status_req(ReqId,
 	Response = Mod:handle_delivery_status_req(Creds, SAddr, ReqId, MState),
 	case Response of
 		{ok, ResponseList} ->
-			Reports = bjoin_comma_delimited(
-			lists:map(fun({Address, DeliveryStatus})->
-				AddressBin = list_to_binary(Address),
-				DeliveryStatusBin = list_to_binary(DeliveryStatus),
-				bjoin([<<"{\"address\":\"tel:+">>, AddressBin, <<"\",\"deliveryStatus\":\"">>, DeliveryStatusBin, <<"\"}">>])
-			end, ResponseList)),
-
+			ReportsList =
+				lists:map(fun({Address, DeliveryStatus})->
+					AddressBin = list_to_binary(Address),
+					DeliveryStatusBin = list_to_binary(DeliveryStatus),
+					bjoin([<<"{\"address\":\"tel:+">>, AddressBin, <<"\",\"deliveryStatus\":\"">>, DeliveryStatusBin, <<"\"}">>])
+				end, ResponseList),
+			Reports = bjoin(ReportsList, <<",">>),
 			Resource = build_resource(Req),
 			Body = bjoin([<<"{\"deliveryInfoList\":{\"deliveryInfo\":[">>, Reports, <<"],\"resourceURL\":\"">>, Resource, <<"\"}}">>]),
 
@@ -345,7 +345,7 @@ process_retrieve_sms_req(RegId, State = #state{
 	Result = Mod:handle_retrieve_req(Creds, RetrieveSmsReq, MState),
 	case Result of
 		{ok, ListOfInboundSms, PendingSms} ->
-			Messages = bjoin_comma_delimited(
+			MessagesList =
 				lists:map(fun(#inbound_sms{
 								date_time = DateTime,
 								message_id = MessId,
@@ -371,8 +371,8 @@ process_retrieve_sms_req(RegId, State = #state{
 						SenderAddrBin,
 						<<"\"}">>
 						])
-				end, ListOfInboundSms)
-				),
+				end, ListOfInboundSms),
+			Messages = bjoin(MessagesList, <<",">>),
 			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
 
 			ResourceURL = build_resource(Req),
@@ -519,20 +519,21 @@ build_resource(Req) ->
 	Resource.
 
 bjoin(List) ->
-    F = fun(A, B) ->
-    	<<A/binary, B/binary>>
-    end,
-	lists:foldr(F, <<>>, List).
-
-bjoin_comma_delimited(List) ->
-    F = fun(A, B) ->
-    	case B of
-    		<<>> ->
-    			<<A/binary, B/binary>>;
-    		Any ->
-    			<<A/binary, <<",">>/binary, B/binary>>
-    	end
-    end,
+	bjoin(List, []).
+bjoin(List, []) ->
+	F = fun(A, B) ->
+		<<A/binary, B/binary>>
+		end,
+	lists:foldr(F, <<>>, List);
+bjoin(List, Delimiter) when is_binary(Delimiter) ->
+	F = fun(A, B) ->
+			case B of
+				<<>> ->
+					<<A/binary, B/binary>>;
+				Any ->
+					<<A/binary, Delimiter/binary, B/binary>>
+			end
+		end,
 	lists:foldr(F, <<>>, List).
 
 %%%%%%%%%%%%%%% Credentials check %%%%%%%%%%%%%%%%
