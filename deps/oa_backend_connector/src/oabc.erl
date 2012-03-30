@@ -2,26 +2,26 @@
 
 -compile([{parse_transform, lager_transform}]).
 -export([
-    start_control/1,
-    start_batch_receiver/1,
-    send_event/1
-	% request_backend_auth/2
+    register_2way/3,
+    register_2way/4,
+    test/0
 	]).
 -include("logging.hrl").
 -include("oabc.hrl").
 
-start_control(Fun) ->
-    oabc_ctrl_consum_srv:start_control(Fun).
 
-start_batch_receiver(Fun) ->
-    oabc_batch_consum_srv:start_batch_receiver(Fun).
+register_2way(Id, QNameReq, QNameResp) ->
+    register_2way(Id, QNameReq, QNameResp, []).
+register_2way(Id, QNameReq, QNameResp, QProps) ->
+    oabc_peers_sup:start_child(#peer_spec{
+                                    id = Id,
+                                    type = '2way',
+                                    fw_q = QNameReq,
+                                    bw_q = QNameResp,
+                                    qprops = QProps}).
 
-send_event(Event) ->
-    oabc_producer_srv:send_event().
-
-send_auth_req() -> ok.
-send_batch() -> ok.
-
+test() ->
+    oabc:register_2way(auth, <<"pmm.k1api.auth">>, <<"pmm.k1api.auth_resp">>).
 
 
 % request_backend_auth
