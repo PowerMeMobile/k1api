@@ -2,3 +2,6 @@ ebin/
 rel/erl_crash.dump
 rel/k1api/
 deps/uuid
+deps/edown/
+deps/gen_leader/
+deps/gproc/

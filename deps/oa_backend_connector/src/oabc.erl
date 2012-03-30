@@ -4,6 +4,9 @@
 -export([
     register_2way/3,
     register_2way/4,
+    call/3,
+    call/2,
+    init/0,
     test/0
 	]).
 -include("logging.hrl").
@@ -20,9 +23,28 @@ register_2way(Id, QNameReq, QNameResp, QProps) ->
                                     bw_q = QNameResp,
                                     qprops = QProps}).
 
-test() ->
+%% TEST
+
+init() ->
     oabc:register_2way(auth, <<"pmm.k1api.auth">>, <<"pmm.k1api.auth_resp">>).
 
+test() ->
+    oabc:call(auth, <<"hello">>).
+
+%%%%%%%%%%
+
+call(Id, Payload) ->
+    call(Id, Payload, 5000).
+call(Id, Payload, Timeout)->
+    Result = gproc:lookup_local_name({oabc_req_sup, Id}),
+    ?log_debug("~p", [Result]),
+    case Result of
+        Pid when is_pid(Pid) ->
+            {ok, WorkerPid} = oabc_req_sup:start_child(Pid),
+            CallResult = gen_server:call(WorkerPid, {send, Payload}, Timeout),
+            ?log_debug("CallResult: ~p", [CallResult]);
+        _ -> {error, no_proc}
+    end.    
 
 % request_backend_auth
 % notify_backend_server_up

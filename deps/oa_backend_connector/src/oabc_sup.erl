@@ -28,6 +28,7 @@ start_link() ->
 
 init([]) ->
 	{ok, { {one_for_one, 5, 10}, [
+		?WORKER(oabc_uuid, permanent, 5000),
 		?WORKER(oabc_amqp_pool, permanent, 5000),
 		{peers_sup, {oabc_peers_sup, start_link, []}, permanent, infinity, supervisor, [oabc_peers_sup]}
 	]} }.

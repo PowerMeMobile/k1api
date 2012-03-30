@@ -7,6 +7,7 @@
                   kernel,
                   stdlib,
                   lager,
+                  gproc,
                   amqp_client
                  ]},
   {mod, { oa_backend_connector_app, []}},

@@ -8,7 +8,8 @@
 
 -record(state, {
 	chan :: pid(),
-	queue :: binary()
+	fw_q :: binary(),
+	bw_q :: binary()
 	}).
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -41,7 +42,7 @@ start_link(Spec) ->
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(Spec = #peer_spec{chan = Chan}) ->
+init(Spec = #peer_spec{chan = Chan, fw_q = FQ, bw_q = BQ}) ->
 	% Chan = oabc_amqp_pool:open_channel(),
 	% link(Chan),
 	% {ok, QName} = application:get_env(queue_server_control),
@@ -52,8 +53,15 @@ init(Spec = #peer_spec{chan = Chan}) ->
 	% 	Error -> 1000
 	% end,
 	% ok = oabc_amqp:basic_qos(Chan, QoS),
-	{ok, #state{chan = Chan}}.
+	{ok, #state{chan = Chan, fw_q = FQ, bw_q = BQ}}.
 
+handle_call({send, Payload}, _From, State = #state{fw_q = FQ, bw_q = BQ, chan = Chan}) ->
+	Props = #'P_basic'{
+					correlation_id = oabc_uuid:newid(),
+					reply_to = BQ
+					},
+	ok = oabc_amqp:basic_publish(Chan, FQ, Payload, Props),
+	{stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
     {stop, unexpected_call, State}.
 
