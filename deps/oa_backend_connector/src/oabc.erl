@@ -3,6 +3,7 @@
 %% To do
 %% -cast
 %% -async bw
+%% -qos
 
 %% FOR TEST
 -behaviour(oabc_bw_srv).

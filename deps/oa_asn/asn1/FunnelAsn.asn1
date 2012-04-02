@@ -102,11 +102,16 @@ Connection ::= SEQUENCE {
 }
 
 ServerUpEvent ::= SEQUENCE {
-    timestamp [0] UTCTime
+    timestamp           [0] UTCTime,
+    resetConnections    [1] BOOLEAN,
+    authQueue           [2] IA5String,
+    batchQueue          [3] IA5String,
+    interfaceId         [4] IA5String
 }
 
 ServerDownEvent ::= SEQUENCE {
-    timestamp [0] UTCTime
+    timestamp   [0] UTCTime,
+    interfaceId [1] IA5String
 }
 
 ConnectionUpEvent ::= SEQUENCE {
