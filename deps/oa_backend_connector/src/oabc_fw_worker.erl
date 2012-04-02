@@ -1,4 +1,4 @@
--module(oabc_req_worker).
+-module(oabc_fw_worker).
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 
@@ -45,33 +45,20 @@ start_link(Spec) ->
 %% ------------------------------------------------------------------
 
 init(Spec = #peer_spec{id = Id, chan = Chan, fw_q = FQ, bw_q = BQ}) ->
-	% Chan = oabc_amqp_pool:open_channel(),
-	% link(Chan),
-	% {ok, QName} = application:get_env(queue_server_control),
-	% ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
-	% QoS = 
-	% case application:get_env(queue_server_control_qos) of
-	% 	{ok, Value} when is_integer(Value) -> Value; 
-	% 	Error -> 1000
-	% end,
-	% ok = oabc_amqp:basic_qos(Chan, QoS),
 	{ok, #state{id = Id, chan = Chan, fw_q = FQ, bw_q = BQ}}.
 
 handle_call({send, Payload}, _From, State = #state{id = Id, fw_q = FQ, bw_q = BQ, chan = Chan}) ->
-	% CorrelationId = oabc_uuid:to_string(oabc_uuid:newid()),
 	MsgId = oabc_uuid:newid(),
 	?log_debug("MsgId: ~p", [MsgId]),
 	?log_debug("BQ ~p", [BQ]),
 	Props = #'P_basic'{
 					message_id = MsgId,
-					correlation_id = MsgId,
-					reply_to = BQ
+					correlation_id = MsgId
 					},
-	ok = oabc_amqp:basic_publish(Chan, FQ, Payload, Props),
+	Result = oabc_amqp:basic_publish(Chan, FQ, Payload, Props),
 	?log_debug("basic_publish ok", []),
-	Response = oabc_consumer_srv:get_response(Id, MsgId),
-	{stop, normal, Response, State#state{}};
-	% {stop, normal, State};
+	{stop, normal, Result, State#state{}};
+
 handle_call(_Request, _From, State) ->
     {stop, unexpected_call, State}.
 

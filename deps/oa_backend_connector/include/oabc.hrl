@@ -7,19 +7,8 @@
 	fw_q :: binary(),
 	bw_q :: binary(),
 	qprops = [] :: [{atom(), term()}],
-	chan :: pid()
+	chan :: pid(),
+	callback :: atom()
 	}).
-
-% -record(bind_req, {
-% 	connectionId :: string(),
-% 	remoteIp :: string(),
-% 	customerId :: string(),
-% 	user :: string(),
-% 	password :: string(),
-% 	type :: atom()
-% 	% isCached     [6] BOOLEAN,
-% 	% timestamp    [7] PreciseTime,
-% 	% expiration   [8] PreciseTime
-% 	}).
 
 -endif. % oabc_hrl

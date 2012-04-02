@@ -32,9 +32,3 @@ init([]) ->
 		?WORKER(oabc_amqp_pool, permanent, 5000),
 		{peers_sup, {oabc_peers_sup, start_link, []}, permanent, infinity, supervisor, [oabc_peers_sup]}
 	]} }.
-
-
-
-		% ?WORKER(oabc_ctrl_consum_srv, permanent, 5000),
-		% ?WORKER(oabc_producer_srv, permanent, 5000),
-		% ?SUPERVISOR(oabc_batch_consum_srv_sup, permanent)
