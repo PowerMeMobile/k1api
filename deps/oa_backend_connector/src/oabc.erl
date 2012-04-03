@@ -34,6 +34,26 @@ handle_backward(Id, Payload) ->
     ?log_debug("Id: ~p Payload: ~p", [Id, Payload]),
     ok.
 
+%%%%%%%%%%%%%%%
+%% TEST SECTION
+%%%%%%%%%%%%%%%
+
+init() ->
+    oabc:register_2way(auth, <<"pmm.k1api.auth">>, <<"pmm.k1api.auth">>),
+    ?log_debug("ok", []),
+    oabc:register_fw(submit_sms, <<"pmm.k1api.test">>),
+    ?log_debug("ok", []),
+    oabc:register_bw(receipts, <<"pmm.k1api.test">>, oabc),
+    ?log_debug("ok", []).
+
+test('2way') ->
+    Response = oabc:call(auth, <<"hello">>),
+    ?log_debug("Response: ~p", [Response]);
+test(fw) ->
+    oabc:call(submit_sms, <<"hello">>).
+
+%%%%%%%%%%%%%%%%%%%
+%% END TEST SECTION
 %%%%%%%%%%%
 
 register_2way(Id, QNameReq, QNameResp) ->
@@ -62,26 +82,7 @@ register(Id, Type, QNameReq, QNameResp, CallBackModule, QProps) ->
                                     bw_q = QNameResp,
                                     callback = CallBackModule,
                                     qprops = QProps}).
-%%%%%%%%%%%%%%%
-%% TEST SECTION
-%%%%%%%%%%%%%%%
 
-init() ->
-    oabc:register_2way(auth, <<"pmm.k1api.auth">>, <<"pmm.k1api.auth">>),
-    ?log_debug("ok", []),
-    oabc:register_fw(submit_sms, <<"pmm.k1api.test">>),
-    ?log_debug("ok", []),
-    oabc:register_bw(receipts, <<"pmm.k1api.test">>, oabc),
-    ?log_debug("ok", []).
-
-test('2way') ->
-    Response = oabc:call(auth, <<"hello">>),
-    ?log_debug("Response: ~p", [Response]);
-test(fw) ->
-    oabc:call(submit_sms, <<"hello">>).
-
-%%%%%%%%%%%%%%%%%%%
-%% END TEST SECTION
 %%%%%%%%%%%%%%%%%%%
 
 call(Id, Payload) ->
