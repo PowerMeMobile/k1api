@@ -1,8 +1,6 @@
-%% add expiration period
-%% add async
-
 -module(oabc_consumer_srv).
 -compile([{parse_transform, lager_transform}]).
+
 -behaviour(gen_server).
 
 -include("oabc.hrl").
@@ -26,6 +24,7 @@
 	pending_workers = [] :: [#pworker{}],
 	pending_responses = [] :: [#presponse{}]
 	}).
+
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
@@ -71,7 +70,7 @@ init(Spec = #peer_spec{id = Id, bw_q = QName}) ->
 	Chan = oabc_amqp_pool:open_channel(),
 	link(Chan),
 	ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
-		{ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
+	{ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
 	{ok, #state{tag = ConsumerTag, queue = QName, chan = Chan}}.
 
 handle_call({get_response, CorrelationId}, From, 
@@ -121,6 +120,6 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%% ------------------------------------------------------------------
-%% Internal Function Definitions
-%% ------------------------------------------------------------------
+% ------------------------------------------------------------------
+% Internal Function Definitions
+% ------------------------------------------------------------------

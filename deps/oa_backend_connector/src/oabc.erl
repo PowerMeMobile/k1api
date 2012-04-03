@@ -38,12 +38,12 @@ register_2way(Id, QNameReq, QNameResp, Props) ->
 register_fw(Id, QNameFw)->
     register_fw(Id, QNameFw, []).
 register_fw(Id, QNameFw, Props)->
-    register(Id, fw, QNameFw, <<>>, Props).
+    register(Id, forward, QNameFw, <<>>, Props).
 
 register_bw(Id, QNameBw, CallBackModule) when is_atom(CallBackModule)->
     register_bw(Id, QNameBw, CallBackModule, []).
 register_bw(Id, QNameBw, CallBackModule, Props) when is_atom(CallBackModule) ->
-    register(Id, bw, <<>>, QNameBw, CallBackModule, Props).
+    register(Id, backward, <<>>, QNameBw, CallBackModule, Props).
 
 register(Id, Type, QNameReq, QNameResp, QProps) ->
     register(Id, Type, QNameReq, QNameResp, undefined, QProps).
@@ -56,8 +56,9 @@ register(Id, Type, QNameReq, QNameResp, CallBackModule, QProps) ->
                                     bw_q = QNameResp,
                                     callback = CallBackModule,
                                     qprops = QProps}).
-
-%% TEST
+%%%%%%%%%%%%%%%
+%% TEST SECTION
+%%%%%%%%%%%%%%%
 
 init() ->
     oabc:register_2way(auth, <<"pmm.k1api.auth">>, <<"pmm.k1api.auth">>),
@@ -69,9 +70,10 @@ init() ->
 
 test('2way') ->
     Response = oabc:call(auth, <<"hello">>),
-    io:format("Response: ~p~n", [Response]);
+    ?log_debug("Response: ~p", [Response]);
 test(fw) ->
     oabc:call(submit_sms, <<"hello">>).
+
 
 
 %%%%%%%%%%
@@ -79,13 +81,12 @@ test(fw) ->
 call(Id, Payload) ->
     call(Id, Payload, 5000).
 call(Id, Payload, Timeout)->
-    Result = gproc:lookup_local_name({oabc_req_sup, Id}),
-    ?log_debug("oabc_req_sup: ~p", [Result]),
+    Result = gproc:lookup_local_name({oabc_fw_srv, Id}),
+    ?log_debug("oabc_fw_srv: ~p", [Result]),
     case Result of
-        Pid when is_pid(Pid) ->
-            {ok, WorkerPid} = oabc_req_sup:start_child(Pid),
-            ?log_debug("worker pid: ~p", [WorkerPid]),
-            CallResult = gen_server:call(WorkerPid, {send, Payload}, Timeout),
-            ?log_debug("CallResult: ~p", [CallResult]);
+        Srv when is_pid(Srv) ->
+            CallResult = gen_wp:call(Srv, {send, Payload}, Timeout),
+            ?log_debug("CallResult: ~p", [CallResult]),
+            CallResult;
         _ -> {error, no_proc}
     end.
