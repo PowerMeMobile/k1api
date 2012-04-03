@@ -4,10 +4,11 @@
 %% -cast
 %% -async bw
 %% -qos
+%% -monitors
 
 %% FOR TEST
 -behaviour(oabc_bw_srv).
--export([handle_backward/1]).
+-export([handle_backward/2]).
 %%
 -compile([{parse_transform, lager_transform}]).
 -export([
@@ -25,8 +26,8 @@
 -include("logging.hrl").
 -include("oabc.hrl").
 %% For tests
-handle_backward(Payload) ->
-    ?log_debug("Payload: ~p", [Payload]),
+handle_backward(Id, Payload) ->
+    ?log_debug("Id: ~p Payload: ~p", [Id, Payload]),
     ok.
 %%
 register_2way(Id, QNameReq, QNameResp) ->

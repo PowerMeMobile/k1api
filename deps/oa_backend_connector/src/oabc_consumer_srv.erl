@@ -70,17 +70,7 @@ init(Spec = #peer_spec{id = Id, bw_q = QName}) ->
 	ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
 		{ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
 	{ok, #state{tag = ConsumerTag, queue = QName, chan = Chan}}.
-	% QoS = 
-	% case application:get_env(queue_server_control_qos) of
-	% 	{ok, Value} when is_integer(Value) -> Value; 
-	% 	Error -> 1000
-	% end,
-	% ok = oabc_amqp:basic_qos(Chan, QoS),
-	% {ok, #state{}}.
 
-% handle_call({unsubscribe}, _From, State = #state{chan = Chan, tag = ConsumerTag}) ->
-%     {ok, ConsumerTag} = oabc_amqp:basic_cancel(Chan, ConsumerTag),
-%     {reply, ok, State};
 handle_call({get_response, CorrelationId}, From, 
 					State = #state{
 								pending_workers = WList,
@@ -131,7 +121,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-process(RList, WList) ->
-
-	{RList, WList}.

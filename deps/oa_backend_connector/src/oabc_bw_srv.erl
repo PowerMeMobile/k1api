@@ -7,6 +7,7 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 
 -record(state, {
+	id :: term(),
 	chan :: pid(),
 	queue :: binary(),
 	tag :: binary(),
@@ -40,7 +41,7 @@
 
 behaviour_info(callbacks) ->
 	[
-		{handle_backward, 1}
+		{handle_backward, 2}
 	].
 
 start_link(Spec) ->
@@ -56,7 +57,7 @@ init(Spec = #peer_spec{id = Id, bw_q = QName, callback = CallBack}) ->
 	link(Chan),
 	ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
 		{ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
-	{ok, #state{tag = ConsumerTag, queue = QName, chan = Chan, callback = CallBack}}.
+	{ok, #state{id = Id, tag = ConsumerTag, queue = QName, chan = Chan, callback = CallBack}}.
 
 
 handle_call(_Request, _From, State) ->
@@ -67,13 +68,13 @@ handle_cast(_Msg, State) ->
 
 handle_info({#'basic.deliver'{delivery_tag = DeliveryTag},
 				#amqp_msg{props = Props, payload = Payload}},
-					State = #state{chan = Chan, callback = CallBack}) ->
+					State = #state{id = Id, chan = Chan, callback = CallBack}) ->
 	#'P_basic'{message_id = MsgId, correlation_id = CorrelationId, reply_to = ReplyTo} = Props, 
 	?log_debug("got message: ~p", [Payload]),
 	?log_debug("MsgId: ~p", [MsgId]),
 	?log_debug("CorrelationId: ~p", [CorrelationId]),
 	?log_debug("ReplyTo: ~p", [ReplyTo]),
-	case CallBack:handle_backward(Payload) of
+	case CallBack:handle_backward(Id, Payload) of
 		ok ->
 			oabc_amqp:basic_ack(Chan, DeliveryTag),
 			{noreply, State#state{}};
