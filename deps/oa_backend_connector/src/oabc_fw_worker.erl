@@ -54,6 +54,13 @@ handle_call({send, Payload}, _From, State = #state{id = Id, fw_q = FQ, bw_q = BQ
 	Props = #'P_basic'{
 					message_id = MsgId,
 					correlation_id = MsgId
+					% content_type
+					% content_encoding = undefined,
+					% delivery_mode = 2,
+					% reply_to
+					% expiration
+					% timestamp
+					% app_id
 					},
 	Result = oabc_amqp:basic_publish(Chan, FQ, Payload, Props),
 	?log_debug("basic_publish ok", []),

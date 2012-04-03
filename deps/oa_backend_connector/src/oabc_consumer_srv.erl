@@ -1,3 +1,6 @@
+%% add expiration period
+%% add async
+
 -module(oabc_consumer_srv).
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
