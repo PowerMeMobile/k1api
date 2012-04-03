@@ -5,3 +5,4 @@ deps/uuid
 deps/edown/
 deps/gen_leader/
 deps/gproc/
+deps/gen_wp
