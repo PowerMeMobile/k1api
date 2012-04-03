@@ -1,15 +1,10 @@
 -module(oabc).
 
-%% To do
-%% -cast
-%% -async bw
-%% -qos
-%% -monitors
-
-%% FOR TEST
+%% behaviour test
 -behaviour(oabc_bw_srv).
 -export([handle_backward/2]).
-%%
+%%%%%%%%%%%
+
 -compile([{parse_transform, lager_transform}]).
 -export([
     register_2way/3,
@@ -20,16 +15,27 @@
     register_bw/4,
     call/3,
     call/2,
+    cast/2
+    ]).
+
+-export([
     init/0,
     test/1
 	]).
+
 -include("logging.hrl").
 -include("oabc.hrl").
-%% For tests
+
+%%%%%%%%%%%%%%%%%
+%% behaviour test
+%%%%%%%%%%%%%%%%%
+
 handle_backward(Id, Payload) ->
     ?log_debug("Id: ~p Payload: ~p", [Id, Payload]),
     ok.
-%%
+
+%%%%%%%%%%%
+
 register_2way(Id, QNameReq, QNameResp) ->
     register_2way(Id, QNameReq, QNameResp, []).
 register_2way(Id, QNameReq, QNameResp, Props) ->
@@ -74,9 +80,9 @@ test('2way') ->
 test(fw) ->
     oabc:call(submit_sms, <<"hello">>).
 
-
-
-%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%
+%% END TEST SECTION
+%%%%%%%%%%%%%%%%%%%
 
 call(Id, Payload) ->
     call(Id, Payload, 5000).
@@ -89,4 +95,15 @@ call(Id, Payload, Timeout)->
             ?log_debug("CallResult: ~p", [CallResult]),
             CallResult;
         _ -> {error, no_proc}
+    end.
+
+cast(Id, Payload) ->
+    Result = gproc:lookup_local_name({oabc_fw_srv, Id}),
+    ?log_debug("oabc_fw_srv: ~p", [Result]),
+    case Result of
+        Srv when is_pid(Srv) ->
+            gen_wp:call(Srv, {send, Payload}),
+            ?log_debug("gen_wp:cast", []),
+            ok;
+        _ -> ok
     end.

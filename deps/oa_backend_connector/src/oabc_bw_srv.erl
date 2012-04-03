@@ -63,21 +63,6 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {stop, unexpected_cast, State}.
 
-% handle_info({#'basic.deliver'{delivery_tag = DeliveryTag},
-% 				 #amqp_msg{props = Props, payload = Payload}},
-% 					State = #state{id = Id, chan = Chan, callback = CallBack}) ->
-% 	#'P_basic'{message_id = MsgId, correlation_id = CorrelationId, reply_to = ReplyTo} = Props, 
-% 	?log_debug("got message: ~p", [Payload]),
-% 	?log_debug("MsgId: ~p", [MsgId]),
-% 	?log_debug("CorrelationId: ~p", [CorrelationId]),
-% 	?log_debug("ReplyTo: ~p", [ReplyTo]),
-% 	case CallBack:handle_backward(Id, Payload) of
-% 		ok ->
-% 			oabc_amqp:basic_ack(Chan, DeliveryTag),
-% 			{noreply, State#state{}};
-% 		Error ->
-% 			?log_error("~p", [Error])
-% 	end;
 handle_info(ForkInfo = {#'basic.deliver'{}, #amqp_msg{}}, State = #state{}) ->
 	{fork, {ForkInfo, State}, State};
 handle_info(_Info, State) ->
