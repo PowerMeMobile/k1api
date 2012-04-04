@@ -1,0 +1,1 @@
+lwp-request -C test-sys-id@user:password -UsSe -m 'GET' 127.0.0.1:8080/2/smsmessaging/inbound/registrations/12345678/messages?maxBatchSize=2; echo

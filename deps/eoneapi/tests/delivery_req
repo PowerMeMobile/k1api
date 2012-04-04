@@ -1,0 +1,1 @@
+lwp-request -C test-sys-id@user:password -UsSe -m 'GET' 127.0.0.1:8080/2/smsmessaging/outbound/tel%3A%2B12345678/requests/abc123/deliveryInfos; echo

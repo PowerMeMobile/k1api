@@ -1,0 +1,1 @@
+echo -n 'notifyURL=http://www.yourURL.here&criteria=GIGPICS&callbackData=doSomething()' | lwp-request -C test-sys-id@user:password -UsSe -m 'POST' 127.0.0.1:8080/2/smsmessaging/outbound/tel%3A%2B12345678/subscriptions; echo
