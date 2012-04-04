@@ -1,0 +1,12 @@
+{application, oa_proto,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  %{mod, { oa_proto_app, []}},
+  {env, []}
+ ]}.

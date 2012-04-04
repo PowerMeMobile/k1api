@@ -5,6 +5,7 @@
 -compile([{parse_transform, lager_transform}]).
 
 -include("logging.hrl").
+-include_lib("oa_proto/include/oa_pb.hrl").
 
 %% Application callbacks
 -export([start/2, stop/1]).
@@ -33,7 +34,16 @@ start(_StartType, _StartArgs) ->
     oabc:register_bw(control, SrvControlQ, k1api_oabc_handler), %% {durable, true}, {exclusive, false}, {auto_delete, false}
 
     {ok, BackEndQ} = application:get_env(backend_control_q),
-    oabc:register_fw(backend, BackEndQ),    
+    oabc:register_fw(backend, BackEndQ),
+
+    ?log_info("server up event sending...", []),
+    ServerUpEvent = #frontendupevent{
+        resetsubscriptions = false,
+        authq = AuthReqQ,
+        registerq = BatchQ,
+        controlq = SrvControlQ},
+    ServerUpEventProto = oa_pb:encode_frontendupevent(ServerUpEvent),
+    oabc:call(backend, ServerUpEventProto, [{content_type, <<"frontendupevent">>}]),
 
     ?log_info("eoneapi initializing...", []),
 	EOneAPIProps = [
