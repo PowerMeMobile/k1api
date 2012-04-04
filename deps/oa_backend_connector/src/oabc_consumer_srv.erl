@@ -56,7 +56,7 @@ start_link(Spec) ->
 get_response(Id, CorrelationId) ->
 	case gproc:lookup_local_name({oabc_consumer_srv, Id}) of
 		Pid when is_pid(Pid) ->
-			?log_debug("oabc_consumer_srv: ~p", [Pid]),
+			% ?log_debug("oabc_consumer_srv: ~p", [Pid]),
 			gen_server:call(Pid, {get_response, CorrelationId}, infinity);
 		_ -> {error, no_proc}
 	end.
@@ -65,11 +65,11 @@ get_response(Id, CorrelationId) ->
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(Spec = #peer_spec{id = Id, bw_q = QName}) ->
+init(#peer_spec{id = Id, bw_q = QName, qprops = Props}) ->
 	gproc:add_local_name({?MODULE, Id}),
 	Chan = oabc_amqp_pool:open_channel(),
 	link(Chan),
-	ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
+	ok = oabc_amqp:queue_declare(Chan, QName, Props),
 	{ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
 	{ok, #state{tag = ConsumerTag, queue = QName, chan = Chan}}.
 

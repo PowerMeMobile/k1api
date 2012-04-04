@@ -1,11 +1,10 @@
 -module(oabc).
 
-%% behaviour test
--behaviour(oabc_bw_srv).
--export([handle_backward/2]).
-%%%%%%%%%%%
-
 -compile([{parse_transform, lager_transform}]).
+
+-include("logging.hrl").
+-include("oabc.hrl").
+
 -export([
     register_2way/3,
     register_2way/4,
@@ -13,53 +12,18 @@
     register_fw/3,
     register_bw/3,
     register_bw/4,
+    call/4,
     call/3,
     call/2,
+    cast/3,
     cast/2
     ]).
 
--export([
-    init/0,
-    test/1
-	]).
-
--include("logging.hrl").
--include("oabc.hrl").
-
-%%%%%%%%%%%%%%%%%
-%% behaviour test
-%%%%%%%%%%%%%%%%%
-
-handle_backward(Id, Payload) ->
-    ?log_debug("Id: ~p Payload: ~p", [Id, Payload]),
-    ok.
-
-%%%%%%%%%%%%%%%
-%% TEST SECTION
-%%%%%%%%%%%%%%%
-
-init() ->
-    oabc:register_2way(auth, <<"pmm.k1api.auth">>, <<"pmm.k1api.auth">>),
-    ?log_debug("ok", []),
-    oabc:register_fw(submit_sms, <<"pmm.k1api.test">>),
-    ?log_debug("ok", []),
-    oabc:register_bw(receipts, <<"pmm.k1api.test">>, oabc),
-    ?log_debug("ok", []).
-
-test('2way') ->
-    Response = oabc:call(auth, <<"hello">>),
-    ?log_debug("Response: ~p", [Response]);
-test(fw) ->
-    oabc:call(submit_sms, <<"hello">>).
-
-%%%%%%%%%%%%%%%%%%%
-%% END TEST SECTION
-%%%%%%%%%%%
 
 register_2way(Id, QNameReq, QNameResp) ->
     register_2way(Id, QNameReq, QNameResp, []).
 register_2way(Id, QNameReq, QNameResp, Props) ->
-    register(Id, '2way', QNameReq, QNameResp, Props).
+    register(Id, '2way', QNameReq, QNameResp, Props). %% Props will be apply to both queues
 
 register_fw(Id, QNameFw)->
     register_fw(Id, QNameFw, []).
@@ -74,7 +38,7 @@ register_bw(Id, QNameBw, CallBackModule, Props) when is_atom(CallBackModule) ->
 register(Id, Type, QNameReq, QNameResp, QProps) ->
     register(Id, Type, QNameReq, QNameResp, undefined, QProps).
 
-register(Id, Type, QNameReq, QNameResp, CallBackModule, QProps) ->
+register(Id, Type, QNameReq, QNameResp, CallBackModule, QProps) -> %% in case of using same id it causes problems
     oabc_peers_sup:start_child(#peer_spec{
                                     id = Id,
                                     type = Type,
@@ -83,28 +47,33 @@ register(Id, Type, QNameReq, QNameResp, CallBackModule, QProps) ->
                                     callback = CallBackModule,
                                     qprops = QProps}).
 
-%%%%%%%%%%%%%%%%%%%
 
 call(Id, Payload) ->
     call(Id, Payload, 5000).
-call(Id, Payload, Timeout)->
+call(Id, Payload, Props) when is_list(Props)->
+    call(Id, Payload, 5000, Props);
+call(Id, Payload, Timeout) when is_integer(Timeout)->
+    call(Id, Payload, Timeout, []).
+call(Id, Payload, Timeout, Props) when is_integer(Timeout)->
     Result = gproc:lookup_local_name({oabc_fw_srv, Id}),
-    ?log_debug("oabc_fw_srv: ~p", [Result]),
+    % ?log_debug("oabc_fw_srv: ~p", [Result]),
     case Result of
         Srv when is_pid(Srv) ->
-            CallResult = gen_wp:call(Srv, {send, Payload}, Timeout),
-            ?log_debug("CallResult: ~p", [CallResult]),
+            CallResult = gen_wp:call(Srv, {send, Payload, Props}, Timeout),
+            % ?log_debug("CallResult: ~p", [CallResult]),
             CallResult;
         _ -> {error, no_proc}
     end.
 
 cast(Id, Payload) ->
+    cast(Id, Payload, []).
+cast(Id, Payload, Props) ->
     Result = gproc:lookup_local_name({oabc_fw_srv, Id}),
-    ?log_debug("oabc_fw_srv: ~p", [Result]),
+    % ?log_debug("oabc_fw_srv: ~p", [Result]),
     case Result of
         Srv when is_pid(Srv) ->
-            gen_wp:call(Srv, {send, Payload}),
-            ?log_debug("gen_wp:cast", []),
+            gen_wp:cast(Srv, {send, Payload, Props}),
+            % ?log_debug("gen_wp:cast", []),
             ok;
         _ -> ok
     end.

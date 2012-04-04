@@ -45,11 +45,11 @@ behaviour_info(callbacks) ->
 start_link(Spec) ->
 	gen_wp:start_link(?MODULE, Spec).
 
-init(#peer_spec{id = Id, bw_q = QName, callback = CallBack}) ->
+init(#peer_spec{id = Id, bw_q = QName, callback = CallBack, qprops = Props}) ->
 	gproc:add_local_name({?MODULE, Id}),
 	Chan = oabc_amqp_pool:open_channel(),
 	link(Chan),
-	ok = oabc_amqp:queue_declare(Chan, QName, true, false, false),
+	ok = oabc_amqp:queue_declare(Chan, QName, Props),
 	{ok, ConsumerTag} = oabc_amqp:basic_consume(Chan, QName, false),
 	Workers = dict:new(),
 	{ok, #state{id = Id, tag = ConsumerTag, queue = QName, chan = Chan, callback = CallBack, workers = Workers}}.

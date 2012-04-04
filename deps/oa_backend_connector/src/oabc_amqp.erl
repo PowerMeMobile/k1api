@@ -8,7 +8,7 @@
 
 -export([connection_start/0, connection_close/1]).
 -export([channel_open/1, channel_close/1]).
--export([queue_declare/5]).
+-export([queue_declare/3, queue_declare/5]).
 -export([basic_qos/2, basic_consume/3, basic_cancel/2]).
 -export([basic_publish/4, basic_ack/2, basic_reject/3]).
 -export([tx_select/1, tx_commit/1]).
@@ -51,6 +51,14 @@ channel_close(Chan) ->
 %% -------------------------------------------------------------------------
 %% Queue methods
 %% -------------------------------------------------------------------------
+
+-spec queue_declare(pid(), binary(), [{atom(), term()}]) ->
+                    'ok' | {'error', any()}.
+queue_declare(Chan, Queue, Props) when is_list(Props) ->
+    Durable = proplists:get_value(durable, Props, true),
+    Exclusive = proplists:get_value(exclusive, Props, false),
+    AutoDelete = proplists:get_value(auto_delete, Props, false),
+    queue_declare(Chan, Queue, Durable, Exclusive, AutoDelete).
 
 -spec queue_declare(pid(), binary(), boolean(), boolean(), boolean()) ->
                     'ok' | {'error', any()}.

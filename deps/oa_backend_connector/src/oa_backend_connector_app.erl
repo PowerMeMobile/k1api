@@ -10,6 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+	{ok, _Value} = application:get_env(app_id), %% validation of app_id value existing
     oabc_sup:start_link().
 
 stop(_State) ->

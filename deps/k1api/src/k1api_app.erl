@@ -24,14 +24,14 @@ start(_StartType, _StartArgs) ->
     {ok, AuthRespQ} = application:get_env(auth_resp_q),
     oabc:register_2way(auth, AuthReqQ, AuthRespQ),
 
-    {ok, BatchQ} = application:get_env(batches_q), %% {persistent, true}, {durable, true}, {exclusive, false}, {auto_delete, false}, 
+    {ok, BatchQ} = application:get_env(batches_q), 
     oabc:register_fw(batch, BatchQ),
 
     {ok, SubscriptionsQ} = application:get_env(subscriptions_q),
-    oabc:register_bw(subsriptions, SubscriptionsQ, k1api_oabc_handler), %% {persistent, true}, {durable, true}, {exclusive, false}, {auto_delete, false}
+    oabc:register_bw(subsriptions, SubscriptionsQ, k1api_oabc_handler),
 
     {ok, SrvControlQ} = application:get_env(server_control_q),
-    oabc:register_bw(control, SrvControlQ, k1api_oabc_handler), %% {durable, true}, {exclusive, false}, {auto_delete, false}
+    oabc:register_bw(control, SrvControlQ, k1api_oabc_handler),
 
     {ok, BackEndQ} = application:get_env(backend_control_q),
     oabc:register_fw(backend, BackEndQ),
