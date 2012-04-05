@@ -1,6 +1,0 @@
-ebin/
-include/
-src/FunnelAsn.asn1db
-src/FunnelAsn.erl
-src/JustAsn.asn1db
-src/JustAsn.erl

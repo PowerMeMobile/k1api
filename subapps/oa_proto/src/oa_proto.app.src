@@ -1,7 +1,7 @@
-{application, oa_asn,
+{application, oa_proto,
  [
-  {description, "Common OpenAlley asn1 libraries"},
-  {vsn, "0.1"},
+  {description, "OpenAlley protobuf files"},
+  {vsn, "0.0.1"},
   {registered, []},
   {applications, [
                   kernel,

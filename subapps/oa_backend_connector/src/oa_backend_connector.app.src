@@ -1,7 +1,7 @@
 {application, oa_backend_connector,
  [
   {description, "Provides interaction with OpenAlley backend"},
-  {vsn, "0.1"},
+  {vsn, "0.0.1"},
   {registered, []},
   {applications, [
                   kernel,
