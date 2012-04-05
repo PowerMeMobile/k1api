@@ -38,10 +38,10 @@ start(_StartType, _StartArgs) ->
 
     ?log_info("server up event sending...", []),
     ServerUpEvent = #frontendupevent{
-        resetsubscriptions = false,
-        authq = AuthReqQ,
-        registerq = BatchQ,
-        controlq = SrvControlQ},
+        reset_subscriptions = false,
+        auth_q = AuthReqQ,
+        register_q = BatchQ,
+        control_q = SrvControlQ},
     ServerUpEventProto = oa_pb:encode_frontendupevent(ServerUpEvent),
     oabc:call(backend, ServerUpEventProto, [{content_type, <<"frontendupevent">>}]),
 

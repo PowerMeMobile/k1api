@@ -1,26 +1,91 @@
 
 message FrontendUpEvent {
-	required bool resetSubscriptions = 1;
-	required bytes authQ = 2;
-	required bytes registerQ = 3;
-	required bytes controlQ = 4;
+	required bool reset_subscriptions = 1;
+	required bytes auth_q = 2;
+	required bytes register_q = 3;
+	required bytes control_q = 4;
+}
+
+message FrontEndDownEvent {
+	optional string reason = 0;
+}
+
+enum CustomerType {
+	transmitter = 0;
+	receiver = 1;
+	tranceiver = 2;
+	dlvrReceiptReceiver = 3;
+	incomingSMSReceiver = 4;
 }
 
 message AuthReq {
-	required bytes systemId = 1;
-	required bytes userId = 2;
-	required bytes password = 3;
+	required string system_id = 1;
+	required string user_id = 2;
+	required string password = 3;
+	required CustomerType type = 4;
+	required bool is_cached = 5;
+	required int32 timestamp = 6;
+}
 
-	enum Type {
-		TRANSMITTER = 0;
-		RECEIVER = 1;
-		TRANCEIVER = 2;
-		DlvrReceiptReceiver = 3;
-		IncomingSMSReceiver = 4;
-	}
+message Provider {
+	required bytes id = 0;
+	required bytes gateway = 1;
+	required bytes bulk_gateway = 2;
+	required bool receipts_supported = 3;
+}
 
-	required Type type = 4;
-	required bool iscached = 5;
-	required int64 timestamp = 6;
+message Network {
+	required bytes id = 0;
+	required string country_code = 1;
+	required int32 numbers_len = 2; // including country code and prefixes.
+	repeated string prefixes = 3;
+	required bytes provider_id = 4 ;
+}
 
+
+message Addr {
+	required string addr = 0;
+	required int32 ton = 1;
+	required int32 npi = 2;
+}
+
+message Customer {
+	required bytes id = 0;
+    required bytes uuid = 1;
+    required int32 priority = 2;
+    optional int32 rps = 3;
+    repeated Addr allowed_sources = 4;
+    optional Addr default_source = 5;
+    repeated Network networks = 6;
+    repeated Provider providers = 7;
+    optional bytes default_provider_id = 8;
+    required bool receipts_allowed = 9;
+    required bool no_retry = 10;
+    required bytes default_validity = 11;
+    required int32 max_validity = 12; // in seconds (relative)
+}
+
+message AuthResponse {
+    
+    enum Result {
+    	customer = 0;
+    	error = 1;
+    }
+
+    required Result result = 0;
+    optional Customer customer = 1;
+    optional string error = 2;
+}
+
+message SubscribeEvent {
+	required bytes connection_id = 0;
+	required bytes queue_name = 1;
+	required bytes customer_id = 2;
+	required bytes user_id = 3;
+	required CustomerType type = 4;
+}
+
+message UnsubscribeEvent {
+	required bytes id = 0;
+	required string reason = 1;
 }
