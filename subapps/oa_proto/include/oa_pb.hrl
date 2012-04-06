@@ -62,15 +62,14 @@
 }).
 
 -record(subscribeevent, {
-    connection_id = erlang:error({required, connection_id}),
+    subscribe_id = erlang:error({required, subscribe_id}),
     queue_name = erlang:error({required, queue_name}),
     customer_id = erlang:error({required, customer_id}),
-    user_id = erlang:error({required, user_id}),
-    type = erlang:error({required, type})
+    user_id = erlang:error({required, user_id})
 }).
 
 -record(unsubscribeevent, {
-    id = erlang:error({required, id}),
+    subscribe_id = erlang:error({required, subscribe_id}),
     reason = erlang:error({required, reason})
 }).
 

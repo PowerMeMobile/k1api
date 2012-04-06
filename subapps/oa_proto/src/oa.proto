@@ -78,14 +78,13 @@ message AuthResponse {
 }
 
 message SubscribeEvent {
-	required bytes connection_id = 0;
+	required bytes subscribe_id = 0;
 	required bytes queue_name = 1;
 	required bytes customer_id = 2;
 	required bytes user_id = 3;
-	required CustomerType type = 4;
 }
 
 message UnsubscribeEvent {
-	required bytes id = 0;
+	required bytes subscribe_id = 0;
 	required string reason = 1;
 }
