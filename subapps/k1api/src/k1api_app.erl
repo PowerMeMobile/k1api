@@ -54,5 +54,14 @@ start(_StartType, _StartArgs) ->
 
 	Result.
 
+prep_stop(State) ->
+    ?log_info("server down event sending...", []),
+    FrontendDownEvent = #frontenddownevent{
+                            reason = "normal",
+                            timestamp = "120409143943"},
+    FrontendDownEventProto = oa_pb:encode_frontenddownevent(FrontendDownEvent),
+    oabc:call(backend, FrontendDownEvent, [{content_type, <<"frontenddownevent">>}]),
+    State.
+
 stop(_State) ->
     ok.

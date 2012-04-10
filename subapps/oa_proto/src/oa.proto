@@ -4,10 +4,12 @@ message FrontendUpEvent {
 	required bytes auth_q = 2;
 	required bytes register_q = 3;
 	required bytes control_q = 4;
+	optional string timestamp = 5;
 }
 
 message FrontEndDownEvent {
 	optional string reason = 0;
+	optional string timestamp = 1;
 }
 
 enum CustomerType {
@@ -27,14 +29,14 @@ message AuthReq {
 	required int32 timestamp = 6;
 }
 
-message Provider {
+message PB_Provider {
 	required bytes id = 0;
 	required bytes gateway = 1;
 	required bytes bulk_gateway = 2;
 	required bool receipts_supported = 3;
 }
 
-message Network {
+message PB_Network {
 	required bytes id = 0;
 	required string country_code = 1;
 	required int32 numbers_len = 2; // including country code and prefixes.
@@ -43,21 +45,21 @@ message Network {
 }
 
 
-message Addr {
+message PB_Addr {
 	required string addr = 0;
 	required int32 ton = 1;
 	required int32 npi = 2;
 }
 
-message Customer {
+message PB_Customer {
 	required bytes id = 0;
     required bytes uuid = 1;
     required int32 priority = 2;
     optional int32 rps = 3;
-    repeated Addr allowed_sources = 4;
-    optional Addr default_source = 5;
-    repeated Network networks = 6;
-    repeated Provider providers = 7;
+    repeated PB_Addr allowed_sources = 4;
+    optional PB_Addr default_source = 5;
+    repeated PB_Network networks = 6;
+    repeated PB_Provider providers = 7;
     optional bytes default_provider_id = 8;
     required bool receipts_allowed = 9;
     required bool no_retry = 10;
@@ -73,7 +75,7 @@ message AuthResponse {
     }
 
     required Result result = 0;
-    optional Customer customer = 1;
+    optional PB_Customer customer = 1;
     optional string error = 2;
 }
 

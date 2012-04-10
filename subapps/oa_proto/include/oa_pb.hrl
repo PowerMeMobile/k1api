@@ -2,11 +2,13 @@
     reset_subscriptions = erlang:error({required, reset_subscriptions}),
     auth_q = erlang:error({required, auth_q}),
     register_q = erlang:error({required, register_q}),
-    control_q = erlang:error({required, control_q})
+    control_q = erlang:error({required, control_q}),
+    timestamp
 }).
 
 -record(frontenddownevent, {
-    reason
+    reason,
+    timestamp
 }).
 
 -record(authreq, {
@@ -18,14 +20,14 @@
     timestamp = erlang:error({required, timestamp})
 }).
 
--record(provider, {
+-record(pb_provider, {
     id = erlang:error({required, id}),
     gateway = erlang:error({required, gateway}),
     bulk_gateway = erlang:error({required, bulk_gateway}),
     receipts_supported = erlang:error({required, receipts_supported})
 }).
 
--record(network, {
+-record(pb_network, {
     id = erlang:error({required, id}),
     country_code = erlang:error({required, country_code}),
     numbers_len = erlang:error({required, numbers_len}),
@@ -33,13 +35,13 @@
     provider_id = erlang:error({required, provider_id})
 }).
 
--record(addr, {
+-record(pb_addr, {
     addr = erlang:error({required, addr}),
     ton = erlang:error({required, ton}),
     npi = erlang:error({required, npi})
 }).
 
--record(customer, {
+-record(pb_customer, {
     id = erlang:error({required, id}),
     uuid = erlang:error({required, uuid}),
     priority = erlang:error({required, priority}),

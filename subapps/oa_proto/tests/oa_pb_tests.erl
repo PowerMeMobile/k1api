@@ -2,13 +2,20 @@
 -include_lib("oa_proto/include/oa_pb.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
-serverUpEvent_test() ->
-    ServerUpEvent = #frontendupevent{
+frontendUpEvent_test() ->
+    FrontendUpEvent = #frontendupevent{
         reset_subscriptions = false,
         auth_q = <<"auth.q">>,
         register_q = <<"register.q">>,
-        control_q = <<"control.q">>},
-    ?assertEqual(ServerUpEvent, oa_pb:decode_frontendupevent(oa_pb:encode_frontendupevent(ServerUpEvent))).
+        control_q = <<"control.q">>,
+        timestamp = "120409143943"},
+    ?assertEqual(FrontendUpEvent, oa_pb:decode_frontendupevent(oa_pb:encode_frontendupevent(FrontendUpEvent))).
+
+frontendDownEvent_test() ->
+    FrontendDownEvent = #frontenddownevent{
+                            reason = "normal",
+                            timestamp = "120409143943"},
+    ?assertEqual(FrontendDownEvent, oa_pb:decode_frontenddownevent(oa_pb:encode_frontenddownevent(FrontendDownEvent))).
     
 authReq_test() ->
     AuthReq = #authreq{
@@ -22,19 +29,19 @@ authReq_test() ->
     ?assertEqual(AuthReq, oa_pb:decode_authreq(oa_pb:encode_authreq(AuthReq))).
 
 authResponse_test() ->
-    Addr = #addr{
+    Addr = #pb_addr{
         addr = "addr",
         ton = 0, 
         npi = 0
     },
-    Provider = #provider{
+    Provider = #pb_provider{
         id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>,
         gateway = <<164,126,21,42,105,198,74,14,164,95,243,58,84,205,60,178>>,
         bulk_gateway = <<48,90,54,196,53,209,68,152,135,237,158,12,18,39,14,50>>,
         receipts_supported = true
     },
 
-    Network = #network{
+    Network = #pb_network{
         id = <<254,63,67,15,85,215,73,109,134,188,4,232,0,90,248,228>>,
         country_code = "375",
         numbers_len = 7,
@@ -42,7 +49,7 @@ authResponse_test() ->
         provider_id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>
     },
 
-    Customer = #customer{
+    Customer = #pb_customer{
         id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>,
         uuid = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>,
         priority = 1,
