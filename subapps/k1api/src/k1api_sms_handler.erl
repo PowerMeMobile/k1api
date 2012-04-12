@@ -1,10 +1,11 @@
 -module(k1api_sms_handler).
 -behaviour(eoa_sms_handler).
 -compile([{parse_transform, lager_transform}]).
--include("logging.hrl").
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include_lib("oa_backend_connector/include/oabc.hrl").
+-include_lib("oa_proto/include/oa_pb.hrl").
+-include("logging.hrl").
 
 %% API
 -export([
@@ -25,6 +26,7 @@
 	]).
 
 -record(state, {
+	customer :: term()
 	}).
 
 %% API
@@ -39,32 +41,59 @@ deliver_sms(NotifyURL, NotificationFormat, Req) ->
 
 %% Eoneapi sms handler callbacks
 
-init(Credentials = #credentials{}) ->
+init(Credentials = #credentials{
+						system_id = SysId,
+						user = User,
+						password = Password,
+						type = Type
+						}) ->
 	?log_debug("Credentials: ~p", [Credentials]),
-	% AuthReasult = auth(Credentials),
-	% ?log_debug("AuthReasult", [AuthReasult]),
-	{ok, #state{}}.
+	AuthReq = #authreq{
+	    system_id = SysId,
+	    user_id = User,
+	    password = Password,
+	    type = Type,
+	    is_cached = false,
+	    timestamp = 12345678
+	    },
+    AuthReqProto = oa_pb:encode_authreq(AuthReq),
+    case oabc:call(auth, AuthReqProto, [{content_type, <<"authreq">>}]) of
+    	AuthResponseBin when is_binary(AuthResponseBin) ->
+    		case oa_pb:decode_authresponse(AuthResponseBin) of
+    			#authresponse{
+						result = customer,
+						customer = Customer} ->
+    				{ok, #state{customer = Customer}};
+    			#authresponse{
+						result = error,
+						error = Error} ->
+    				{error, Error}
+    		end;
+		Error ->
+			{error, Error}
+	end.
+    		
 
 handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
-										address = Address,
-										sender_address = SenderAddr,
-										message = Message,
-										sender_name = SenderName, % opt
-										notify_url = NotifyURL, % opt
-										client_correlator = Correlator, %opt
-										callback_data = Callback % opt
-										}, State = #state{}) ->
+										% address = Address,
+										% sender_address = SenderAddr,
+										% message = Message,
+										% sender_name = SenderName, % opt
+										% notify_url = NotifyURL, % opt
+										% client_correlator = Correlator, %opt
+										% callback_data = Callback % opt
+										}, #state{}) ->
 	?log_debug("OutboundSms: ~p", [OutboundSms]),
 	RequestId = "mes123",
 	{ok, RequestId}.
 
-handle_delivery_status_req(Credentials, SenderAdress, RequestId, _State = #state{}) ->
+handle_delivery_status_req(_Credentials, SenderAdress, RequestId, _State = #state{}) ->
 	?log_debug(": ~p", [SenderAdress]),
 	?log_debug(": ~p", [RequestId]),
 	DeliveryStatuses = [{"1350000001", "MessageWaiting"}, {"1350000999", "MessageWaiting"}],
 	{ok, DeliveryStatuses}.
 
-handle_delivery_notifications_subscribe(Credentials, Req, _State = #state{}) ->
+handle_delivery_notifications_subscribe(_Credentials, Req, _State = #state{}) ->
 	?log_debug("Req: ~p", [Req]),
 	SubscriptionId = "sub789",
 	{ok, SubscriptionId}.
@@ -94,41 +123,21 @@ handle_retrieve_req(_Creds, #retrieve_sms_req{
 						],
 	{ok, IncomingSmsList, Pending}.
 
-handle_inbound_subscribe(_Credentials, _Req, _State = #state{}) ->
-	SubscriptionId = "sub678",
+handle_inbound_subscribe(#credentials{user = UserId}, _Req, _State = #state{customer = Customer}) ->
+	?log_debug("inbound subscribe...", []),
+	#pb_customer{uuid = CustomerId} = Customer,
+	SubscriptionId = oabc_uuid:to_string(oabc_uuid:newid()),
+	{ok, SubQ} = application:get_env(k1api, subscriptions_q),
+	SubscribeEvent = #subscribeevent{
+		subscribe_id = SubscriptionId,
+		queue_name = SubQ,
+		customer_id = CustomerId,
+		user_id = UserId
+	},
+	SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
+	oabc:call(backend, SubscribeEventBin, [{content_type, <<"subscribeevent">>}]),
+	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
 	{ok, SubscriptionId}.
 
 handle_inbound_unsubscribe(_Credentials, _SubscriptionId, _State = #state{}) ->
 	{ok, deleted}.
-
-
-
-
-% auth(#credentials{
-% 			system_id = SysId,
-% 			user = User,
-% 			password = Pass,
-% 			type = Type}) ->
-% 	BindReq = #bind_req{
-% 		connectionId = "",
-% 		remoteIp  = "",
-% 		customerId = SysId,
-% 		user = User,
-% 		password = Pass,
-% 		type = Type
-% 	},
-% 	Timeout = 5000,
-% 	oabc:bind(BindReq, Timeout).
-
-
-
-	% case k1api_cache:fetch({SystemId, User, Password, Type}) of
-	% 	not_found ->
-	% 		case oabc:bind(Credentials) of
-	% 			{ok, Resp = #bind_resp{}} ->
-	% 				k1api_cache:store({SystemId, User, Password, Type}, Resp),
-	% 				{ok, Resp};
-	% 			Error -> {error, Error}
-	% 		end;
-	% 	{ok, {Key, Value}} ->
-	% end.

@@ -8,7 +8,11 @@
 -include_lib("oa_proto/include/oa_pb.hrl").
 
 %% Application callbacks
--export([start/2, stop/1]).
+-export([
+    start/2,
+    prep_stop/1,
+    stop/1
+    ]).
 
 %% ===================================================================
 %% Application callbacks
@@ -47,7 +51,7 @@ start(_StartType, _StartArgs) ->
 
     ?log_info("eoneapi initializing...", []),
 	EOneAPIProps = [
-		{port, 8080},
+		{port, 8081},
 		{sms_handler, k1api_sms_handler}
 	],
 	eoneapi:start_service(EOneAPIProps),
@@ -60,7 +64,7 @@ prep_stop(State) ->
                             reason = "normal",
                             timestamp = "120409143943"},
     FrontendDownEventProto = oa_pb:encode_frontenddownevent(FrontendDownEvent),
-    oabc:call(backend, FrontendDownEvent, [{content_type, <<"frontenddownevent">>}]),
+    oabc:call(backend, FrontendDownEventProto, [{content_type, <<"frontenddownevent">>}]),
     State.
 
 stop(_State) ->
