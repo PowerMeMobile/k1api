@@ -123,7 +123,7 @@ handle_retrieve_req(_Creds, #retrieve_sms_req{
 						],
 	{ok, IncomingSmsList, Pending}.
 
-handle_inbound_subscribe(#credentials{user = UserId}, Req, #state{customer = Customer}) ->
+handle_inbound_subscribe(#credentials{system_id = SysId, user = UserId}, Req, #state{}) ->
 	?log_debug("inbound subscribe...", []),
 	#subscribe_inbound{
 		destination_address = DestAddr,
@@ -132,14 +132,15 @@ handle_inbound_subscribe(#credentials{user = UserId}, Req, #state{customer = Cus
 		callback_data = CallbackData, % opt
 		client_correlator = ClientCorrelator % opt
 		} = Req,
-	#pb_customer{uuid = CustomerId} = Customer,
+
 	SubscriptionId = oabc_uuid:to_string(oabc_uuid:newid()),
 	{ok, SubQ} = application:get_env(k1api, subscriptions_q),
 	SubscribeEvent = #subscribeevent{
 		subscribe_id = SubscriptionId,
 		queue_name = SubQ,
-		customer_id = CustomerId,
+		customer_id = SysId,
 		user_id = UserId,
+		type = incomingSMSReceiver,
 		destination_addr = DestAddr,
         notify_url = NotifyURL,
         criteria = Criteria,

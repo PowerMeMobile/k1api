@@ -12,7 +12,7 @@ message FrontEndDownEvent {
 	optional string timestamp = 1;
 }
 
-enum CustomerType {
+enum Type {
 	transmitter = 0;
 	receiver = 1;
 	tranceiver = 2;
@@ -24,7 +24,7 @@ message AuthReq {
 	required string system_id = 1;
 	required string user_id = 2;
 	required string password = 3;
-	required CustomerType type = 4;
+	required Type type = 4;
 	required bool is_cached = 5;
 	required int32 timestamp = 6;
 }
@@ -84,12 +84,13 @@ message SubscribeEvent {
 	required bytes queue_name = 1;
 	required string customer_id = 2;
 	required string user_id = 3;
-	optional string destination_addr = 4; 	// 1api parameter
-	optional string notify_url = 5; 		// 1api parameter
-	optional string criteria = 6;			// 1api parameter
-	optional string notification_format = 7; // 1api parameter
-	optional string client_correlator = 8;	 // 1api parameter
-	optional string callback_data = 9; 		// 1api parameter
+	required Type type = 4;
+	optional string destination_addr = 5; 	// 1api parameter
+	optional string notify_url = 6; 		// 1api parameter
+	optional string criteria = 7;			// 1api parameter
+	optional string notification_format = 8; // 1api parameter
+	optional string client_correlator = 9;	 // 1api parameter
+	optional string callback_data = 10; 	// 1api parameter
 }
 
 message UnsubscribeEvent {

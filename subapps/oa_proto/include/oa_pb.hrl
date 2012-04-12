@@ -68,6 +68,7 @@
     queue_name = erlang:error({required, queue_name}),
     customer_id = erlang:error({required, customer_id}),
     user_id = erlang:error({required, user_id}),
+    type = erlang:error({required, type}),
     destination_addr,
     notify_url,
     criteria,

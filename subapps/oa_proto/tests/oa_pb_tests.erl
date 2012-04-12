@@ -78,6 +78,7 @@ subscribeEvent_test() ->
         queue_name = <<"queue_name">>,
         customer_id = "customer_id",
         user_id = "user",
+        type = transmitter,
         destination_addr = "msisdn or code",
         notify_url = "http://www.yoururl.here/notifications",
         criteria = "criteria",
