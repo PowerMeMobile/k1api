@@ -123,8 +123,15 @@ handle_retrieve_req(_Creds, #retrieve_sms_req{
 						],
 	{ok, IncomingSmsList, Pending}.
 
-handle_inbound_subscribe(#credentials{user = UserId}, _Req, _State = #state{customer = Customer}) ->
+handle_inbound_subscribe(#credentials{user = UserId}, Req, #state{customer = Customer}) ->
 	?log_debug("inbound subscribe...", []),
+	#subscribe_inbound{
+		destination_address = DestAddr,
+		notify_url = NotifyURL,
+		criteria = Criteria, % opt
+		callback_data = CallbackData, % opt
+		client_correlator = ClientCorrelator % opt
+		} = Req,
 	#pb_customer{uuid = CustomerId} = Customer,
 	SubscriptionId = oabc_uuid:to_string(oabc_uuid:newid()),
 	{ok, SubQ} = application:get_env(k1api, subscriptions_q),
@@ -132,7 +139,13 @@ handle_inbound_subscribe(#credentials{user = UserId}, _Req, _State = #state{cust
 		subscribe_id = SubscriptionId,
 		queue_name = SubQ,
 		customer_id = CustomerId,
-		user_id = UserId
+		user_id = UserId,
+		destination_addr = DestAddr,
+        notify_url = NotifyURL,
+        criteria = Criteria,
+        notification_format = undefined,
+        client_correlator = ClientCorrelator,
+        callback_data = CallbackData
 	},
 	SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
 	oabc:call(backend, SubscribeEventBin, [{content_type, <<"subscribeevent">>}]),

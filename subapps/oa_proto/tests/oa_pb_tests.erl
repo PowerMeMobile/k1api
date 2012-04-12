@@ -89,7 +89,7 @@ subscribeEvent_test() ->
 
 unsubscribeEvent_test() ->
     UnsubscribeEvent = #unsubscribeevent{
-        subscribe_id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>,
+        subscribe_id = "subscribe_id",
         reason = "normal"
     },
     ?assertEqual(UnsubscribeEvent, oa_pb:decode_unsubscribeevent(oa_pb:encode_unsubscribeevent(UnsubscribeEvent))).

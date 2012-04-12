@@ -93,6 +93,6 @@ message SubscribeEvent {
 }
 
 message UnsubscribeEvent {
-	required bytes subscribe_id = 0;
+	required string subscribe_id = 0;
 	required string reason = 1;
 }
