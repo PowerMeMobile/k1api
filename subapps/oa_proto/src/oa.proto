@@ -96,3 +96,21 @@ message UnsubscribeEvent {
 	required string subscribe_id = 0;
 	required string reason = 1;
 }
+
+message OutgoingMessage {
+	required PB_Addr source = 1;
+	required PB_Addr dest = 2;
+	required string message = 3;
+
+	enum DataCoding {
+    	gsm0338 = 1;
+    	ucs2 = 2;
+    }
+
+	required DataCoding data_coding = 4;
+}
+
+message OutgoingBatch {
+	required string id = 1;
+	repeated OutgoingMessage messages = 2;
+}

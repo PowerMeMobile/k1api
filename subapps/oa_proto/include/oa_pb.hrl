@@ -81,3 +81,15 @@
     reason = erlang:error({required, reason})
 }).
 
+-record(outgoingmessage, {
+    source = erlang:error({required, source}),
+    dest = erlang:error({required, dest}),
+    message = erlang:error({required, message}),
+    data_coding = erlang:error({required, data_coding})
+}).
+
+-record(outgoingbatch, {
+    id = erlang:error({required, id}),
+    messages
+}).
+

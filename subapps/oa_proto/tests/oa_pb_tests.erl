@@ -93,3 +93,24 @@ unsubscribeEvent_test() ->
         reason = "normal"
     },
     ?assertEqual(UnsubscribeEvent, oa_pb:decode_unsubscribeevent(oa_pb:encode_unsubscribeevent(UnsubscribeEvent))).
+
+outgoingBatch_test() ->
+    Source = #pb_addr{
+        addr = "saddr",
+        ton = 0, 
+        npi = 0
+    },
+    Dest = #pb_addr{
+        addr = "daddr",
+        ton = 0, 
+        npi = 0
+    },
+    OutgoingMessage = #outgoingmessage{
+        source = Source,
+        dest = Dest,
+        message = "message",
+        data_coding = gsm0338},
+    OutgoingBatch = #outgoingbatch{
+        id = "batch_id",
+        messages = [OutgoingMessage]},
+    ?assertEqual(OutgoingBatch, oa_pb:decode_outgoingbatch(oa_pb:encode_outgoingbatch(OutgoingBatch))).
