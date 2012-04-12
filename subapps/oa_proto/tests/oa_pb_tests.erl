@@ -74,10 +74,17 @@ authResponse_test() ->
 
 subscribeEvent_test() ->
     SubscribeEvent = #subscribeevent{
-        subscribe_id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>,
+        subscribe_id = "subscribe_id",
         queue_name = <<"queue_name">>,
-        customer_id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>,
-        user_id = <<66,188,127,115,164,36,74,195,164,230,176,105,129,84,18,162>>},
+        customer_id = "customer_id",
+        user_id = "user",
+        destination_addr = "msisdn or code",
+        notify_url = "http://www.yoururl.here/notifications",
+        criteria = "criteria",
+        notification_format = "JSON",
+        client_correlator = "correlator",
+        callback_data = "callback"
+        },
     ?assertEqual(SubscribeEvent, oa_pb:decode_subscribeevent(oa_pb:encode_subscribeevent(SubscribeEvent))).    
 
 unsubscribeEvent_test() ->

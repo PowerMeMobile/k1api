@@ -67,7 +67,13 @@
     subscribe_id = erlang:error({required, subscribe_id}),
     queue_name = erlang:error({required, queue_name}),
     customer_id = erlang:error({required, customer_id}),
-    user_id = erlang:error({required, user_id})
+    user_id = erlang:error({required, user_id}),
+    destination_addr,
+    notify_url,
+    criteria,
+    notification_format,
+    client_correlator,
+    callback_data
 }).
 
 -record(unsubscribeevent, {
