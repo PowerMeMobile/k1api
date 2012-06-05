@@ -6,10 +6,8 @@
   {applications, [
                   kernel,
                   stdlib,
-            		  lager,
-                  eoneapi,
-                  oa_proto,
-                  oa_backend_connector
+            	  lager,
+                  eoneapi
                  ]},
   {mod, { k1api_app, []}},
   {env, []}

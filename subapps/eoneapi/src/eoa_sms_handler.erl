@@ -1,11 +1,11 @@
 -module(eoa_sms_handler).
-%% TO DO 
+%% TODO
 %% * intelligent binary join that able to exclude undefined paramaters (callback & etc)
 %% * implement exceptions (http://oneapi.gsmworld.com/common-policy-exceptions/)
 -behaviour(cowboy_http_handler).
 
 -export([
-	init/3, 
+	init/3,
 	handle/2,
 	terminate/2
 ]).
@@ -51,7 +51,7 @@ init({_Any, http}, Req, [Module]) ->
 handle(Req, State = #state{}) ->
 	{Path, Req} = cowboy_http_req:path(Req),
 	{Method, Req} = cowboy_http_req:method(Req),
-	case credentials_check(Req) of 
+	case credentials_check(Req) of
 		{ok, {SysId, User, Pass}} ->
 			Creds = #credentials{system_id = SysId, user = User, password = Pass},
 			handle_req(Method, Path, State#state{creds = Creds});
@@ -60,7 +60,7 @@ handle(Req, State = #state{}) ->
 			eoneapi:code(401, Req, []);
 		Error ->
 			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, [])	
+			eoneapi:code(500, Req, [])
 	end.
 
 terminate(_Req, _State) ->
@@ -187,7 +187,7 @@ do_init(State = #state{
 					creds = Creds}) ->
 	InitResult = Mod:init(Creds),
 	case InitResult of
-		{ok, MState} ->	
+		{ok, MState} ->
 			Fun(Args, State#state{mstate = MState});
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
@@ -207,7 +207,7 @@ process_outbound_sms_req( _ , State = #state{
 										creds = Creds,
 										req = Req,
 										protocol = Protocol,
-										sender_addr = Addr}) ->		
+										sender_addr = Addr}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	SendSmsReq = #outbound_sms{
 					address = gmv(ReqPropList, <<"address">>),
@@ -218,7 +218,7 @@ process_outbound_sms_req( _ , State = #state{
 					client_correlator = gv(ReqPropList, <<"clientCorrelator">>), %opt
 					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
 					},
-	Result = 
+	Result =
 		Mod:handle_send_sms_req(Creds, SendSmsReq, MState),
 	case Result of
 		{ok, ReqId} ->
@@ -235,7 +235,7 @@ process_outbound_sms_req( _ , State = #state{
 	end.
 
 	% delivery status request processor
-	
+
 process_delivery_status_req(ReqId,
 									State = #state{
 												mod = Mod,
@@ -277,7 +277,7 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 																mstate = MState,
 																creds = Creds,
 																protocol = Protocol,
-																sender_addr = Addr	
+																sender_addr = Addr
 															}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	Request = #del_rec_subscribe{
@@ -392,7 +392,7 @@ process_retrieve_sms_req(RegId, State = #state{
 				]),
 
 			ContentType = <<"application/json">>,
-			
+
 			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
 
 			{ok, Req2, State};
@@ -412,7 +412,7 @@ process_sms_delivery_subscribe_req( _, State = #state{
 												mstate = MState,
 												creds = Creds
 												}) ->
-	
+
 	{ok, ReqPropList} = get_prop_list(Req),
 	SubscribeInbound = #subscribe_inbound{
 							destination_address = gv(ReqPropList, <<"destinationAddress">>),

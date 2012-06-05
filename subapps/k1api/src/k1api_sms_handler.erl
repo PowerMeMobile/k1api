@@ -3,8 +3,6 @@
 -compile([{parse_transform, lager_transform}]).
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
--include_lib("oa_backend_connector/include/oabc.hrl").
--include_lib("oa_proto/include/oa_pb.hrl").
 -include("logging.hrl").
 
 %% API
@@ -48,30 +46,31 @@ init(Credentials = #credentials{
 						type = Type
 						}) ->
 	?log_debug("Credentials: ~p", [Credentials]),
-	AuthReq = #authreq{
-	    system_id = SysId,
-	    user_id = User,
-	    password = Password,
-	    type = Type,
-	    is_cached = false,
-	    timestamp = get_now()
-	    },
-    AuthReqProto = oa_pb:encode_authreq(AuthReq),
-    case oabc:call(auth, AuthReqProto, [{content_type, <<"authreq">>}]) of
-    	AuthResponseBin when is_binary(AuthResponseBin) ->
-    		case oa_pb:decode_authresponse(AuthResponseBin) of
-    			#authresponse{
-						result = customer,
-						customer = Customer} ->
-    				{ok, #state{customer = Customer}};
-    			#authresponse{
-						result = error,
-						error = Error} ->
-    				{error, Error}
-    		end;
-		Error ->
-			{error, Error}
-	end.
+	%% AuthReq = #authreq{
+	%%     system_id = SysId,
+	%%     user_id = User,
+	%%     password = Password,
+	%%     type = Type,
+	%%     is_cached = false,
+	%%     timestamp = get_now()
+	%%     },
+	{ok, #state{}}.
+    %% AuthReqProto = oa_pb:encode_authreq(AuthReq),
+    %% case oabc:call(auth, AuthReqProto, [{content_type, <<"authreq">>}]) of
+    %% 	AuthResponseBin when is_binary(AuthResponseBin) ->
+    %% 		case oa_pb:decode_authresponse(AuthResponseBin) of
+    %% 			#authresponse{
+	%% 					result = customer,
+	%% 					customer = Customer} ->
+    %% 				{ok, #state{customer = Customer}};
+    %% 			#authresponse{
+	%% 					result = error,
+	%% 					error = Error} ->
+    %% 				{error, Error}
+    %% 		end;
+	%% 	Error ->
+	%% 		{error, Error}
+	%% end.
 
 
 handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
@@ -135,21 +134,21 @@ handle_inbound_subscribe(#credentials{system_id = SysId, user = UserId}, Req, #s
 
 	SubscriptionId = oabc_uuid:to_string(oabc_uuid:newid()),
 	{ok, SubQ} = application:get_env(k1api, subscriptions_q),
-	SubscribeEvent = #subscribeevent{
-		subscribe_id = SubscriptionId,
-		queue_name = SubQ,
-		customer_id = SysId,
-		user_id = UserId,
-		type = incomingSMSReceiver,
-		destination_addr = DestAddr,
-        notify_url = NotifyURL,
-        criteria = Criteria,
-        notification_format = undefined,
-        client_correlator = ClientCorrelator,
-        callback_data = CallbackData
-	},
-	SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
-	oabc:call(backend, SubscribeEventBin, [{content_type, <<"subscribeevent">>}]),
+	%% SubscribeEvent = #subscribeevent{
+	%% 	subscribe_id = SubscriptionId,
+	%% 	queue_name = SubQ,
+	%% 	customer_id = SysId,
+	%% 	user_id = UserId,
+	%% 	type = incomingSMSReceiver,
+	%% 	destination_addr = DestAddr,
+    %%     notify_url = NotifyURL,
+    %%     criteria = Criteria,
+    %%     notification_format = undefined,
+    %%     client_correlator = ClientCorrelator,
+    %%     callback_data = CallbackData
+	%% },
+	%% SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
+	%% oabc:call(backend, SubscribeEventBin, [{content_type, <<"subscribeevent">>}]),
 	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
 	{ok, SubscriptionId}.
 
