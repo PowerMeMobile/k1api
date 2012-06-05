@@ -31,11 +31,11 @@
 
 %% API
 
--spec deliver_status(term(), term(), term()) -> ok. 
+-spec deliver_status(term(), term(), term()) -> ok.
 deliver_status(NotifyURL, NotificationFormat, Req) ->
 	eoneapi:deliver_sms_status(NotifyURL, NotificationFormat, Req).
-	
--spec deliver_sms(term(), term(), term()) -> ok. 
+
+-spec deliver_sms(term(), term(), term()) -> ok.
 deliver_sms(NotifyURL, NotificationFormat, Req) ->
 	eoneapi:deliver_sms(NotifyURL, NotificationFormat, Req).
 
@@ -54,7 +54,7 @@ init(Credentials = #credentials{
 	    password = Password,
 	    type = Type,
 	    is_cached = false,
-	    timestamp = 12345678
+	    timestamp = get_now()
 	    },
     AuthReqProto = oa_pb:encode_authreq(AuthReq),
     case oabc:call(auth, AuthReqProto, [{content_type, <<"authreq">>}]) of
@@ -72,7 +72,7 @@ init(Credentials = #credentials{
 		Error ->
 			{error, Error}
 	end.
-    		
+
 
 handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
 										% address = Address,
@@ -155,3 +155,12 @@ handle_inbound_subscribe(#credentials{system_id = SysId, user = UserId}, Req, #s
 
 handle_inbound_unsubscribe(_Credentials, _SubscriptionId, _State = #state{}) ->
 	{ok, deleted}.
+
+%% Local Functions Definitions
+
+get_now() ->
+	[DateTime] = calendar:local_time_to_universal_time_dst(calendar:local_time()),
+   	NowSecs = calendar:datetime_to_gregorian_seconds(DateTime),
+   	UnixEpoch={{1970,1,1},{0,0,0}},
+   	EpochSecs = calendar:datetime_to_gregorian_seconds(UnixEpoch),
+   	NowSecs - EpochSecs. % UTC seconds form Unix Epoch
