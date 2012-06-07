@@ -35,13 +35,13 @@
 behaviour_info(callbacks) ->
 	[
 		{init, 1},
-		{handle_send_sms_req, 3},
-		{handle_delivery_status_req,4},
-		{handle_delivery_notifications_subscribe,3},
-		{handle_delivery_notifications_unsubscribe,4},
-		{handle_retrieve_req,3},
-		{handle_inbound_subscribe,3},
-		{handle_inbound_unsubscribe,3}
+		{handle_send_sms_req, 2},
+		{handle_delivery_status_req,3},
+		{handle_delivery_notifications_subscribe,2},
+		{handle_delivery_notifications_unsubscribe,3},
+		{handle_retrieve_req,2},
+		{handle_inbound_subscribe,2},
+		{handle_inbound_unsubscribe,2}
 	].
 
 init({_Any, http}, Req, [Module]) ->
@@ -204,7 +204,7 @@ do_init(State = #state{
 process_outbound_sms_req( _ , State = #state{
 										mstate = MState,
 										mod = Mod,
-										creds = Creds,
+										%creds = Creds,
 										req = Req,
 										protocol = Protocol,
 										sender_addr = Addr}) ->
@@ -219,7 +219,7 @@ process_outbound_sms_req( _ , State = #state{
 					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
 					},
 	Result =
-		Mod:handle_send_sms_req(Creds, SendSmsReq, MState),
+		Mod:handle_send_sms_req(SendSmsReq, MState),
 	case Result of
 		{ok, ReqId} ->
 			ContentType = <<"application/json">>,
@@ -240,10 +240,10 @@ process_delivery_status_req(ReqId,
 									State = #state{
 												mod = Mod,
 												mstate = MState,
-												creds = Creds,
+												%creds = Creds,
 												req = Req,
 												sender_addr = SAddr}) ->
-	Response = Mod:handle_delivery_status_req(Creds, SAddr, ReqId, MState),
+	Response = Mod:handle_delivery_status_req(SAddr, ReqId, MState),
 	case Response of
 		{ok, ResponseList} ->
 			ReportsList =
@@ -275,7 +275,7 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 																req = Req,
 																mod = Mod,
 																mstate = MState,
-																creds = Creds,
+																%creds = Creds,
 																protocol = Protocol,
 																sender_addr = Addr
 															}) ->
@@ -287,7 +287,7 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 					criteria = gv(ReqPropList, <<"criteria">>), % opt
 					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
 					},
-	Result = Mod:handle_delivery_notifications_subscribe(Creds, Request, MState),
+	Result = Mod:handle_delivery_notifications_subscribe(Request, MState),
 	case Result of
 		{ok, SubscribeId} ->
 			CallBackData = gv(ReqPropList, <<"callbackData">>),
@@ -316,7 +316,7 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 																protocol = Protocol,
 																sender_addr = Addr
 															}) ->
-	Result = Mod:handle_delivery_notifications_unsubscribe(Creds, {Protocol, Addr}, SubscribeId, MState),
+	Result = Mod:handle_delivery_notifications_unsubscribe({Protocol, Addr}, SubscribeId, MState),
 	case Result of
 		{ok, deleted} ->
 			{ok, Req2} = cowboy_http_req:reply(204, [], <<>>, Req),
@@ -334,7 +334,7 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 process_retrieve_sms_req(RegId, State = #state{
 											mod = Mod,
 											mstate = MState,
-											creds = Creds,
+											%creds = Creds,
 											req = Req
 											}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
@@ -342,7 +342,7 @@ process_retrieve_sms_req(RegId, State = #state{
 						registration_id = RegId,
 						batch_size = gv(ReqPropList, <<"maxBatchSize">>)
 						},
-	Result = Mod:handle_retrieve_req(Creds, RetrieveSmsReq, MState),
+	Result = Mod:handle_retrieve_req(RetrieveSmsReq, MState),
 	case Result of
 		{ok, ListOfInboundSms, PendingSms} ->
 			MessagesList =
@@ -409,8 +409,8 @@ process_retrieve_sms_req(RegId, State = #state{
 process_sms_delivery_subscribe_req( _, State = #state{
 												req = Req,
 												mod = Mod,
-												mstate = MState,
-												creds = Creds
+												mstate = MState%,
+												%creds = Creds
 												}) ->
 
 	{ok, ReqPropList} = get_prop_list(Req),
@@ -421,7 +421,7 @@ process_sms_delivery_subscribe_req( _, State = #state{
 							callback_data = gv(ReqPropList, <<"callbackData">>), % opt
 							client_correlator = gv(ReqPropList, <<"clientCorrelator">>) % opt
 						},
-	case Mod:handle_inbound_subscribe(Creds, SubscribeInbound, MState) of
+	case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
 		{ok, SubId} ->
 			Location = build_location(Req, SubId),
 			ContentType = <<"application/json">>,
@@ -445,10 +445,10 @@ process_sms_delivery_subscribe_req( _, State = #state{
 process_sms_delivery_unsubscribe_req(SubId, State = #state{
 														mod = Mod,
 														mstate = MState,
-														req = Req,
-														creds = Creds
+														req = Req%,
+														%creds = Creds
 														}) ->
-	case Mod:handle_inbound_unsubscribe(Creds, SubId, MState) of
+	case Mod:handle_inbound_unsubscribe(SubId, MState) of
 		{ok, deleted} ->
 			{ok, Req2} = cowboy_http_req:reply(204, [], <<>>, Req),
 			{ok, Req2, State};

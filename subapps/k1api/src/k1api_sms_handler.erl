@@ -3,6 +3,8 @@
 -compile([{parse_transform, lager_transform}]).
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
+-include_lib("oa_proto/include/oa_pb.hrl").
+-include("FunnelAsn.hrl").
 -include("logging.hrl").
 
 %% API
@@ -14,16 +16,17 @@
 %% Eoneapi sms handler callbacks
 -export([
 	init/1,
-	handle_send_sms_req/3,
-	handle_delivery_status_req/4,
-	handle_delivery_notifications_subscribe/3,
-	handle_delivery_notifications_unsubscribe/4,
-	handle_retrieve_req/3,
-	handle_inbound_subscribe/3,
-	handle_inbound_unsubscribe/3
+	handle_send_sms_req/2,
+	handle_delivery_status_req/3,
+	handle_delivery_notifications_subscribe/2,
+	handle_delivery_notifications_unsubscribe/3,
+	handle_retrieve_req/2,
+	handle_inbound_subscribe/2,
+	handle_inbound_unsubscribe/2
 	]).
 
 -record(state, {
+	creds :: term(),
 	customer :: term()
 	}).
 
@@ -39,41 +42,18 @@ deliver_sms(NotifyURL, NotificationFormat, Req) ->
 
 %% Eoneapi sms handler callbacks
 
-init(Credentials = #credentials{
-						system_id = SysId,
-						user = User,
-						password = Password,
-						type = Type
-						}) ->
-	?log_debug("Credentials: ~p", [Credentials]),
-	%% AuthReq = #authreq{
-	%%     system_id = SysId,
-	%%     user_id = User,
-	%%     password = Password,
-	%%     type = Type,
-	%%     is_cached = false,
-	%%     timestamp = get_now()
-	%%     },
-	{ok, #state{}}.
-    %% AuthReqProto = oa_pb:encode_authreq(AuthReq),
-    %% case oabc:call(auth, AuthReqProto, [{content_type, <<"authreq">>}]) of
-    %% 	AuthResponseBin when is_binary(AuthResponseBin) ->
-    %% 		case oa_pb:decode_authresponse(AuthResponseBin) of
-    %% 			#authresponse{
-	%% 					result = customer,
-	%% 					customer = Customer} ->
-    %% 				{ok, #state{customer = Customer}};
-    %% 			#authresponse{
-	%% 					result = error,
-	%% 					error = Error} ->
-    %% 				{error, Error}
-    %% 		end;
-	%% 	Error ->
-	%% 		{error, Error}
-	%% end.
+init(Creds = #credentials{}) ->
+	?log_debug("Credentials: ~p", [Creds]),
+	case k1api_auth_srv:authenticate(Creds) of
+		{ok, Customer = #'Customer'{}} ->
+			?log_debug("Customer: ~p", [Customer]),
+			{ok, #state{creds = Creds, customer = Customer}};
+	   	{error, Error} ->
+			?log_error("~p", [Error]),
+			{error, Error}
+	end.
 
-
-handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
+handle_send_sms_req(OutboundSms = #outbound_sms{
 										% address = Address,
 										% sender_address = SenderAddr,
 										% message = Message,
@@ -86,23 +66,23 @@ handle_send_sms_req(#credentials{}, OutboundSms = #outbound_sms{
 	RequestId = "mes123",
 	{ok, RequestId}.
 
-handle_delivery_status_req(_Credentials, SenderAdress, RequestId, _State = #state{}) ->
+handle_delivery_status_req(SenderAdress, RequestId, _State = #state{}) ->
 	?log_debug(": ~p", [SenderAdress]),
 	?log_debug(": ~p", [RequestId]),
 	DeliveryStatuses = [{"1350000001", "MessageWaiting"}, {"1350000999", "MessageWaiting"}],
 	{ok, DeliveryStatuses}.
 
-handle_delivery_notifications_subscribe(_Credentials, Req, _State = #state{}) ->
+handle_delivery_notifications_subscribe(Req, _State = #state{}) ->
 	?log_debug("Req: ~p", [Req]),
 	SubscriptionId = "sub789",
 	{ok, SubscriptionId}.
 
-handle_delivery_notifications_unsubscribe(_Credentials, SenderAdress, SubscriptionId, _State = #state{}) ->
+handle_delivery_notifications_unsubscribe(SenderAdress, SubscriptionId, _State = #state{}) ->
 	?log_debug("SenderAdress: ~p", [SenderAdress]),
 	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
 	{ok, deleted}.
 
-handle_retrieve_req(_Creds, #retrieve_sms_req{
+handle_retrieve_req(#retrieve_sms_req{
 								registration_id = RegId,
 								batch_size = BatchSize
 								}, _State = #state{}) ->
@@ -122,8 +102,12 @@ handle_retrieve_req(_Creds, #retrieve_sms_req{
 						],
 	{ok, IncomingSmsList, Pending}.
 
-handle_inbound_subscribe(#credentials{system_id = SysId, user = UserId}, Req, #state{}) ->
-	?log_debug("inbound subscribe...", []),
+handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
+	?log_debug("Inbound subscribe event.", []),
+	#'Customer'{
+		uuid = CustomerID
+		} = Customer,
+	#credentials{user = UserID} = Creds,
 	#subscribe_inbound{
 		destination_address = DestAddr,
 		notify_url = NotifyURL,
@@ -131,35 +115,28 @@ handle_inbound_subscribe(#credentials{system_id = SysId, user = UserId}, Req, #s
 		callback_data = CallbackData, % opt
 		client_correlator = ClientCorrelator % opt
 		} = Req,
-
-	SubscriptionId = oabc_uuid:to_string(oabc_uuid:newid()),
-	{ok, SubQ} = application:get_env(k1api, subscriptions_q),
-	%% SubscribeEvent = #subscribeevent{
-	%% 	subscribe_id = SubscriptionId,
-	%% 	queue_name = SubQ,
-	%% 	customer_id = SysId,
-	%% 	user_id = UserId,
-	%% 	type = incomingSMSReceiver,
-	%% 	destination_addr = DestAddr,
-    %%     notify_url = NotifyURL,
-    %%     criteria = Criteria,
-    %%     notification_format = undefined,
-    %%     client_correlator = ClientCorrelator,
-    %%     callback_data = CallbackData
-	%% },
-	%% SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
-	%% oabc:call(backend, SubscribeEventBin, [{content_type, <<"subscribeevent">>}]),
+	{ok, IncomingQ} = application:get_env(incoming_queue),
+	SubscriptionId = k1api_uuid:string_id(),
+	SubscribeEvent = #subscribeevent{
+		subscribe_id = SubscriptionId,
+		queue_name = IncomingQ,
+		customer_id = CustomerID,
+		user_id = UserID,
+		type = incomingSMSReceiver,
+		destination_addr = DestAddr,
+        notify_url = NotifyURL,
+        criteria = Criteria,
+        notification_format = undefined,
+        client_correlator = ClientCorrelator,
+        callback_data = CallbackData
+	},
+	SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
+	k1api_subscription_srv:subscribe(SubscribeEventBin),
 	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
 	{ok, SubscriptionId}.
 
-handle_inbound_unsubscribe(_Credentials, _SubscriptionId, _State = #state{}) ->
+handle_inbound_unsubscribe(_SubscriptionId, _State = #state{}) ->
 	{ok, deleted}.
 
 %% Local Functions Definitions
 
-get_now() ->
-	[DateTime] = calendar:local_time_to_universal_time_dst(calendar:local_time()),
-   	NowSecs = calendar:datetime_to_gregorian_seconds(DateTime),
-   	UnixEpoch={{1970,1,1},{0,0,0}},
-   	EpochSecs = calendar:datetime_to_gregorian_seconds(UnixEpoch),
-   	NowSecs - EpochSecs. % UTC seconds form Unix Epoch

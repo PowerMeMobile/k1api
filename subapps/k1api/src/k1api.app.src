@@ -7,7 +7,9 @@
                   kernel,
                   stdlib,
             	  lager,
-                  eoneapi
+                  eoneapi,
+				  amqp_client,
+				  oa_proto
                  ]},
   {mod, { k1api_app, []}},
   {env, []}
