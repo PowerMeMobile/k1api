@@ -1,7 +1,5 @@
 -module(k1api_amqp_funs).
 
--compile([{parse_transform, lager_transform}]).
-
 -include("logging.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 

@@ -1,4 +1,3 @@
-
 -module(k1api_sup).
 
 -behaviour(supervisor).

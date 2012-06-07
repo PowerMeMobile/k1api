@@ -1,5 +1,5 @@
 -module(k1api_auth_srv).
--compile([{parse_transform, lager_transform}]).
+
 -behaviour(gen_server).
 
 -export([

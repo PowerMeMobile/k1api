@@ -1,5 +1,5 @@
 -module(k1api_amqp_pool).
--compile([{parse_transform, lager_transform}]).
+
 -include("logging.hrl").
 -include("gen_server_spec.hrl").
 -include("otp_records.hrl").

@@ -1,5 +1,5 @@
 -module(k1api_incoming_srv).
--compile([{parse_transform, lager_transform}]).
+
 -behaviour(gen_server).
 
 -export([
@@ -22,17 +22,17 @@
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include("gen_server_spec.hrl").
 
--record(pworker, {
-	id,
-	timestamp,
-	from
-}).
+%% -record(pworker, {
+%% 	id,
+%% 	timestamp,
+%% 	from
+%% }).
 
--record(presponse, {
-	id,
-	timestamp,
-	response
-}).
+%% -record(presponse, {
+%% 	id,
+%% 	timestamp,
+%% 	response
+%% }).
 
 -record(state, {
 	chan :: pid()
@@ -52,7 +52,7 @@ init([]) ->
 	{ok, IncomingQ} = application:get_env(incoming_queue),
 	ok = k1api_amqp_funs:queue_declare(Chan, IncomingQ),
 
-	NoAck = false,
+	NoAck = true,
 	{ok, _ConsumerTag} = k1api_amqp_funs:basic_consume(Chan, IncomingQ, NoAck),
 	{ok, #state{chan = Chan}}.
 
@@ -63,7 +63,7 @@ handle_cast(_Msg, State) ->
     {stop, unexpected_cast, State}.
 
 handle_info({#'basic.deliver'{},
-			 #amqp_msg{props = Props, payload = Content}},
+			 #amqp_msg{props = Props, payload = Payload}},
 			 State = #state{chan = Chan}) ->
 	%% imported from fun_batch_runner.erl
     Gunzipped =
@@ -92,21 +92,8 @@ handle_info({#'basic.deliver'{},
 	?log_debug("ID: ~p, AllItems: ~p", [ID, AllItems]),
     MsgId   = Props#'P_basic'.message_id,
     ReplyTo = Props#'P_basic'.reply_to,
-	respond_and_ack(ID, Tag, MsgId, ReplyTo, Chan),
+	respond_and_ack(ID, MsgId, ReplyTo, Chan),
 	{noreply, State};
-	%% #'P_basic'{
-	%% 	content_type = <<"OutgoingBatch">>
-	%% 	message_id = MesID,
-	%% 	reply_to = ReplyTo} = Props,
-	%% case 'FunnelAsn':decode('OutgoingBatch', Content) of
-	%% 	{ok, OutgoingBatch = #'OutgoingBatch'{}} ->
-	%% 		?log_debug("OutgoingBatch: ~p", [OutgoingBatch]),
-	%% 		send_response(Chan, MesID, ReplyTo),
-	%% 		{noreply, State#state{}};
-	%% 	{error, AsnErr} ->
-	%% 		?log_error("Failed to decode 'OutgoingBatch' due to ~p : ~p", [AsnErr, Content]),
-	%% 		{noreply, State}
-	%% end;
 
 handle_info(_Info, State) ->
     {stop, unexpected_info, State}.
@@ -121,13 +108,13 @@ code_change(_OldVsn, State, _Extra) ->
 % Internal Function Definitions
 % ------------------------------------------------------------------
 
-respond_and_ack(BatchID, MsgId, ReplyTo, Chan) ->
+respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
     {ok, Encoded} =
         'FunnelAsn':encode('BatchAck', #'BatchAck'{batchId = ID}),
     RespPayload = list_to_binary(Encoded),
     RespProps = #'P_basic'{
         content_type   = <<"BatchAck">>,
         correlation_id = MsgId,
-        message_id     = uuid:unparse(uuid:generate())
+        message_id     = k1api_uuid:bin_id()
     },
-    k1api_amqp:basic_publish(Chan, ReplyTo, RespPayload, RespProps).
+    k1api_amqp_funs:basic_publish(Chan, ReplyTo, RespPayload, RespProps).

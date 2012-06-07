@@ -1,6 +1,7 @@
 -module(k1api_sms_handler).
+
 -behaviour(eoa_sms_handler).
--compile([{parse_transform, lager_transform}]).
+
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include_lib("oa_proto/include/oa_pb.hrl").
@@ -115,7 +116,7 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 		callback_data = CallbackData, % opt
 		client_correlator = ClientCorrelator % opt
 		} = Req,
-	{ok, IncomingQ} = application:get_env(incoming_queue),
+	{ok, IncomingQ} = application:get_env(k1api, incoming_queue),
 	SubscriptionId = k1api_uuid:string_id(),
 	SubscribeEvent = #subscribeevent{
 		subscribe_id = SubscriptionId,

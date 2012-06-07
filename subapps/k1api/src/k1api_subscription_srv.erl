@@ -1,5 +1,5 @@
 -module(k1api_subscription_srv).
--compile([{parse_transform, lager_transform}]).
+
 -behaviour(gen_server).
 
 %% TODO

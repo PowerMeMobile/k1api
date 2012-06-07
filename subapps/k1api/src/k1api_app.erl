@@ -2,8 +2,6 @@
 
 -behaviour(application).
 
--compile([{parse_transform, lager_transform}]).
-
 -include("logging.hrl").
 
 %% Application callbacks
