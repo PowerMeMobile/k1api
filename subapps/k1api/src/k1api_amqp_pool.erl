@@ -1,9 +1,7 @@
--module(oabc_amqp_pool).
-
--compile([{parse_transform, lager_transform}]).
+-module(k1api_amqp_pool).
 
 -include("logging.hrl").
-
+-include("gen_server_spec.hrl").
 -include("otp_records.hrl").
 
 -behaviour(gen_server).
@@ -45,7 +43,7 @@ close_channel(Chan) ->
 
 init([]) ->
     ?log_debug("amqp pool: initializing", []),
-    case oabc_amqp:connection_start() of
+    case k1api_amqp_funs:connection_start() of
         {ok, Conn} ->
             link(Conn),
             {ok, #st{amqp_conn = Conn, amqp_chans = ets:new(amqp_chans, [])}};
@@ -58,7 +56,7 @@ terminate(_Reason, _State) ->
     ok.
 
 handle_call(open_channel, {Pid, _Tag}, St) ->
-    case oabc_amqp:channel_open(St#st.amqp_conn) of
+    case k1api_amqp_funs:channel_open(St#st.amqp_conn) of
         {ok, Chan} ->
             Ref = monitor(process, Pid),
             ets:insert(St#st.amqp_chans, {Ref, Chan}),
@@ -71,20 +69,17 @@ handle_cast({close_channel, Chan}, St) ->
     case ets:match(St#st.amqp_chans, {'$1', Chan}) of
         [[Ref]] ->
             demonitor(Ref),
-            oabc_amqp:channel_close(Chan),
+            k1api_amqp_funs:channel_close(Chan),
             ets:delete(St#st.amqp_chans, Ref);
         [] ->
             ignore
     end,
     {noreply, St}.
 
-% handle_info(#'EXIT'{pid = Pid}, #st{amqp_conn = Pid} = St) ->
-%     {stop, amqp_down, St};
-
 handle_info(#'DOWN'{ref = Ref}, St) ->
     case ets:lookup(St#st.amqp_chans, Ref) of
         [{_, Chan}] ->
-            oabc_amqp:channel_close(Chan),
+            k1api_amqp_funs:channel_close(Chan),
             ets:delete(St#st.amqp_chans, Ref);
         [] ->
             ignore

@@ -1,4 +1,4 @@
--module(oabc_time).
+-module(k1api_time).
 
 -export([milliseconds/0,
          now_to_milliseconds/1,

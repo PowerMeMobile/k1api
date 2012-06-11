@@ -1,6 +1,4 @@
-%% @doc UUID generation module.
--module(oabc_uuid).
--author('romko.goofique@gmail.com').
+-module(k1api_uuid).
 
 -behaviour(gen_server).
 
@@ -15,13 +13,17 @@
 
 -export([start_link/0]).
 
--export([newid/0, to_string/1]).
+-export([
+	newid/0,
+	to_string/1,
+	string_id/0,
+	bin_id/0]).
 
 -record(state, {}).
 
 %% @doc Initialize the module.
 -spec start_link() -> {ok, pid()} | {error, term()}.
-start_link() ->	
+start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% @private
@@ -55,6 +57,13 @@ code_change(_OldVsn, _State, _Extra) ->
 
 %% @doc Generate new UUID.
 newid() ->
+	ID = bin_id(),
+	to_string(ID).
+
+string_id() ->
+	newid().
+
+bin_id() ->
 	gen_server:call(?MODULE, newid, infinity).
 
 %% @doc Convert UUID to a string.
@@ -76,3 +85,5 @@ v4(R1, R2, R3, R4) ->
 
 get_parts(<<TL:32, TM:16, THV:16, CSR:8, CSL:8, N:48>>) ->
 	[TL, TM, THV, CSR, CSL, N].
+
+

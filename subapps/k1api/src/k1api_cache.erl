@@ -10,7 +10,7 @@
 -export([init/1,
          terminate/2,
          handle_call/3,
-         handle_caState/2,
+         handle_cast/2,
          handle_info/2,
          code_change/3]).
 
@@ -24,15 +24,15 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec store(any(), any()) -> 'ok'.
+-spec store(any(), any()) -> ok.
 store(Key, Value) ->
     gen_server:call(?MODULE, {store, Key, Value}, infinity).
 
--spec fetch(any()) -> {'ok', any()} | 'not_found'.
+-spec fetch(any()) -> {ok, any()} | {error, not_found}.
 fetch(Key) ->
     gen_server:call(?MODULE, {fetch, Key}, infinity).
 
--spec delete(any()) -> 'ok'.
+-spec delete(any()) -> ok.
 delete(Key) ->
     gen_server:call(?MODULE, {delete, Key}, infinity).
 
@@ -41,7 +41,7 @@ delete(Key) ->
 %% -------------------------------------------------------------------------
 
 init([]) ->
-    cache = ets:new(cache, [named_table, {keypos,1}]),
+    cache = ets:new(cache, [named_table, {keypos,1}]), %% rename to ?MODULE
     {ok, #state{}}.
 
 
@@ -52,7 +52,7 @@ handle_call({store, Key, Value}, _From, State) ->
 handle_call({fetch, Key}, _From, State) ->
     case ets:lookup(cache, Key) of
         [] ->
-            {reply, not_found, State};
+            {reply, {error, not_found}, State};
         [{Key, Value}] ->
             {reply, {ok, Value}, State}
     end;
@@ -61,11 +61,11 @@ handle_call({delete, Key}, _From, State) ->
     ets:delete(cache, Key),
     {reply, ok, State};
 
-handle_call(RequeState, _From, State) ->
-    {stop, {unexpected_call, RequeState}, State}.
+handle_call(Request, _From, State) ->
+    {stop, {unexpected_call, Request}, State}.
 
-handle_caState(RequeState, State) ->
-    {stop, {unexpected_cast, RequeState}, State}.
+handle_cast(Request, State) ->
+    {stop, {unexpected_cast, Request}, State}.
 
 handle_info(Info, State) ->
     {stop, {unexpected_info, Info}, State}.

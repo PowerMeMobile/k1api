@@ -1,7 +1,8 @@
+-module(test_inc).
 -ifndef(logging_hrl).
 -define(logging_hrl, included).
 
--define( log_common(Lvl, Fmt, Args), 
+-define( log_common(Lvl, Fmt, Args),
 		lager:Lvl(Fmt ++  " [~s:~p]",Args ++ [?FILE, ?LINE] )
 	).
 
