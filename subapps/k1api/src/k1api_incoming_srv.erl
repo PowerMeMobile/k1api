@@ -3,8 +3,7 @@
 -behaviour(gen_server).
 
 -export([
-	start_link/0%,
-%	authenticate/1
+	start_link/0
 	]).
 
 -export([
@@ -21,18 +20,6 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include("gen_server_spec.hrl").
-
-%% -record(pworker, {
-%% 	id,
-%% 	timestamp,
-%% 	from
-%% }).
-
-%% -record(presponse, {
-%% 	id,
-%% 	timestamp,
-%% 	response
-%% }).
 
 -record(state, {
 	chan :: pid()

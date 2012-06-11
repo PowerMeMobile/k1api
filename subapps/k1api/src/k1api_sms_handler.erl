@@ -64,7 +64,8 @@ handle_send_sms_req(OutboundSms = #outbound_sms{
 										% callback_data = Callback % opt
 										}, #state{}) ->
 	?log_debug("OutboundSms: ~p", [OutboundSms]),
-	RequestId = "mes123",
+	{ok, RequestId} = k1api_batch_srv:send_sms(OutboundSms),
+%	RequestId = "mes123",
 	{ok, RequestId}.
 
 handle_delivery_status_req(SenderAdress, RequestId, _State = #state{}) ->
