@@ -9,6 +9,7 @@
 -export([basic_qos/2, basic_consume/3, basic_cancel/2]).
 -export([basic_publish/4, basic_ack/2, basic_reject/3]).
 -export([tx_select/1, tx_commit/1]).
+-export([confirm_select/1]).
 
 %% -------------------------------------------------------------------------
 %% Connection methods
@@ -209,3 +210,13 @@ parse_opts(Opts) ->
 				},
 	?log_debug("AmqpSpec: ~p", [AmqpSpec]),
 	{ok, AmqpSpec, Qos}.
+
+%% -------------------------------------------------------------------------
+%% confirm functions
+%% -------------------------------------------------------------------------
+
+-spec confirm_select(pid()) -> ok.
+confirm_select(Channel) ->
+    Method = #'confirm.select'{},
+    #'confirm.select_ok'{} = amqp_channel:call(Channel, Method),
+    ok.
