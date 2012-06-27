@@ -9,7 +9,7 @@
             	  lager,
                   eoneapi,
 				  amqp_client,
-				  oa_proto
+				  k1api_proto
                  ]},
   {mod, { k1api_app, []}},
   {env, []}

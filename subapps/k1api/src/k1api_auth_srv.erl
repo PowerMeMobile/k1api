@@ -16,7 +16,7 @@
 	terminate/2
 	]).
 
--include("FunnelAsn.hrl").
+-include_lib("k1api_proto/include/FunnelAsn.hrl").
 -include("logging.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").

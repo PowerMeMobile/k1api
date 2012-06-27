@@ -1,6 +1,6 @@
-{application, oa_proto,
+{application, k1api_proto,
  [
-  {description, "OpenAlley protobuf files"},
+  {description, "K1API protobuf files"},
   {vsn, "0.0.1"},
   {registered, []},
   {applications, [

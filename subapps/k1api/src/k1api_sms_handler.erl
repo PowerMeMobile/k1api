@@ -4,8 +4,8 @@
 
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
--include_lib("oa_proto/include/oa_pb.hrl").
--include("FunnelAsn.hrl").
+-include_lib("k1api_proto/include/oa_pb.hrl").
+-include_lib("k1api_proto/include/FunnelAsn.hrl").
 -include("logging.hrl").
 
 %% API
