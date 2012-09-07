@@ -8,8 +8,8 @@
                   stdlib,
             	  lager,
                   eoneapi,
-				  amqp_client,
-				  k1api_proto
+				  rmql,
+				  alley_dto
                  ]},
   {mod, { k1api_app, []}},
   {env, []}
