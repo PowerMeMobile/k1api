@@ -1,4 +1,4 @@
--module(k_uuid).
+-module(k1api_uuid).
 
 -behaviour(gen_server).
 
