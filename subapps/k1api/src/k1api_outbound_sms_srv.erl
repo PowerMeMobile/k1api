@@ -138,7 +138,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 publish_sms_request(Payload, ReqID, GtwID) ->
     Basic = #'P_basic'{
-        content_type = <<"SmsRequest">>,
+        content_type = <<"k1apiSmsRequest">>,
         delivery_mode = 2,
         priority = 1,
         message_id = list_to_binary(ReqID)
