@@ -20,11 +20,11 @@
 	terminate/2
 	]).
 
--includfe_lib("k1api_proto/include/FunnelAsn.hrl").
--include("logging.hrl").
+-includfe_lib("alley_dto/include/adto.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include("gen_server_spec.hrl").
+-include("logging.hrl").
 
 -record(state, {
 	chan :: pid()
@@ -53,14 +53,14 @@ unsubscribe(Payload) -> ok.
 %% GenServer Callback Functions Definitions
 
 init([]) ->
-	Chan = k1api_amqp_pool:open_channel(),
-	link(Chan),
+	%% Chan = k1api_amqp_pool:open_channel(),
+	%% link(Chan),
 
-	% declare subscribe queue
-	{ok, RequestQ} = application:get_env(subscriptions_q),
-	ok = k1api_amqp_funs:queue_declare(Chan, RequestQ),
+	%% % declare subscribe queue
+	%% {ok, RequestQ} = application:get_env(subscriptions_q),
+	%% ok = k1api_amqp_funs:queue_declare(Chan, RequestQ),
 
-	{ok, #state{chan = Chan}}.
+	{ok, #state{chan = undefined}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
 	{reply, {ok, Chan}, State};

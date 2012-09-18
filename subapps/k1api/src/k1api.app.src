@@ -8,8 +8,10 @@
                   stdlib,
             	  lager,
                   eoneapi,
+				  uuid,
 				  rmql,
-				  alley_dto
+				  alley_dto,
+				  gsm0338
                  ]},
   {mod, { k1api_app, []}},
   {env, []}

@@ -16,11 +16,14 @@
 	terminate/2
 	]).
 
--include_lib("k1api_proto/include/FunnelAsn.hrl").
--include("logging.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
+-include_lib("alley_dto/include/adto.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include("gen_server_spec.hrl").
+-include("logging.hrl").
+
+-define(AuthRequestQueue, <<"pmm.k1api.auth_request">>).
+-define(AuthResponseQueue, <<"pmm.k1api.auth_response">>).
 
 -record(pworker, {
 	id,
@@ -47,83 +50,89 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec authenticate(Credentials :: #credentials{}) -> {ok, Customer :: #'Customer'{}} | {error, denied} | {error, Error :: term()}.
-authenticate(#credentials{
-						system_id = CustSysID,
-						user = UserID,
-						password = Password,
-						type = _Type
-						}) ->
-	case k1api_cache:fetch({CustSysID, UserID, Password}) of
-		{ok, Customer = #'Customer'{}} ->
-			?log_debug("Customer in cache: ~p", [Customer]),
+-spec authenticate(Credentials :: #credentials{}) ->
+	{ok, Customer :: #funnel_auth_response_customer_dto{}} |
+	{error, denied} |
+	{error, Error :: term()}.
+authenticate(Credentials = #credentials{}) ->
+	?log_debug("Customer not found in cache. Send auth request to Kelly.", []),
+	{ok, RequestID} = request_backend_auth(Credentials),
+	?log_debug("Sent auth request [id: ~p]", [RequestID]),
+	case get_auth_response(RequestID) of
+		#funnel_auth_response_dto{result = {customer, Customer}} ->
+			?log_debug("Got sucessful auth response", []),
 			{ok, Customer};
-		{error, not_found} ->
-			?log_debug("Customer not found in cache. Send auth req.", []),
-	   		{ok, Chan} = get_channel(),
-			Type = transceiver,
-			UUID = k1api_uuid:newid(),
-			request_backend_auth(Chan, UUID, CustSysID, UserID, Password, Type),
-			Response = get_auth_response(UUID),
-			?log_debug("Auth response: ~p", [Response]),
-			#'BindResponse'{ result = {customer, Customer}} = Response,
-			{ok, Customer}
+		#funnel_auth_response_dto{result = {error, Error}} ->
+			?log_debug("Got error auth response", []),
+			{error, Error}
 	end.
+
+	%% case k1api_cache:fetch({CustSysID, UserID, Password}) of
+	%% 	{ok, Customer = #funnel_auth_response_customer_dto{}} ->
+	%% 		?log_debug("Customer in cache: ~p", [Customer]),
+	%% 		{ok, Customer};
+	%% 	{error, not_found} ->
+	%% 		?log_debug("Customer not found in cache. Send auth req.", []),
+	%%    		{ok, Chan} = get_channel(),
+	%% 		Type = transceiver,
+	%% 		UUID = uuid:newid(),
+	%% 		request_backend_auth(Chan, UUID, CustSysID, UserID, Password, Type),
+	%% 		Response = get_auth_response(UUID),
+	%% 		?log_debug("Auth response: ~p", [Response]),
+	%% 		#funnel_auth_response_dto{ result = {customer, Customer}} = Response,
+	%% 		{ok, Customer}
+	%% end.
 
 get_channel() ->
 	gen_server:call(?MODULE, get_channel, 5000).
 
-get_auth_response(UUID) ->
-	gen_server:call(?MODULE, {get_response, UUID}, 5000).
+get_auth_response(RequestUUID) ->
+	gen_server:call(?MODULE, {get_response, RequestUUID}, 5000).
 
-request_backend_auth(Chan, UUID, CustomerId, UserId, Password, Type) ->
+request_backend_auth(Credentials) ->
+	#credentials{
+		system_id = CustomerSystemID,
+		user = UserID,
+		password = Password,
+		type = _Type } = Credentials,
+ 	{ok, Channel} = get_channel(),
 	Timeout = 5000,
-	Addr = "",
+	RequestUUID = uuid:newid(),
     Now = k1api_time:milliseconds(),
     Then = Now + Timeout,
-    Timestamp = #'PreciseTime'{time = k1api_time:utc_str(k1api_time:milliseconds_to_now(Now)),
+    Timestamp = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Now))),
                                milliseconds = Now rem 1000},
-    Expiration = #'PreciseTime'{time = k1api_time:utc_str(k1api_time:milliseconds_to_now(Then)),
+    Expiration = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Then))),
                                 milliseconds = Then rem 1000},
-    BindRequest = #'BindRequest'{
-        connectionId = UUID,
-        remoteIp     = Addr,
-        customerId   = CustomerId,
-        userId       = UserId,
-        password     = Password,
-        type         = Type,
-        isCached     = false,
-        timestamp    = Timestamp,
-        expiration   = Expiration
+    AuthRequest = #funnel_auth_request_dto{
+        connection_id = RequestUUID,
+        ip = <<"">>,
+        customer_id = list_to_binary(CustomerSystemID),
+        user_id = list_to_binary(UserID),
+        password = list_to_binary(Password),
+        type = transceiver,
+        is_cached = false,
+        timestamp = Timestamp,
+        expiration = Expiration
     },
-    {ok, Encoded} = 'FunnelAsn':encode('BindRequest', BindRequest),
-    Payload = list_to_binary(Encoded),
-	{ok, AuthRequestQ} = application:get_env(k1api, auth_req_q),
-	{ok, AuthReplyQ} = application:get_env(k1api, auth_resp_q),
+	{ok, Payload} = adto:encode(AuthRequest),
     Props = #'P_basic'{
-        content_type = <<"BindRequest">>,
-        message_id   = list_to_binary(UUID), %% uuid:unparse(uuid:generate()),
-        reply_to     = AuthReplyQ
+        %% content_type = <<"OneAPIAuthRequest">>,
+        %% message_id   = RequestUUID
     },
-    k1api_amqp_funs:basic_publish(Chan, AuthRequestQ, Payload, Props).
+    ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
+	{ok, RequestUUID}.
 
 %% GenServer Callback Functions Definitions
 
 init([]) ->
-	Chan = k1api_amqp_pool:open_channel(),
-	link(Chan),
-
-	% declare reply_to queue
-	{ok, ReplyTo} = application:get_env(auth_resp_q),
-	ok = k1api_amqp_funs:queue_declare(Chan, ReplyTo),
-
-	% declare auth request queue
-	{ok, RequestQ} = application:get_env(auth_req_q),
-	ok = k1api_amqp_funs:queue_declare(Chan, RequestQ),
-
+	{ok, Connection} = rmql:connection_start(),
+	{ok, Chan} = rmql:channel_open(Connection),
+	ok = rmql:queue_declare(Chan, ?AuthResponseQueue, [{durable, false}]),
+	ok = rmql:queue_declare(Chan, ?AuthRequestQueue, [{durable, false}]),
 	NoAck = true,
-	{ok, _ConsumerTag} = k1api_amqp_funs:basic_consume(Chan, ReplyTo, NoAck),
-	{ok, #state{chan = Chan, reply_to = ReplyTo}}.
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?AuthResponseQueue, NoAck),
+	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
 	{reply, {ok, Chan}, State};
@@ -145,19 +154,18 @@ handle_cast(_Msg, State) ->
 handle_info({#'basic.deliver'{},
 			 #amqp_msg{props = #'P_basic'{}, payload = Content}},
 			 State = #state{
-			 	pending_responses = RList,
-				pending_workers = WList}) ->
-	case 'FunnelAsn':decode('BindResponse', Content) of
-		{ok, BindResponse = #'BindResponse'{
-				connectionId = CorrelationID
-						}} ->
-			?log_debug("BindResponse: ~p", [BindResponse]),
-			Response = #presponse{id = CorrelationID, timestamp = get_now(), response = BindResponse},
-			{ok, NRList, NWList} =
-				process_response(Response, RList, WList),
+			 	pending_responses = ResponsesList,
+				pending_workers = WorkersList}) ->
+	?log_debug("Got auth response", []),
+	case adto:decode(#funnel_auth_response_dto{}, Content) of
+		{ok, AuthResponse = #funnel_auth_response_dto{
+				connection_id = CorrelationID }} ->
+			?log_debug("AuthResponse was sucessfully decoded [id: ~p]", [CorrelationID]),
+			Response = #presponse{id = CorrelationID, timestamp = get_now(), response = AuthResponse},
+			{ok, NRList, NWList} = process_response(Response, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
-		{error, AsnErr} ->
-			?log_error("Failed to decode 'BatchAck' due to ~p : ~p", [AsnErr, Content]),
+		{error, Error} ->
+			?log_error("Failed To Decode Auth Response Due To ~P : ~P", [Error, Content]),
 			{noreply, State}
 	end;
 

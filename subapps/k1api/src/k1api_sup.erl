@@ -27,19 +27,17 @@ init([]) ->
 
 		{k_mnesia_schema, {k_mnesia_schema, start_link, []}, permanent, 100000, worker, [k_mnesia_schema]},
 
-		?CHILD(k1api_uuid, worker),
+		%% ?CHILD(k1api_amqp_pool, worker),
 
-		?CHILD(k1api_amqp_pool, worker),
-
-    	?CHILD(k1api_cache, worker),
+    	?CHILD(k1api_correlator_cache, worker),
 
 		?CHILD(k1api_auth_srv, worker),
 
-		?CHILD(k1api_subscription_srv, worker),
+		%% ?CHILD(k1api_subscription_srv, worker),
 
-		?CHILD(k1api_incoming_srv, worker),
+		%% ?CHILD(k1api_incoming_srv, worker),
 
-		?CHILD(k1api_batch_srv, worker)
+		?CHILD(k1api_outbound_sms_srv, worker)
 
     	]} }.
 

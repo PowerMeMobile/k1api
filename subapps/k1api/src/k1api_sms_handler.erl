@@ -4,8 +4,7 @@
 
 -include_lib("eoneapi/include/eoneapi_sms.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
--include_lib("k1api_proto/include/oa_pb.hrl").
--include_lib("k1api_proto/include/FunnelAsn.hrl").
+-include_lib("alley_dto/include/adto.hrl").
 -include("logging.hrl").
 
 %% API
@@ -41,12 +40,14 @@ deliver_status(NotifyURL, NotificationFormat, Req) ->
 deliver_sms(NotifyURL, NotificationFormat, Req) ->
 	eoneapi:deliver_sms(NotifyURL, NotificationFormat, Req).
 
+%% ===================================================================
 %% Eoneapi sms handler callbacks
+%% ===================================================================
 
 init(Creds = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Creds]),
 	case k1api_auth_srv:authenticate(Creds) of
-		{ok, Customer = #'Customer'{}} ->
+		{ok, Customer = #funnel_auth_response_customer_dto{}} ->
 			?log_debug("Customer: ~p", [Customer]),
 			{ok, #state{creds = Creds, customer = Customer}};
 	   	{error, Error} ->
@@ -54,19 +55,20 @@ init(Creds = #credentials{}) ->
 			{error, Error}
 	end.
 
-handle_send_sms_req(OutboundSms = #outbound_sms{
-										% address = Address,
-										% sender_address = SenderAddr,
-										% message = Message,
-										% sender_name = SenderName, % opt
-										% notify_url = NotifyURL, % opt
-										% client_correlator = Correlator, %opt
-										% callback_data = Callback % opt
-										}, #state{}) ->
-	?log_debug("OutboundSms: ~p", [OutboundSms]),
-	{ok, RequestId} = k1api_batch_srv:send_sms(OutboundSms),
-%	RequestId = "mes123",
-	{ok, RequestId}.
+handle_send_sms_req(OutboundSms = #outbound_sms{},
+		#state{customer = Customer, creds = Creds}) ->
+	?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
+	case k1api_outbound_sms_srv:send(OutboundSms, Customer, Creds) of
+		{ok, RequestIDStr} ->
+			?log_debug("Message sucessfully sent [id: ~p]", [RequestIDStr]),
+			{ok, RequestIDStr};
+		{exist, RequestIDStr} ->
+			?log_debug("Message already sent [id: ~p]", [RequestIDStr]),
+			{ok, RequestIDStr};
+		{error, Error} ->
+			?log_debug("Send message error: ~p", [Error]),
+			{error, Error}
+	end.
 
 handle_delivery_status_req(SenderAdress, RequestId, _State = #state{}) ->
 	?log_debug(": ~p", [SenderAdress]),
@@ -106,35 +108,36 @@ handle_retrieve_req(#retrieve_sms_req{
 
 handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	?log_debug("Inbound subscribe event.", []),
-	#'Customer'{
-		uuid = CustomerID
+	#funnel_auth_response_customer_dto{
+		uuid = _CustomerID
 		} = Customer,
-	#credentials{user = UserID} = Creds,
+	#credentials{user = _UserID} = Creds,
 	#subscribe_inbound{
-		destination_address = DestAddr,
-		notify_url = NotifyURL,
-		criteria = Criteria, % opt
-		callback_data = CallbackData, % opt
-		client_correlator = ClientCorrelator % opt
+		%% destination_address = DestAddr,
+		%% notify_url = NotifyURL,
+		%% criteria = Criteria, % opt
+		%% callback_data = CallbackData, % opt
+		%% client_correlator = ClientCorrelator % opt
 		} = Req,
-	{ok, IncomingQ} = application:get_env(k1api, incoming_queue),
-	SubscriptionId = k1api_uuid:string_id(),
-	SubscribeEvent = #subscribeevent{
-		subscribe_id = SubscriptionId,
-		queue_name = IncomingQ,
-		customer_id = CustomerID,
-		user_id = UserID,
-		type = incomingSMSReceiver,
-		destination_addr = DestAddr,
-        notify_url = NotifyURL,
-        criteria = Criteria,
-        notification_format = undefined,
-        client_correlator = ClientCorrelator,
-        callback_data = CallbackData
-	},
-	SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
-	k1api_subscription_srv:subscribe(SubscribeEventBin),
+	{ok, _IncomingQ} = application:get_env(k1api, incoming_queue),
+	SubscriptionId = uuid:to_string(uuid:newid()),
+	%% SubscribeEvent = #subscribeevent{
+	%% 	subscribe_id = SubscriptionId,
+	%% 	queue_name = IncomingQ,
+	%% 	customer_id = CustomerID,
+	%% 	user_id = UserID,
+	%% 	type = incomingSMSReceiver,
+	%% 	destination_addr = DestAddr,
+    %%     notify_url = NotifyURL,
+    %%     criteria = Criteria,
+    %%     notification_format = undefined,
+    %%     client_correlator = ClientCorrelator,
+    %%     callback_data = CallbackData
+	%% },
+	%% SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
+	%% k1api_subscription_srv:subscribe(SubscribeEventBin),
 	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
+	SubscriptionId = "SubscriptionId",
 	{ok, SubscriptionId}.
 
 handle_inbound_unsubscribe(_SubscriptionId, _State = #state{}) ->
