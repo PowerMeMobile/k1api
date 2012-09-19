@@ -82,6 +82,7 @@ send(OutboundSms, Customer, Creds) ->
 		id = ReqID,
 		gateway_id = GtwID,
 		customer_id = CustomerID,
+		client_type = k1api,
 		type = regular,
 		message = Message,
 		encoding = Encoding,
