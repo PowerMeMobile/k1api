@@ -165,7 +165,7 @@ handle_info({#'basic.deliver'{},
 			{ok, NRList, NWList} = process_response(Response, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
-			?log_error("Failed To Decode Auth Response Due To ~P : ~P", [Error, Content]),
+			?log_error("Failed To Decode Auth Response Due To ~p : ~p", [Error, Content]),
 			{noreply, State}
 	end;
 

@@ -14,13 +14,13 @@ SENDER_ADDR=tel%3A%2B375296662323
 #MESSAGE_BODY=Hello%20Worldafdgjlkfjgafdlkgjaflkgblaadkagjflkgjmalfmgvblaflvbkamlfkvbamlfckvbalfkgblakfblkamflbkanmflbknalkfnblakfnlbkanmflkbamlbkmalfkmbalkfbalfkbalfkbabaarfhf
 
 #90 not only gsm
-#MESSAGE_BODY=Hello%20Worldприветdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
+MESSAGE_BODY=Hello%20Worldприветdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
 
 #90 only gsm
 #MESSAGE_BODY=Hello%20Worldghbdncdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
 
 #6 not gsm
-MESSAGE_BODY=Привет
+#MESSAGE_BODY=Привет
 
 CORRELATOR=$RANDOM
 #CORRELATOR=25024

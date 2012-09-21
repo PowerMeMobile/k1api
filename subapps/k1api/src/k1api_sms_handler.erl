@@ -70,10 +70,21 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 			{error, Error}
 	end.
 
-handle_delivery_status_req(SenderAdress, RequestId, _State = #state{}) ->
-	?log_debug(": ~p", [SenderAdress]),
-	?log_debug(": ~p", [RequestId]),
-	DeliveryStatuses = [{"1350000001", "MessageWaiting"}, {"1350000999", "MessageWaiting"}],
+handle_delivery_status_req(SenderAddress, SendSmsRequestIdStr,
+		#state{creds = Creds, customer = Customer}) ->
+	SendSmsRequestId = uuid:to_binary(SendSmsRequestIdStr),
+	#funnel_auth_response_customer_dto{
+		uuid = CustomerUUID
+	} = Customer,
+	#credentials{user = User} = Creds,
+	?log_debug("Got delivery status request "
+		"[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
+		[CustomerUUID, User, SenderAddress, SendSmsRequestId]),
+	{ok, Statuses} = k1api_delivery_status_srv:get(CustomerUUID, User, SenderAddress, SendSmsRequestId),
+
+	%% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
+	DeliveryStatuses = convert_delivery_statuses(Statuses),
+
 	{ok, DeliveryStatuses}.
 
 handle_delivery_notifications_subscribe(Req, _State = #state{}) ->
@@ -143,5 +154,44 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 handle_inbound_unsubscribe(_SubscriptionId, _State = #state{}) ->
 	{ok, deleted}.
 
-%% Local Functions Definitions
+%% ===================================================================
+%% Internal
+%% ===================================================================
 
+convert_delivery_statuses(Status = #k1api_sms_status_dto{}) ->
+	#k1api_sms_status_dto{
+		address = AddrDTO,
+		status = StatusNameDTO
+	} = Status,
+	{binary_to_list(AddrDTO#addr_dto.addr), translate_status_name(StatusNameDTO)};
+convert_delivery_statuses(Statuses) ->
+	[convert_delivery_statuses(Status) || Status <- Statuses].
+
+translate_status_name(submitted) ->
+	"MessageWaiting";
+translate_status_name(success_waiting_delivery) ->
+	"MessageWaiting";
+translate_status_name(success_no_delivery) ->
+	"DeliveryImpossible";
+translate_status_name(failure) ->
+	"DeliveryUncertain";
+translate_status_name(enroute) ->
+	"Enroute";
+translate_status_name(delivered) ->
+	"DeliveredToTerminal";
+translate_status_name(expired) ->
+	"DeliveryImpossible";
+translate_status_name(deleted) ->
+	"Deleted";
+translate_status_name(undeliverable) ->
+	"DeliveryImpossible";
+translate_status_name(accepted) ->
+	"DeliveredToNetwork";
+translate_status_name(unknown) ->
+	"DeliveryUncertain";
+translate_status_name(rejected) ->
+	"Rejected";
+translate_status_name(unrecognized) ->
+	"Unrecognized";
+translate_status_name(Any) ->
+	erlang:error({badarg, Any}).
