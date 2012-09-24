@@ -91,8 +91,8 @@ convert_addr_to_dto(SenderAddress) ->
 init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
-	ok = rmql:queue_declare(Chan, ?deliveryStatusResponseQueue, [{durable, false}]),
-	ok = rmql:queue_declare(Chan, ?deliveryStatusRequestQueue, [{durable, false}]),
+	ok = rmql:queue_declare(Chan, ?deliveryStatusResponseQueue, []),
+	ok = rmql:queue_declare(Chan, ?deliveryStatusRequestQueue, []),
 	NoAck = true,
 	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?deliveryStatusResponseQueue, NoAck),
 	{ok, #state{chan = Chan}}.
@@ -140,9 +140,9 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-% ------------------------------------------------------------------
-% Internal Function Definitions
-% ------------------------------------------------------------------
+%% ===================================================================
+%% Internal
+%% ===================================================================
 
 process_response(PResponse = #presponse{id = ID, response = Response}, RList, WList) ->
 		case lists:keytake(ID, #pworker.id, WList) of

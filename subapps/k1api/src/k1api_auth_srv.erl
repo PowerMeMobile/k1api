@@ -128,8 +128,8 @@ request_backend_auth(Credentials) ->
 init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
-	ok = rmql:queue_declare(Chan, ?AuthResponseQueue, [{durable, false}]),
-	ok = rmql:queue_declare(Chan, ?AuthRequestQueue, [{durable, false}]),
+	ok = rmql:queue_declare(Chan, ?AuthResponseQueue, []),
+	ok = rmql:queue_declare(Chan, ?AuthRequestQueue, []),
 	NoAck = true,
 	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?AuthResponseQueue, NoAck),
 	{ok, #state{chan = Chan}}.

@@ -41,7 +41,7 @@ deliver_sms(NotifyURL, NotificationFormat, Req) ->
 	eoneapi:deliver_sms(NotifyURL, NotificationFormat, Req).
 
 %% ===================================================================
-%% Eoneapi sms handler callbacks
+%% eoneapi sms handler callbacks
 %% ===================================================================
 
 init(Creds = #credentials{}) ->
@@ -101,6 +101,7 @@ handle_retrieve_req(#retrieve_sms_req{
 								registration_id = RegId,
 								batch_size = BatchSize
 								}, _State = #state{}) ->
+	?log_debug("Got retrieve sms request", []),
 	?log_debug("RegId: ~p", [RegId]),
 	?log_debug("BatchSize: ~p", [BatchSize]),
 	Pending = 40,
