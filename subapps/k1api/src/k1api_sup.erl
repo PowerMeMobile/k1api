@@ -35,7 +35,7 @@ init([]) ->
 
 		?CHILD(k1api_delivery_status_srv, worker),
 
-		%% ?CHILD(k1api_incoming_srv, worker),
+		?CHILD(k1api_retrieve_sms_srv, worker),
 
 		?CHILD(k1api_outbound_sms_srv, worker)
 

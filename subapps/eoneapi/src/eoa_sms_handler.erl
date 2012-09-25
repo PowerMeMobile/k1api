@@ -353,7 +353,7 @@ process_retrieve_sms_req(RegId, State = #state{
 								sender_address = SenderAddr})->
 					DateTimeBin = iso8601:format(DateTime),
 					MessIdBin = list_to_binary(MessId),
-					MessageTextBin = list_to_binary(MessId),
+					MessageTextBin = list_to_binary(MessageText),
 					SenderAddrBin = list_to_binary(SenderAddr),
 					LocationUrl = build_location(Req, MessId),
 					bjoin([
@@ -507,7 +507,7 @@ build_location(Req, ItemId) ->
 	Protocol = <<"http://">>,
 	ReqIdBin = list_to_binary("/" ++ ItemId),
 	Location = <<Protocol/binary, RawHost/binary, RawPath/binary, ReqIdBin/binary>>,
-	?log_debug("Location: ~p", [Location]),
+	%% ?log_debug("Location: ~p", [Location]),
 	Location.
 
 build_resource(Req) ->

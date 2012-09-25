@@ -97,26 +97,41 @@ handle_delivery_notifications_unsubscribe(SenderAdress, SubscriptionId, _State =
 	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
 	{ok, deleted}.
 
-handle_retrieve_req(#retrieve_sms_req{
-								registration_id = RegId,
-								batch_size = BatchSize
-								}, _State = #state{}) ->
-	?log_debug("Got retrieve sms request", []),
-	?log_debug("RegId: ~p", [RegId]),
-	?log_debug("BatchSize: ~p", [BatchSize]),
-	Pending = 40,
-	IncomingSmsList = [#inbound_sms{
-						date_time = {{2012, 01, 11}, {12, 13, 00}},
-						message_id = "msg1",
-						message = "first test message",
-						sender_address = "375298765425"},
-						#inbound_sms{
-						date_time = {{2012, 01, 11}, {13, 15, 00}},
-						message_id = "msg2",
-						message = "the second test message",
-						sender_address = "375298789463"}
-						],
-	{ok, IncomingSmsList, Pending}.
+handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
+	#retrieve_sms_req{
+		registration_id = RegId,
+		batch_size = BatchSizeStr
+	} = Request,
+	#state{creds = Creds, customer = Customer} = State,
+	#funnel_auth_response_customer_dto{
+		uuid = CustomerUUID
+	} = Customer,
+	#credentials{user = UserID} = Creds,
+	BatchSize = list_to_integer(binary_to_list(BatchSizeStr)),
+	?log_debug("Sending retrieve sms request", []),
+	DestinationAddress = RegId,
+	{ok, Response} =
+		k1api_retrieve_sms_srv:get(CustomerUUID, UserID, convert_addr(DestinationAddress), BatchSize),
+	?log_debug("Response: ~p", [Response]),
+	#k1api_retrieve_sms_response_dto{
+		messages = MessagesDTO,
+		total = Total
+	} = Response,
+	Messages = lists:map(fun(MessageDTO) ->
+		#k1api_retrieved_sms_dto{
+			datetime = DateTime,
+			sender_addr = SenderAddr,
+			message_id = MessageID,
+			message = MessageText
+		} = MessageDTO,
+		#inbound_sms{
+			date_time = k_datetime:unix_epoch_to_datetime(DateTime),
+			message_id = uuid:to_string(MessageID),
+			message = binary_to_list(MessageText),
+			sender_address = binary_to_list(SenderAddr#addr_dto.addr)}
+	end, MessagesDTO),
+	?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
+	{ok, Messages, Total}.
 
 handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	?log_debug("Inbound subscribe event.", []),
@@ -196,3 +211,9 @@ translate_status_name(unrecognized) ->
 	"Unrecognized";
 translate_status_name(Any) ->
 	erlang:error({badarg, Any}).
+
+
+convert_addr(<<"tel:+", Bin/binary>>) ->
+	Bin;
+convert_addr(Bin) ->
+	Bin.
