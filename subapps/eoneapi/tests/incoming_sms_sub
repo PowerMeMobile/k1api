@@ -6,7 +6,7 @@ CUSTOMER=test-sys-id
 USER=user
 PASSWORD=password
 DEST_ADDR=tel%3A%2B375296662323
-NOTIFY_URL=http://www.yoururl.here/notifications/DeliveryInfoNotification
+NOTIFY_URL=http://localhost:33333/notifications/DeliveryInfoNotification
 CORRELATOR=correlator
 CALLBACK='doSomething()'
 

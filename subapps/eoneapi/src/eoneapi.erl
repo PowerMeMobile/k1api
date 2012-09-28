@@ -113,10 +113,10 @@ deliver_sms(_NotificationFormat, #inbound_sms{
 									callback_data = CallBack
 									}) ->
 	DateTimeBin = iso8601:format(DateTime),
-	DestAddrBin = list_to_binary(DestAddr),
+	DestAddrBin = DestAddr,
 	MessIdBin = list_to_binary(MessId),
-	MessageBin = list_to_binary(Message),
-	SenderAddrBin = list_to_binary(SenderAddr),
+	MessageBin = Message,
+	SenderAddrBin = SenderAddr,
 	Body =
 		<<
 			<<"{\"inboundSMSMessageNotification\":{\"callbackData\":\"">>/binary,
@@ -135,11 +135,13 @@ deliver_sms(_NotificationFormat, #inbound_sms{
 		>>,
 	ContentType = "application/json",
 	Response =
-		httpc:request(post, {NotifyURL, [], ContentType, Body}, [{timeout, 5000}], [{body_format, binary}]),
+		httpc:request(post, {binary_to_list(NotifyURL), [], ContentType, Body}, [{timeout, 5000}], [{body_format, binary}]),
 	case Response of
 		{ok, {{Version, 200, ReasonPhrase}, Headers, Body}} ->
-			{ok, success};
-		Error -> {error, Error}
+			ok;
+		Error ->
+			?log_debug("Got: ~p", [Error]),
+			ok
 	end.
 
 

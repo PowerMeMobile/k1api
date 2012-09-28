@@ -39,7 +39,9 @@ init([]) ->
 
 		?CHILD(k1api_outbound_sms_srv, worker),
 
-		?CHILD(k1api_subscription_srv, worker)
+		?CHILD(k1api_subscription_srv, worker),
+
+		?CHILD(k1api_incoming_srv, worker)
 
     	]} }.
 

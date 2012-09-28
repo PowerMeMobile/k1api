@@ -8,10 +8,10 @@
 -include("logging.hrl").
 
 %% API
--export([
-	deliver_status/3,
-	deliver_sms/3
-	]).
+%% -export([
+%% 	deliver_status/3,
+%% 	deliver_sms/3
+%% 	]).
 
 %% Eoneapi sms handler callbacks
 -export([
@@ -32,13 +32,13 @@
 
 %% API
 
--spec deliver_status(term(), term(), term()) -> ok.
-deliver_status(NotifyURL, NotificationFormat, Req) ->
-	eoneapi:deliver_sms_status(NotifyURL, NotificationFormat, Req).
+%% -spec deliver_status(term(), term(), term()) -> ok.
+%% deliver_status(NotifyURL, NotificationFormat, Req) ->
+%% 	eoneapi:deliver_sms_status(NotifyURL, NotificationFormat, Req).
 
--spec deliver_sms(term(), term(), term()) -> ok.
-deliver_sms(NotifyURL, NotificationFormat, Req) ->
-	eoneapi:deliver_sms(NotifyURL, NotificationFormat, Req).
+%% -spec deliver_sms(term(), term(), term()) -> ok.
+%% deliver_sms(NotifyURL, NotificationFormat, Req) ->
+%% 	eoneapi:deliver_sms(NotifyURL, NotificationFormat, Req).
 
 %% ===================================================================
 %% eoneapi sms handler callbacks
