@@ -1,0 +1,10 @@
+#!/bin/bash
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=test-sys-id
+USER=user
+PASSWORD=password
+DEST_ADDR=tel%3A%2B375296662323
+
+echo -n 'notifyURL=http://www.yourURL.here&criteria=GIGPICS&callbackData=doSomething()' | lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'POST' $HOST:$PORT/2/smsmessaging/outbound/$DEST_ADDR/subscriptions; echo

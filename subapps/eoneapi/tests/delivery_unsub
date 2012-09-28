@@ -1,1 +1,0 @@
-lwp-request -C test-sys-id@user:password -UsSe -m 'DELETE' 127.0.0.1:8080/2/smsmessaging/inbound/subscriptions/sub789; echo

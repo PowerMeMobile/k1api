@@ -1,0 +1,9 @@
+#!/bin/bash
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=test-sys-id
+USER=user
+PASSWORD=password
+
+lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'DELETE' $HOST:$PORT/2/smsmessaging/inbound/subscriptions/$1; echo
