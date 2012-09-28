@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "HTTP/1.0 200 OK" | nc -lk $1
