@@ -70,17 +70,17 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 			{error, Error}
 	end.
 
-handle_delivery_status_req(SenderAddress, SendSmsRequestIdStr,
+handle_delivery_status_req(SenderAddress, SendSmsRequestIDStr,
 		#state{creds = Creds, customer = Customer}) ->
-	SendSmsRequestId = uuid:to_binary(SendSmsRequestIdStr),
+	SendSmsRequestID = uuid:to_binary(SendSmsRequestIDStr),
 	#funnel_auth_response_customer_dto{
 		uuid = CustomerUUID
 	} = Customer,
 	#credentials{user = User} = Creds,
 	?log_debug("Got delivery status request "
 		"[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
-		[CustomerUUID, User, SenderAddress, SendSmsRequestId]),
-	{ok, Statuses} = k1api_delivery_status_srv:get(CustomerUUID, User, SenderAddress, SendSmsRequestId),
+		[CustomerUUID, User, SenderAddress, SendSmsRequestID]),
+	{ok, Statuses} = k1api_delivery_status_srv:get(CustomerUUID, User, SenderAddress, SendSmsRequestID),
 
 	%% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
 	DeliveryStatuses = convert_delivery_statuses(Statuses),
@@ -89,17 +89,17 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestIdStr,
 
 handle_delivery_notifications_subscribe(Req, _State = #state{}) ->
 	?log_debug("Req: ~p", [Req]),
-	SubscriptionId = "sub789",
-	{ok, SubscriptionId}.
+	SubscriptionID = "sub789",
+	{ok, SubscriptionID}.
 
-handle_delivery_notifications_unsubscribe(SenderAdress, SubscriptionId, _State = #state{}) ->
+handle_delivery_notifications_unsubscribe(SenderAdress, SubscriptionID, _State = #state{}) ->
 	?log_debug("SenderAdress: ~p", [SenderAdress]),
-	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
+	?log_debug("SubscriptionID: ~p", [SubscriptionID]),
 	{ok, deleted}.
 
 handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 	#retrieve_sms_req{
-		registration_id = RegId,
+		registration_id = RegID,
 		batch_size = BatchSizeStr
 	} = Request,
 	#state{creds = Creds, customer = Customer} = State,
@@ -109,7 +109,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 	#credentials{user = UserID} = Creds,
 	BatchSize = list_to_integer(binary_to_list(BatchSizeStr)),
 	?log_debug("Sending retrieve sms request", []),
-	DestinationAddress = RegId,
+	DestinationAddress = RegID,
 	{ok, Response} =
 		k1api_retrieve_sms_srv:get(CustomerUUID, UserID, convert_addr(DestinationAddress), BatchSize),
 	?log_debug("Response: ~p", [Response]),
@@ -134,40 +134,55 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 	{ok, Messages, Total}.
 
 handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
-	?log_debug("Inbound subscribe event.", []),
+	?log_debug("Got inbound subscribe event: ~p", [Req]),
 	#funnel_auth_response_customer_dto{
-		uuid = _CustomerID
+		uuid = CustomerID
 		} = Customer,
-	#credentials{user = _UserID} = Creds,
+	#credentials{user = UserID} = Creds,
 	#subscribe_inbound{
-		%% destination_address = DestAddr,
-		%% notify_url = NotifyURL,
-		%% criteria = Criteria, % opt
-		%% callback_data = CallbackData, % opt
-		%% client_correlator = ClientCorrelator % opt
+		destination_address = DestAddr,
+		notify_url = NotifyURL,
+		criteria = Criteria, % opt
+		callback_data = CallbackData, % opt
+		client_correlator = Correlator % opt
 		} = Req,
-	{ok, _IncomingQ} = application:get_env(k1api, incoming_queue),
-	SubscriptionId = uuid:to_string(uuid:newid()),
-	%% SubscribeEvent = #subscribeevent{
-	%% 	subscribe_id = SubscriptionId,
-	%% 	queue_name = IncomingQ,
-	%% 	customer_id = CustomerID,
-	%% 	user_id = UserID,
-	%% 	type = incomingSMSReceiver,
-	%% 	destination_addr = DestAddr,
-    %%     notify_url = NotifyURL,
-    %%     criteria = Criteria,
-    %%     notification_format = undefined,
-    %%     client_correlator = ClientCorrelator,
-    %%     callback_data = CallbackData
-	%% },
-	%% SubscribeEventBin = oa_pb:encode_subscribeevent(SubscribeEvent),
-	%% k1api_subscription_srv:subscribe(SubscribeEventBin),
-	?log_debug("SubscriptionId: ~p", [SubscriptionId]),
-	SubscriptionId = "SubscriptionId",
-	{ok, SubscriptionId}.
+	ReqID = uuid:newid(),
+	DTO = #k1api_subscribe_incoming_sms_request_dto{
+		id = ReqID,
+		customer_id = CustomerID,
+		user_id = UserID,
+		dest_addr = #addr_dto{addr = convert_addr(DestAddr), ton = 1, npi = 1},
+		notify_url = NotifyURL,
+		criteria = Criteria,
+		correlator = Correlator,
+		callback_data = CallbackData
+	},
+	{ok, Bin} = adto:encode(DTO),
+	{ok, SubscriptionID} = k1api_subscription_srv:subscribe_incoming_sms(ReqID, Bin),
+	?log_debug("Got subscriptionID: ~p", [SubscriptionID]),
+	{ok, uuid:to_string(SubscriptionID)}.
 
-handle_inbound_unsubscribe(_SubscriptionId, _State = #state{}) ->
+handle_inbound_unsubscribe(SubscribeIDBitstring, State = #state{}) ->
+	?log_debug("Got inbound unsubscribe event: ~p", [SubscribeIDBitstring]),
+	#state{
+		creds = Creds,
+		customer = Customer
+	} = State,
+	#funnel_auth_response_customer_dto{
+		uuid = CustomerID
+	} = Customer,
+	#credentials{user = UserID} = Creds,
+	SubscribeID = uuid:to_binary(binary_to_list(SubscribeIDBitstring)),
+	RequestID = uuid:newid(),
+	DTO = #k1api_unsubscribe_incoming_sms_request_dto{
+		id = RequestID,
+		customer_id = CustomerID,
+		user_id = UserID,
+		subscription_id = SubscribeID
+	},
+	?log_debug("Send unsubscribe event: ~p", [DTO]),
+	{ok, Bin} = adto:encode(DTO),
+	{ok, RequestID} = k1api_subscription_srv:unsubscribe_incoming_sms(RequestID, Bin),
 	{ok, deleted}.
 
 %% ===================================================================
