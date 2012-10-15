@@ -72,6 +72,7 @@ unsubscribe_incoming_sms(RequestID, Payload) ->
 init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
+	link(Chan),
 	ok = rmql:queue_declare(Chan, ?SubscriptionResponseQueue, []),
 	ok = rmql:queue_declare(Chan, ?SubscriptionRequestQueue, []),
 	NoAck = true,

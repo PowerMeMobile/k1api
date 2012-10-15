@@ -23,8 +23,8 @@
 -include("gen_server_spec.hrl").
 -include("logging.hrl").
 
--define(RETRIEVE_SMS_REQUEST_QUEUE, <<"pmm.k1api.retrieve_sms_request">>).
--define(RETRIEVE_SMS_RESPONSE_QUEUE, <<"pmm.k1api.retrieve_sms_response">>).
+-define(RetrieveSmsRequestQueue, <<"pmm.k1api.retrieve_sms_request">>).
+-define(RetrieveSmsResponseQueue, <<"pmm.k1api.retrieve_sms_response">>).
 
 %% pending worker record
 -record(pworker, {
@@ -74,10 +74,10 @@ init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?RETRIEVE_SMS_RESPONSE_QUEUE, []),
-	ok = rmql:queue_declare(Chan, ?RETRIEVE_SMS_REQUEST_QUEUE, []),
+	ok = rmql:queue_declare(Chan, ?RetrieveSmsResponseQueue, []),
+	ok = rmql:queue_declare(Chan, ?RetrieveSmsRequestQueue, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?RETRIEVE_SMS_RESPONSE_QUEUE, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?RetrieveSmsResponseQueue, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -145,7 +145,7 @@ request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 		batch_size = BatchSize
 	},
 	{ok, Payload} = adto:encode(DTO),
-    ok = rmql:basic_publish(Channel, ?RETRIEVE_SMS_REQUEST_QUEUE, Payload, #'P_basic'{}),
+    ok = rmql:basic_publish(Channel, ?RetrieveSmsRequestQueue, Payload, #'P_basic'{}),
 	{ok, RequestUUID}.
 
 convert_addr_to_dto(SenderAddress) ->

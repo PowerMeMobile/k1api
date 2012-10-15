@@ -91,6 +91,7 @@ convert_addr_to_dto(SenderAddress) ->
 init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
+	link(Chan),
 	ok = rmql:queue_declare(Chan, ?deliveryStatusResponseQueue, []),
 	ok = rmql:queue_declare(Chan, ?deliveryStatusRequestQueue, []),
 	NoAck = true,

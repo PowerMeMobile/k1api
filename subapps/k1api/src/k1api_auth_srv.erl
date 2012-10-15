@@ -123,11 +123,12 @@ request_backend_auth(Credentials) ->
     ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
 	{ok, RequestUUID}.
 
-%% GenServer Callback Functions Definitions
+%% Genserver Callback Functions Definitions
 
 init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
+	link(Chan),
 	ok = rmql:queue_declare(Chan, ?AuthResponseQueue, []),
 	ok = rmql:queue_declare(Chan, ?AuthRequestQueue, []),
 	NoAck = true,
