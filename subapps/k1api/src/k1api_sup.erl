@@ -25,10 +25,6 @@ start_link() ->
 init([]) ->
     {ok, { {one_for_one, 5, 10}, [
 
-		%% {k_mnesia_schema, {k_mnesia_schema, start_link, []}, permanent, 100000, worker, [k_mnesia_schema]},
-
-		%% ?CHILD(k1api_amqp_pool, worker),
-
     	?CHILD(k1api_correlator_cache, worker),
 
 		?CHILD(k1api_auth_srv, worker),

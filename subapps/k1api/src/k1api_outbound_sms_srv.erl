@@ -22,7 +22,7 @@
 -include("gen_server_spec.hrl").
 -include("logging.hrl").
 
--define(kOneAPISmsRequestQueue, <<"pmm.k1api.sms_request">>).
+-define(SmsRequestQueue, <<"pmm.k1api.sms_request">>).
 
 -record(state, {
 	chan :: pid()
@@ -111,8 +111,7 @@ init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Channel} = rmql:channel_open(Connection),
 	link(Channel),
-	KOneAPISmsRequestQueue = ?kOneAPISmsRequestQueue,
-	ok = k1api_amqp_funs:queue_declare(Channel, KOneAPISmsRequestQueue),
+	ok = rmql:queue_declare(Channel, ?SmsRequestQueue, []),
 	{ok, #state{chan = Channel}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -144,14 +143,12 @@ publish_sms_request(Payload, ReqID, GtwID) ->
         priority = 1,
         message_id = list_to_binary(ReqID)
     },
-    SmsReqQueue = ?kOneAPISmsRequestQueue,
 	{ok, Channel} = gen_server:call(?MODULE, get_channel),
     GtwQueue = re:replace("pmm.just.gateway.%id%", "%id%", uuid:to_string(GtwID), [{return, binary}]),
-	?log_debug("Sending message to ~p & ~p through the ~p", [SmsReqQueue, GtwQueue, Channel]),
-    ok = k1api_amqp_funs:basic_publish(Channel, SmsReqQueue, Payload, Basic),
-    ok = k1api_amqp_funs:basic_publish(Channel, GtwQueue, Payload, Basic).
+	?log_debug("Sending message to ~p & ~p through the ~p", [?SmsRequestQueue, GtwQueue, Channel]),
+    ok = rmql:basic_publish(Channel, ?SmsRequestQueue, Payload, Basic),
+    ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).
 
-%% check_client_correlator(_Correlator) ->
 
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
 	[_, SenderAddress] = binary:split(RawSenderAddress, <<"tel:+">>),
