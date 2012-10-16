@@ -51,21 +51,16 @@ start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 -spec authenticate(Credentials :: #credentials{}) ->
-	{ok, Customer :: #funnel_auth_response_customer_dto{}} |
+	{ok, Customer :: #k1api_auth_response_dto{}} |
 	{error, denied} |
 	{error, Error :: term()}.
 authenticate(Credentials = #credentials{}) ->
 	?log_debug("Customer not found in cache. Send auth request to Kelly.", []),
 	{ok, RequestID} = request_backend_auth(Credentials),
 	?log_debug("Sent auth request [id: ~p]", [RequestID]),
-	case get_auth_response(RequestID) of
-		#funnel_auth_response_dto{result = {customer, Customer}} ->
-			?log_debug("Got sucessful auth response", []),
-			{ok, Customer};
-		#funnel_auth_response_dto{result = {error, Error}} ->
-			?log_debug("Got error auth response", []),
-			{error, Error}
-	end.
+	Customer = get_auth_response(RequestID),
+	?log_debug("Got sucessful auth response", []),
+	{ok, Customer}.
 
 	%% case k1api_cache:fetch({CustSysID, UserID, Password}) of
 	%% 	{ok, Customer = #funnel_auth_response_customer_dto{}} ->
@@ -96,24 +91,19 @@ request_backend_auth(Credentials) ->
 		password = Password,
 		type = _Type } = Credentials,
  	{ok, Channel} = get_channel(),
-	Timeout = 5000,
+	%% Timeout = 5000,
 	RequestUUID = uuid:newid(),
-    Now = k1api_time:milliseconds(),
-    Then = Now + Timeout,
-    Timestamp = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Now))),
-                               milliseconds = Now rem 1000},
-    Expiration = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Then))),
-                                milliseconds = Then rem 1000},
-    AuthRequest = #funnel_auth_request_dto{
-        connection_id = RequestUUID,
-        ip = <<"">>,
+    %% Now = k1api_time:milliseconds(),
+    %% Then = Now + Timeout,
+    %% Timestamp = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Now))),
+    %%                            milliseconds = Now rem 1000},
+    %% Expiration = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Then))),
+    %%                             milliseconds = Then rem 1000},
+    AuthRequest = #k1api_auth_request_dto{
+        id = RequestUUID,
         customer_id = list_to_binary(CustomerSystemID),
         user_id = list_to_binary(UserID),
-        password = list_to_binary(Password),
-        type = transceiver,
-        is_cached = false,
-        timestamp = Timestamp,
-        expiration = Expiration
+        password = list_to_binary(Password)
     },
 	{ok, Payload} = adto:encode(AuthRequest),
     Props = #'P_basic'{
@@ -123,7 +113,9 @@ request_backend_auth(Credentials) ->
     ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
 	{ok, RequestUUID}.
 
-%% Genserver Callback Functions Definitions
+%% ===================================================================
+%% GenServer Callbacks
+%% ===================================================================
 
 init([]) ->
 	{ok, Connection} = rmql:connection_start(),
@@ -158,9 +150,9 @@ handle_info({#'basic.deliver'{},
 			 	pending_responses = ResponsesList,
 				pending_workers = WorkersList}) ->
 	?log_debug("Got auth response", []),
-	case adto:decode(#funnel_auth_response_dto{}, Content) of
-		{ok, AuthResponse = #funnel_auth_response_dto{
-				connection_id = CorrelationID }} ->
+	case adto:decode(#k1api_auth_response_dto{}, Content) of
+		{ok, AuthResponse = #k1api_auth_response_dto{
+				id = CorrelationID }} ->
 			?log_debug("AuthResponse was sucessfully decoded [id: ~p]", [CorrelationID]),
 			Response = #presponse{id = CorrelationID, timestamp = get_now(), response = AuthResponse},
 			{ok, NRList, NWList} = process_response(Response, ResponsesList, WorkersList),

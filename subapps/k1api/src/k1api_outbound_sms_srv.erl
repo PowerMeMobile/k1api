@@ -36,7 +36,7 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec send(#just_sms_request_dto{}, #funnel_auth_response_customer_dto{}, #credentials{}) -> ok.
+-spec send(#just_sms_request_dto{}, #k1api_auth_response_dto{}, #credentials{}) -> ok.
 send(OutboundSms, Customer, Creds) ->
 	#credentials{user = User} = Creds,
 	#outbound_sms{
@@ -56,7 +56,7 @@ send(OutboundSms, Customer, Creds) ->
 	NumberOfSybols = size(Encoded),
 	{ok, Parts} = get_message_parts(NumberOfSybols, Encoding),
 	?log_debug("Encoded message: ~p, Encoding: ~p, Symbols: ~p, Parts: ~p", [Encoded, Encoding, NumberOfSybols, Parts]),
-	#funnel_auth_response_customer_dto{
+	#k1api_auth_response_dto{
 		uuid = CustomerID,
 		allowed_sources = AllowedSources,
 		default_validity = DefaultValidity,
@@ -68,7 +68,7 @@ send(OutboundSms, Customer, Creds) ->
 			{just_sms_request_param_dto,<<"registered_delivery">>,{boolean, true}},
 			{just_sms_request_param_dto,<<"service_type">>,{string,<<>>}},
 			{just_sms_request_param_dto,<<"no_retry">>,{boolean, NoRetry}},
-			{just_sms_request_param_dto,<<"validity_period">>,{string, DefaultValidity}},
+			{just_sms_request_param_dto,<<"validity_period">>,{string, list_to_binary(integer_to_list(DefaultValidity))}},
 			{just_sms_request_param_dto,<<"priority_flag">>,{integer,0}},
 			{just_sms_request_param_dto,<<"esm_class">>,{integer,3}},
 			{just_sms_request_param_dto,<<"protocol_id">>,{integer,0}}
@@ -175,7 +175,7 @@ oneapi_addr_to_dto(OneAPIAddress) ->
 	}.
 
 get_suitable_gtw(Customer, NumberOfDests) ->
-	#funnel_auth_response_customer_dto{
+	#k1api_auth_response_dto{
 		default_provider_id = DefaultProviderID,
 		providers = Providers,
 		networks = Networks

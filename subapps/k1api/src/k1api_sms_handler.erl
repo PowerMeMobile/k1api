@@ -47,7 +47,7 @@
 init(Creds = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Creds]),
 	case k1api_auth_srv:authenticate(Creds) of
-		{ok, Customer = #funnel_auth_response_customer_dto{}} ->
+		{ok, Customer = #k1api_auth_response_dto{}} ->
 			?log_debug("Customer: ~p", [Customer]),
 			{ok, #state{creds = Creds, customer = Customer}};
 	   	{error, Error} ->
@@ -73,7 +73,7 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 handle_delivery_status_req(SenderAddress, SendSmsRequestIDStr,
 		#state{creds = Creds, customer = Customer}) ->
 	SendSmsRequestID = uuid:to_binary(SendSmsRequestIDStr),
-	#funnel_auth_response_customer_dto{
+	#k1api_auth_response_dto{
 		uuid = CustomerUUID
 	} = Customer,
 	#credentials{user = User} = Creds,
@@ -103,7 +103,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 		batch_size = BatchSizeStr
 	} = Request,
 	#state{creds = Creds, customer = Customer} = State,
-	#funnel_auth_response_customer_dto{
+	#k1api_auth_response_dto{
 		uuid = CustomerUUID
 	} = Customer,
 	#credentials{user = UserID} = Creds,
@@ -135,7 +135,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 
 handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	?log_debug("Got inbound subscribe event: ~p", [Req]),
-	#funnel_auth_response_customer_dto{
+	#k1api_auth_response_dto{
 		uuid = CustomerID
 		} = Customer,
 	#credentials{user = UserID} = Creds,
@@ -168,7 +168,7 @@ handle_inbound_unsubscribe(SubscribeIDBitstring, State = #state{}) ->
 		creds = Creds,
 		customer = Customer
 	} = State,
-	#funnel_auth_response_customer_dto{
+	#k1api_auth_response_dto{
 		uuid = CustomerID
 	} = Customer,
 	#credentials{user = UserID} = Creds,
