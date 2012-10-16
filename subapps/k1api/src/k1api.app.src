@@ -1,18 +1,18 @@
-{application, k1api,
- [
-  {description, "OneAPI server for OpenAlley"},
-  {vsn, "0.0.1"},
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib,
-            	  lager,
-                  eoneapi,
-				  uuid,
-				  rmql,
-				  alley_dto,
-				  gsm0338
-                 ]},
-  {mod, { k1api_app, []}},
-  {env, []}
- ]}.
+{application, k1api, [
+	{description, "OneAPI server for OpenAlley"},
+	{vsn, "0.0.1"},
+	{registered, []},
+	{applications, [
+		kernel,
+		stdlib,
+		lager,
+		eoneapi,
+		uuid,
+		rmql,
+		alley_dto,
+		gsm0338,
+		billy_client
+	]},
+	{mod, {k1api_app, []}},
+	{env, []}
+]}.
