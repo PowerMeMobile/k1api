@@ -1,0 +1,33 @@
+#!/bin/bash
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=oneapi-prepaid
+USER=user
+PASSWORD=password
+SENDER_ADDR=tel%3A%2B375296660004
+
+#161 symbols message
+#MESSAGE_BODY=Hello%20Worldafdgjlkfjgafdlkgjaflkgblaadkagjflkgjmalfmgvblaflvbkamlfkvbamlfckvbalfkgblakfblkamflbkanmflbknalkfnblakfnlbkanmflkbamlbkmalfkmbalkfbalfkbalfkbabaarfhfg
+
+#160 symbols message
+#MESSAGE_BODY=Hello%20Worldafdgjlkfjgafdlkgjaflkgblaadkagjflkgjmalfmgvblaflvbkamlfkvbamlfckvbalfkgblakfblkamflbkanmflbknalkfnblakfnlbkanmflkbamlbkmalfkmbalkfbalfkbalfkbabaarfhf
+
+#90 not only gsm
+MESSAGE_BODY=Hello%20Worldприветdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
+
+#90 only gsm
+#MESSAGE_BODY=Hello%20Worldghbdncdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
+
+#6 not gsm
+#MESSAGE_BODY=Привет
+
+CORRELATOR=$RANDOM
+#CORRELATOR=25024
+REQUEST_BODY="address=tel%3A%2B13500000991&address=tel%3A%2B13500000992&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://application.example.com/notifications/DeliveryInfoNotification&callbackData=some-data-useful-to-the-requester&senderName=ACME%20Inc.";
+
+echo "Correlator: $CORRELATOR";
+echo "Request body: $REQUEST_BODY";
+echo "==========================="
+echo "$IFS"
+echo -n $REQUEST_BODY | lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'POST' $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests; echo
