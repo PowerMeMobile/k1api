@@ -37,7 +37,9 @@ init([]) ->
 
 		?CHILD(k1api_subscription_srv, worker),
 
-		?CHILD(k1api_incoming_srv, worker)
+		?CHILD(k1api_incoming_srv, worker),
+
+		?CHILD(k1api_billy_session, worker)
 
     	]} }.
 

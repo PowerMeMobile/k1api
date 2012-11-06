@@ -16,11 +16,12 @@
 	terminate/2
 	]).
 
+-include("logging.hrl").
+-include("gen_server_spec.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include_lib("alley_dto/include/adto.hrl").
--include("gen_server_spec.hrl").
--include("logging.hrl").
+-include_lib("billy_client/include/billy_client.hrl").
 
 -define(SmsRequestQueue, <<"pmm.k1api.sms_request">>).
 
@@ -36,33 +37,89 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec send(#just_sms_request_dto{}, #k1api_auth_response_dto{}, #credentials{}) -> ok.
-send(OutboundSms, Customer, Creds) ->
-	#credentials{user = User} = Creds,
+-spec send(#just_sms_request_dto{}, #k1api_auth_response_dto{}, #credentials{}) -> ok | {error, any()}.
+send(OutboundSms, Customer, Credentials) ->
+	?log_debug("Got SendSmsRequest", []),
 	#outbound_sms{
 		address = RawDestAddresses,
+		message = Message
+	} = OutboundSms,
+	#k1api_auth_response_dto{
+		billing_type = BillingType
+	} = Customer,
+
+	Destinations = oneapi_addr_to_dto(RawDestAddresses),
+
+	{Encoding, Encoded} =
+		case gsm0338:from_utf8(Message) of
+			{valid, Binary} -> {{text, default}, Binary};
+			{invalid, Binary} -> {{text, ucs2}, Binary}
+		end,
+	NumberOfSymbols = size(Encoded),
+
+	{ok, NumberOfParts} = get_message_parts(NumberOfSymbols, Encoding),
+	?log_debug("Encoded message: ~p, Encoding: ~p, Symbols: ~p, Parts: ~p",
+		[Encoded, Encoding, NumberOfSymbols, NumberOfParts]),
+
+	case BillingType of
+		prepaid ->
+			bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations);
+		postpaid ->
+			just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations)
+	end.
+
+bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
+	#k1api_auth_response_dto{
+		uuid = CustomerID
+	} = Customer,
+	#credentials{
+		user = UserID
+	} = Credentials,
+
+	NumberOfDests = length(Destinations),
+	NumberOfMsgs = NumberOfDests * NumberOfParts,
+
+	{ok, SessionID} = k1api_billy_session:get_session_id(),
+	case billy_client:reserve(
+		SessionID, ?CLIENT_TYPE_ONEAPI, CustomerID, list_to_binary(UserID), ?SERVICE_TYPE_SMS_ON, NumberOfMsgs
+	) of
+		{accepted, TransID} ->
+			?log_debug("Reserve accepted: ~p", [TransID]),
+			case just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) of
+				{ok, RequestIDStr} ->
+					commited = billy_client:commit(TransID),
+					?log_debug("Commited.", []),
+					{ok, RequestIDStr};
+				{error, Reason} ->
+					?log_debug("Send failed with: ~p", [Reason]),
+					rolledback = billy_client:rolledback(TransID),
+					?log_debug("Rolledback.", []),
+					{error, Reason}
+			end;
+		{rejected, Reason} ->
+			?log_debug("Reserve rejected with: ~p", [Reason]),
+			{error, Reason}
+	end.
+
+%% funnel encode_batch(Common, Dests, BatchId, GtwId)
+just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
+	#outbound_sms{
 		sender_address = RawSenderAddress,
 		message = Message,
-		%% sender_name = SenderName, % opt
 		notify_url = NotifyURL, % opt
 		client_correlator = Correlator, %opt
 		callback_data = CallbackData % opt
 	} = OutboundSms,
-	{Encoding, Encoded} =
-	case gsm0338:from_utf8(Message) of
-		{valid, Binary} -> {{text, default}, Binary};
-		{invalid, Binary} -> {{text, ucs2}, Binary}
-	end,
-	NumberOfSybols = size(Encoded),
-	{ok, Parts} = get_message_parts(NumberOfSybols, Encoding),
-	?log_debug("Encoded message: ~p, Encoding: ~p, Symbols: ~p, Parts: ~p", [Encoded, Encoding, NumberOfSybols, Parts]),
 	#k1api_auth_response_dto{
 		uuid = CustomerID,
 		allowed_sources = AllowedSources,
 		default_validity = DefaultValidity,
 		no_retry = NoRetry
 	} = Customer,
-	?log_debug("Got SendSmsRequest", []),
+	#credentials{
+		user = User
+	} = Credentials,
+
 	ReqID = uuid:newid(),
 	Params = [
 			{just_sms_request_param_dto,<<"registered_delivery">>,{boolean, true}},
@@ -75,10 +132,9 @@ send(OutboundSms, Customer, Creds) ->
 			{just_sms_request_param_dto, <<"k1api_notify_url">>, {string, NotifyURL}},
 			{just_sms_request_param_dto, <<"k1api_callback_data">>, {string, CallbackData}}
 			],
-	Dests = oneapi_addr_to_dto(RawDestAddresses),
-	NumberOfDests = length(Dests),
+	NumberOfDests = length(Destinations),
 	GtwID = get_suitable_gtw(Customer, NumberOfDests),
-	MessageIDs = get_ids(CustomerID, NumberOfDests, Parts),
+	MessageIDs = get_ids(CustomerID, NumberOfDests, NumberOfParts),
 	?log_debug("Message IDs: ~p", [MessageIDs]),
 	DTO = #just_sms_request_dto{
 		id = ReqID,
@@ -90,7 +146,7 @@ send(OutboundSms, Customer, Creds) ->
 		encoding = Encoding,
 		params = Params,
 		source_addr = prepare_source_addr(AllowedSources, RawSenderAddress),
-		dest_addrs = {regular, Dests},
+		dest_addrs = {regular, Destinations},
 		message_ids = MessageIDs
 	},
 	?log_debug("Built SmsRequest: ~p", [DTO]),
@@ -216,74 +272,3 @@ get_message_parts(Size, {text, ucs2}) ->
 		true -> {ok, trunc(Size/67)};
 		false -> {ok, trunc(Size/67) + 1}
 	end.
-
-
-%% encode_batch(Common, Dests, BatchId, GtwId) ->
-%%     TS = ?gv("sar_total_segments", Common),
-%%     SS = ?gv("sar_segment_seqnum", Common),
-%%     Type = case TS =:= -1 andalso SS =:= -1 of true -> regular; false -> part end,
-%%     {MsgIds, DestAsns} = lists:foldl(
-%%         fun(Bin, {Ids, Asns}) ->
-%%             [MsgId, RefNum, Addr, Ton, Npi] =
-%%                 re:split(Bin, ";", [trim]),
-%%             FA = #addr_dto{addr = Addr,
-%%                              ton = list_to_integer(binary_to_list(Ton)),
-%%                              npi = list_to_integer(binary_to_list(Npi))},
-%%             case Type of
-%%                 regular ->
-%%                     {[MsgId|Ids], [FA|Asns]};
-%%                 part ->
-%%                     {[MsgId|Ids],
-%%                      [#addr_ref_num_dto{
-%%                           full_addr = FA,
-%%                           ref_num = list_to_integer(binary_to_list(RefNum))
-%%                       }|Asns]}
-%%             end
-%%         end,
-%%         {[], []},
-%%         Dests
-%%     ),
-%%     ParamsBase = [{registered_delivery, false},
-%%                   {service_type, []},
-%%                   {no_retry, true},
-%%                   {validity_period, []},
-%%                   {priority_flag, 0},
-%%                   {esm_class, 3},
-%%                   {protocol_id, 0}],
-%%     ParamsSar = case Type of
-%%                     regular ->
-%%                         ParamsBase;
-%%                     part ->
-%%                         [{sar_total_segments, TS}, {sar_segment_seqnum, SS}|ParamsBase]
-%%                 end,
-%%     DataCoding = ?gv("data_coding", Common),
-%%     Params = case DataCoding of
-%%                  240 -> [{data_coding, 240}|ParamsSar];
-%%                  _   -> ParamsSar
-%%              end,
-%%     ReqAsn = #just_sms_request_dto{
-%%         id = BatchId,
-%%         gateway_id = GtwId,
-%%         customer_id = ?gv("customer_uuid", Common),
-%%         type = Type,
-%%         message = ?gv("short_message", Common),
-%%         encoding =
-%%             case DataCoding of
-%%                 DC when DC =:= 0; DC =:= 1; DC =:= 3; DC =:= 240 ->
-%%                     {text, default};
-%%                 8 ->
-%%                     {text, ucs2};
-%%                 DC ->
-%%                     {other, DC}
-%%             end,
-%%         params = [ asn_param(P) || P <- Params ],
-%%         source_addr = #addr_dto{
-%%             addr = ?gv("source_addr", Common),
-%%             ton = ?gv("source_addr_ton", Common),
-%%             npi = ?gv("source_addr_npi", Common)
-%%         },
-%%         dest_addrs = {Type, DestAsns},
-%%         message_ids = MsgIds
-%%     },
-%%     {ok, EncodedReq} = 'JustAsn':encode('SmsRequest', ReqAsn),
-%%     list_to_binary(EncodedReq).
