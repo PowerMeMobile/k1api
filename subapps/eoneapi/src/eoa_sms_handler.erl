@@ -465,14 +465,15 @@ process_sms_delivery_unsubscribe_req(SubId, State = #state{
 
 get_prop_list(Req) ->
 	{Method, _} = cowboy_http_req:method(Req),
+	ReqPropList =
 	case Method of
 		'POST' ->
 			{BodyQs, _} = cowboy_http_req:body_qs(Req),
 			{QsVals, _} = cowboy_http_req:qs_vals(Req),
-			ReqPropList = BodyQs ++ QsVals;
-		Any ->
+			BodyQs ++ QsVals;
+		_Any ->
 			{QsVals, _} = cowboy_http_req:qs_vals(Req),
-			ReqPropList = QsVals
+			QsVals
 	end,
 	?log_debug("ReqPropList: ~p", [ReqPropList]),
 	{ok, ReqPropList}.

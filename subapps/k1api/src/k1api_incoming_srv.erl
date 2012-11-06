@@ -21,7 +21,7 @@
 -include("gen_server_spec.hrl").
 -include("logging.hrl").
 
--define(IncomingQueue, <<"pmm.k1api.incoming_sms">>).
+-define(IncomingQueue, <<"pmm.k1api.incoming">>).
 
 -record(state, {
 	chan :: pid()
@@ -56,17 +56,14 @@ handle_cast(_Msg, State) ->
 
 handle_info({#'basic.deliver'{},
 			 #amqp_msg{props = Props, payload = Payload}},
-			 State = #state{chan = Chan}) ->
+									 State = #state{chan = Chan}) ->
 	#'P_basic'{
 		reply_to = ReplyTo,
 		message_id = MsgID,
 		content_type = ContentType
 	} = Props,
 	{ok, DTO} = decode_dto(Payload, ContentType),
-	#k1api_sms_notification_request_dto{
-		message_id = ID
-	} = DTO,
-	process_dto(DTO),
+	{ok, ID} = process_dto(DTO),
 	?log_debug("Got DTO: ~p", [DTO]),
 	respond_and_ack(ID, MsgID, ReplyTo, Chan),
 	{noreply, State};
@@ -96,9 +93,8 @@ respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
 
 decode_dto(Bin, <<"OutgoingBatch">>) ->
 	adto:decode(#k1api_sms_notification_request_dto{}, Bin);
-decode_dto(_Bin, <<"ReceiptBatch">>) ->
-	erlang:error(not_implemented).
-	%% adto:decode(#k1api_sms_notification_request_dto{}, Bin).
+decode_dto(Bin, <<"ReceiptBatch">>) ->
+	adto:decode(#k1api_sms_delivery_receipt_notification_dto{}, Bin).
 
 process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 	#k1api_sms_notification_request_dto{
@@ -119,6 +115,25 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 		sender_address = SenderAddr#addr_dto.addr,
 		callback_data = Callback
 	},
-	ok = eoneapi:deliver_sms(json, InboundSms).
+	?log_debug("Got InboundSms: ~p", [InboundSms]),
+	%% ok = eoneapi:deliver_sms(json, InboundSms),
+	{ok, MessageID};
+process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
+	#k1api_sms_delivery_receipt_notification_dto{
+		id = ItemID,
+		dest_addr = DestAddr,
+		status = MessageState,
+		callback_data = CallbackData,
+		url = NotifyURL
+	} = DTO,
+	Receipt = #delivery_receipt{
+		notify_url = NotifyURL,
+		callback_data = CallbackData,
+		address = DestAddr#addr_dto.addr,
+		delivery_status = MessageState
+	},
+	?log_debug("Got Receipt: ~p", [Receipt]),
+	%% ok = eoneapi:deliver_sms_status(json, Receipt),
+	{ok, ItemID}.
 
 

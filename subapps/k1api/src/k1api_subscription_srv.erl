@@ -5,7 +5,9 @@
 -export([
 	start_link/0,
 	subscribe_incoming_sms/2,
-	unsubscribe_incoming_sms/2
+	unsubscribe_incoming_sms/2,
+	subscribe_receipts/2,
+	unsubscribe_receipts/2
 	]).
 
 -export([
@@ -55,15 +57,19 @@ start_link() ->
 
 -spec subscribe_incoming_sms(binary(), binary()) -> {ok, binary()}.
 subscribe_incoming_sms(RequestID, Payload) ->
-	ok = request_backend(RequestID, Payload, <<"SubscribeIncomingSms">>),
-	?log_debug("Successfully sent request [~p] to backend", [RequestID]),
-	get_response(RequestID).
+	process_request(RequestID, Payload, <<"SubscribeIncomingSms">>).
 
 -spec unsubscribe_incoming_sms(binary(), binary()) -> {ok, binary()}.
 unsubscribe_incoming_sms(RequestID, Payload) ->
-	ok = request_backend(RequestID, Payload, <<"UnsubscribeIncomingSms">>),
-	?log_debug("Successfully sent unsub incoming sms request", []),
-	get_response(RequestID).
+	process_request(RequestID, Payload, <<"UnsubscribeIncomingSms">>).
+
+-spec subscribe_receipts(binary(), binary()) -> binary().
+subscribe_receipts(RequestID, Payload) ->
+	process_request(RequestID, Payload, <<"SubscribeReceipts">>).
+
+-spec unsubscribe_receipts(binary(), binary()) -> binary().
+unsubscribe_receipts(RequestID, Payload) ->
+	process_request(RequestID, Payload, <<"UnsubscribeReceipts">>).
 
 %% ===================================================================
 %% GenServer Callbacks
@@ -113,6 +119,21 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal
 %% ===================================================================
 
+process_request(RequestID, Payload, ContentType) ->
+	ok = request_backend(RequestID, Payload, ContentType),
+	?log_debug("Sent unsubscribe incoming sms request", []),
+	get_response(RequestID).
+
+request_backend(_RequestID, Payload, ContentType) ->
+ 	{ok, Channel} = get_channel(),
+	BasicProps = #'P_basic'{
+		content_type = ContentType
+	},
+    ok = rmql:basic_publish(Channel, ?SubscriptionRequestQueue, Payload, BasicProps).
+
+get_response(RequestUUID) ->
+	gen_server:call(?MODULE, {get_response, RequestUUID}).
+
 decode_incoming(<<"SubscribeIncomingSms">>, Content, State) ->
 	#state{
 	 	pending_responses = ResponsesList,
@@ -146,6 +167,38 @@ decode_incoming(<<"UnsubscribeIncomingSms">>, Content, State) ->
 			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
 			{noreply, State}
 	end;
+decode_incoming(<<"SubscribeReceipts">>, Content, State) ->
+	#state{
+	 	pending_responses = ResponsesList,
+		pending_workers = WorkersList} = State,
+	case adto:decode(#k1api_subscribe_sms_receipts_response_dto{}, Content) of
+		{ok, #k1api_subscribe_sms_receipts_response_dto{
+				id = CorrelationID }} ->
+			?log_debug("Got subscribe sms receipts  response", []),
+			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = CorrelationID},
+			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
+			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
+		{error, Error} ->
+			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
+			{noreply, State}
+	end;
+decode_incoming(<<"UnsubscribeReceipts">>, Content, State) ->
+	#state{
+	 	pending_responses = ResponsesList,
+		pending_workers = WorkersList} = State,
+	case adto:decode(#k1api_unsubscribe_sms_receipts_response_dto{}, Content) of
+		{ok, #k1api_unsubscribe_sms_receipts_response_dto{
+				id = CorrelationID }} ->
+			?log_debug("Got unsubscribe sms receipts  response", []),
+			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = CorrelationID},
+			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
+			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
+		{error, Error} ->
+			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
+			{noreply, State}
+	end;
 decode_incoming(ContentType, _Content, State) ->
 	?log_error("Got unexpected message type: ~p", [ContentType]),
 	{noreply, State}.
@@ -153,16 +206,6 @@ decode_incoming(ContentType, _Content, State) ->
 
 get_channel() ->
 	gen_server:call(?MODULE, get_channel).
-
-get_response(RequestUUID) ->
-	gen_server:call(?MODULE, {get_response, RequestUUID}).
-
-request_backend(_RequestID, Payload, ContentType) ->
- 	{ok, Channel} = get_channel(),
-	BasicProps = #'P_basic'{
-		content_type = ContentType
-	},
-    ok = rmql:basic_publish(Channel, ?SubscriptionRequestQueue, Payload, BasicProps).
 
 %% convert_addr_to_dto(SenderAddress) ->
 %% 	#addr_dto{

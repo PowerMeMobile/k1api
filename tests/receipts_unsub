@@ -1,1 +1,10 @@
-lwp-request -C test-sys-id@user:password -UsSe -m 'DELETE' 127.0.0.1:8080/2/smsmessaging/outbound/tel%3A%2B12345678/subscriptions/sub789; echo
+#!/bin/bash
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=test-sys-id
+USER=user
+PASSWORD=password
+DEST_ADDR=tel%3A%2B375296662323
+
+lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'DELETE' $HOST:$PORT/2/smsmessaging/outbound/$DEST_ADDR/subscriptions/$1; echo

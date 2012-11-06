@@ -44,9 +44,9 @@ send(OutboundSms, Customer, Creds) ->
 		sender_address = RawSenderAddress,
 		message = Message,
 		%% sender_name = SenderName, % opt
-		%% notify_url = NotifyURL, % opt
-		client_correlator = Correlator %opt
-		%% callback_data = Callback % opt
+		notify_url = NotifyURL, % opt
+		client_correlator = Correlator, %opt
+		callback_data = CallbackData % opt
 	} = OutboundSms,
 	{Encoding, Encoded} =
 	case gsm0338:from_utf8(Message) of
@@ -68,10 +68,12 @@ send(OutboundSms, Customer, Creds) ->
 			{just_sms_request_param_dto,<<"registered_delivery">>,{boolean, true}},
 			{just_sms_request_param_dto,<<"service_type">>,{string,<<>>}},
 			{just_sms_request_param_dto,<<"no_retry">>,{boolean, NoRetry}},
-			{just_sms_request_param_dto,<<"validity_period">>,{string, list_to_binary(integer_to_list(DefaultValidity))}},
+			{just_sms_request_param_dto,<<"validity_period">>,{string, <<"000003000000000R">>}},
 			{just_sms_request_param_dto,<<"priority_flag">>,{integer,0}},
 			{just_sms_request_param_dto,<<"esm_class">>,{integer,3}},
-			{just_sms_request_param_dto,<<"protocol_id">>,{integer,0}}
+			{just_sms_request_param_dto,<<"protocol_id">>,{integer,0}},
+			{just_sms_request_param_dto, <<"k1api_notify_url">>, {string, NotifyURL}},
+			{just_sms_request_param_dto, <<"k1api_callback_data">>, {string, CallbackData}}
 			],
 	Dests = oneapi_addr_to_dto(RawDestAddresses),
 	NumberOfDests = length(Dests),

@@ -87,14 +87,51 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestIDStr,
 
 	{ok, DeliveryStatuses}.
 
-handle_delivery_notifications_subscribe(Req, _State = #state{}) ->
-	?log_debug("Req: ~p", [Req]),
-	SubscriptionID = "sub789",
-	{ok, SubscriptionID}.
+handle_delivery_notifications_subscribe(Req, State = #state{}) ->
+	#state{creds = Creds, customer = Customer} = State,
+	#del_rec_subscribe{
+		sender_address = {_Protocol, Sender},
+		notify_url = Url,
+		client_correlator = _Correlator,
+		criteria = _Criteria,
+		callback_data = Callback
+	} = Req,
+	#k1api_auth_response_dto{
+		uuid = CustomerUUID
+		} = Customer,
+	ReqID = uuid:newid(),
+	#credentials{user = UserID} = Creds,
+	ReqDTO = #k1api_subscribe_sms_receipts_request_dto{
+		id = ReqID,
+		customer_id = CustomerUUID,
+		user_id = UserID,
+		url = Url,
+		dest_addr = #addr_dto{addr = list_to_binary(Sender), ton = 1, npi = 1},
+		callback_data = Callback
+	},
+	?log_debug("ReqDTO: ~p", [ReqDTO]),
+	{ok, Bin} = adto:encode(ReqDTO),
+	{ok, _RespBin} = k1api_subscription_srv:subscribe_receipts(ReqID, Bin),
+	{ok, uuid:to_string(ReqID)}.
 
-handle_delivery_notifications_unsubscribe(SenderAdress, SubscriptionID, _State = #state{}) ->
-	?log_debug("SenderAdress: ~p", [SenderAdress]),
-	?log_debug("SubscriptionID: ~p", [SubscriptionID]),
+
+handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State = #state{}) ->
+	SubIDBin = uuid:to_binary(SubscriptionID),
+	#state{creds = Creds, customer = Customer} = State,
+	#credentials{user = UserID} = Creds,
+	#k1api_auth_response_dto{
+		uuid = CustomerID
+		} = Customer,
+	RequestID = uuid:newid(),
+	DTO = #k1api_unsubscribe_sms_receipts_request_dto{
+		id = RequestID,
+		customer_id = CustomerID,
+		user_id = UserID,
+		subscription_id = SubIDBin
+	},
+	{ok, Bin} = adto:encode(DTO),
+	{ok, _RespBin} = k1api_subscription_srv:unsubscribe_receipts(RequestID, Bin),
+	?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
 	{ok, deleted}.
 
 handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
