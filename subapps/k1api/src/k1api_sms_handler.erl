@@ -7,12 +7,6 @@
 -include_lib("alley_dto/include/adto.hrl").
 -include("logging.hrl").
 
-%% API
-%% -export([
-%% 	deliver_status/3,
-%% 	deliver_sms/3
-%% 	]).
-
 %% Eoneapi sms handler callbacks
 -export([
 	init/1,
@@ -29,16 +23,6 @@
 	creds :: term(),
 	customer :: term()
 	}).
-
-%% API
-
-%% -spec deliver_status(term(), term(), term()) -> ok.
-%% deliver_status(NotifyURL, NotificationFormat, Req) ->
-%% 	eoneapi:deliver_sms_status(NotifyURL, NotificationFormat, Req).
-
-%% -spec deliver_sms(term(), term(), term()) -> ok.
-%% deliver_sms(NotifyURL, NotificationFormat, Req) ->
-%% 	eoneapi:deliver_sms(NotifyURL, NotificationFormat, Req).
 
 %% ===================================================================
 %% eoneapi sms handler callbacks
@@ -267,5 +251,5 @@ translate_status_name(Any) ->
 
 convert_addr(<<"tel:+", Bin/binary>>) ->
 	Bin;
-convert_addr(Bin) ->
+convert_addr(Bin) when is_binary(Bin) ->
 	Bin.

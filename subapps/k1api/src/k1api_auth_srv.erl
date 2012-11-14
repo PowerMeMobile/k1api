@@ -62,22 +62,6 @@ authenticate(Credentials = #credentials{}) ->
 	?log_debug("Got sucessful auth response", []),
 	{ok, Customer}.
 
-	%% case k1api_cache:fetch({CustSysID, UserID, Password}) of
-	%% 	{ok, Customer = #funnel_auth_response_customer_dto{}} ->
-	%% 		?log_debug("Customer in cache: ~p", [Customer]),
-	%% 		{ok, Customer};
-	%% 	{error, not_found} ->
-	%% 		?log_debug("Customer not found in cache. Send auth req.", []),
-	%%    		{ok, Chan} = get_channel(),
-	%% 		Type = transceiver,
-	%% 		UUID = uuid:newid(),
-	%% 		request_backend_auth(Chan, UUID, CustSysID, UserID, Password, Type),
-	%% 		Response = get_auth_response(UUID),
-	%% 		?log_debug("Auth response: ~p", [Response]),
-	%% 		#funnel_auth_response_dto{ result = {customer, Customer}} = Response,
-	%% 		{ok, Customer}
-	%% end.
-
 get_channel() ->
 	gen_server:call(?MODULE, get_channel, 5000).
 
@@ -91,14 +75,7 @@ request_backend_auth(Credentials) ->
 		password = Password,
 		type = _Type } = Credentials,
  	{ok, Channel} = get_channel(),
-	%% Timeout = 5000,
 	RequestUUID = uuid:newid(),
-    %% Now = k1api_time:milliseconds(),
-    %% Then = Now + Timeout,
-    %% Timestamp = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Now))),
-    %%                            milliseconds = Now rem 1000},
-    %% Expiration = #precise_time_dto{time = list_to_binary(k1api_time:utc_str(k1api_time:milliseconds_to_now(Then))),
-    %%                             milliseconds = Then rem 1000},
     AuthRequest = #k1api_auth_request_dto{
         id = RequestUUID,
         customer_id = list_to_binary(CustomerSystemID),
@@ -207,17 +184,3 @@ purge([Item | RestList], Acc, Now) ->
 
 get_now() ->
 	 calendar:datetime_to_gregorian_seconds(calendar:local_time()).
-
-%% prepare_basic_props(Props) ->
-%% 	#'P_basic'{
-%% 		message_id = proplists:get_value(message_id, Props),
-%% 		correlation_id = proplists:get_value(correlation_id, Props),
-%% 		content_type = proplists:get_value(content_type, Props),
-%% 		content_encoding = proplists:get_value(content_encoding, Props),
-%% 		% delivery_mode = proplists:get_value(delivery_mode, Props, 2),
-%% 		reply_to = proplists:get_value(reply_to, Props),
-%% 		expiration = proplists:get_value(expiration, Props),
-%% 		timestamp = proplists:get_value(timestamp, Props),
-%% 		app_id = <<"kelly">>
-%% 		% headers,priority,type,user_id,cluster_id
-%% 		}.
