@@ -27,8 +27,6 @@ init([]) ->
 
     	?CHILD(k1api_db, worker),
 
-    	?CHILD(k1api_correlator_cache, worker),
-
 		?CHILD(k1api_auth_srv, worker),
 
 		?CHILD(k1api_delivery_status_srv, worker),
