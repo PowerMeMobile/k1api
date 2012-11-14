@@ -18,8 +18,6 @@
 start(_StartType, _StartArgs) ->
     ?log_info("k1api initializing...", []),
 
-	k1api_db:init(),
-
     Result = k1api_sup:start_link(),
 
 	EOneAPIProps = [

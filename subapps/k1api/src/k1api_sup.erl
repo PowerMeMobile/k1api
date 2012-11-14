@@ -25,6 +25,8 @@ start_link() ->
 init([]) ->
     {ok, { {one_for_one, 5, 10}, [
 
+    	?CHILD(k1api_db, worker),
+
     	?CHILD(k1api_correlator_cache, worker),
 
 		?CHILD(k1api_auth_srv, worker),
