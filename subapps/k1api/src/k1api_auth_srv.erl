@@ -55,7 +55,6 @@ start_link() ->
 	{error, denied} |
 	{error, Error :: term()}.
 authenticate(Credentials = #credentials{}) ->
-	?log_debug("Customer not found in cache. Send auth request to Kelly.", []),
 	{ok, RequestID} = request_backend_auth(Credentials),
 	?log_debug("Sent auth request [id: ~p]", [RequestID]),
 	Customer = get_auth_response(RequestID),
@@ -71,16 +70,15 @@ get_auth_response(RequestUUID) ->
 request_backend_auth(Credentials) ->
 	#credentials{
 		system_id = CustomerSystemID,
-		user = UserID,
-		password = Password,
-		type = _Type } = Credentials,
+		user_id = UserID,
+		password = Password } = Credentials,
  	{ok, Channel} = get_channel(),
 	RequestUUID = uuid:newid(),
     AuthRequest = #k1api_auth_request_dto{
         id = RequestUUID,
-        customer_id = list_to_binary(CustomerSystemID),
-        user_id = list_to_binary(UserID),
-        password = list_to_binary(Password)
+        customer_id = CustomerSystemID,
+        user_id = UserID,
+        password = Password
     },
 	{ok, Payload} = adto:encode(AuthRequest),
     Props = #'P_basic'{

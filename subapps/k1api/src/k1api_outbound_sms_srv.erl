@@ -41,7 +41,7 @@ start_link() ->
 send(OutboundSms, Customer, Credentials) ->
 	?log_debug("Got SendSmsRequest", []),
 	#outbound_sms{
-		address = RawDestAddresses,
+		dest_addr = RawDestAddresses,
 		message = Message
 	} = OutboundSms,
 	#k1api_auth_response_dto{
@@ -73,7 +73,7 @@ bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Desti
 		uuid = CustomerID
 	} = Customer,
 	#credentials{
-		user = UserID
+		user_id = UserID
 	} = Credentials,
 
 	NumberOfDests = length(Destinations),
@@ -104,11 +104,11 @@ bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Desti
 %% funnel encode_batch(Common, Dests, BatchId, GtwId)
 just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
 	#outbound_sms{
-		sender_address = RawSenderAddress,
+		sender_addr = RawSenderAddress,
 		message = Message,
 		notify_url = NotifyURL, % opt
-		client_correlator = Correlator, %opt
-		callback_data = CallbackData % opt
+		correlator = Correlator, %opt
+		callback = CallbackData % opt
 	} = OutboundSms,
 	#k1api_auth_response_dto{
 		uuid = CustomerID,
@@ -117,15 +117,14 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		no_retry = NoRetry
 	} = Customer,
 	#credentials{
-		user = User
+		user_id = UserID
 	} = Credentials,
-
 	ReqID = uuid:newid(),
 	Params = [
 			{just_sms_request_param_dto,<<"registered_delivery">>,{boolean, true}},
 			{just_sms_request_param_dto,<<"service_type">>,{string,<<>>}},
 			{just_sms_request_param_dto,<<"no_retry">>,{boolean, NoRetry}},
-			{just_sms_request_param_dto,<<"validity_period">>,{string, <<"000003000000000R">>}},
+			{just_sms_request_param_dto,<<"validity_period">>,{string, fmt_validity(DefaultValidity)}},
 			{just_sms_request_param_dto,<<"priority_flag">>,{integer,0}},
 			{just_sms_request_param_dto,<<"esm_class">>,{integer,3}},
 			{just_sms_request_param_dto,<<"protocol_id">>,{integer,0}},
@@ -150,15 +149,15 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		message_ids = MessageIDs
 	},
 	?log_debug("Built SmsRequest: ~p", [DTO]),
-	ok = k1api_correlator_cache:process(CustomerID, User, Correlator, ReqID),
-	case adto:encode(DTO) of
-		{ok, Bin} ->
+	case k1api_db:check_correlator(CustomerID, UserID, Correlator, ReqID) of
+		ok ->
+			{ok, Bin} = adto:encode(DTO),
 			RequestIDStr = uuid:to_string(ReqID),
 			?log_debug("SmsRequest was sucessfully encoded", []),
 			ok = publish_sms_request(Bin, RequestIDStr, GtwID),
 			{ok, RequestIDStr};
-		{error, Error} ->
-			{error, Error}
+		{correlator_exist, OrigReqID} ->
+			{ok, OrigReqID}
 	end.
 
 %% ===================================================================
@@ -272,3 +271,17 @@ get_message_parts(Size, {text, ucs2}) ->
 		true -> {ok, trunc(Size/67)};
 		false -> {ok, trunc(Size/67) + 1}
 	end.
+
+fmt_validity(SecondsTotal) ->
+    MinutesTotal = SecondsTotal div 60,
+    HoursTotal = MinutesTotal div 60,
+    DaysTotal = HoursTotal div 24,
+    MonthsTotal = DaysTotal div 30,
+    Years = MonthsTotal div 12,
+    Seconds = SecondsTotal rem 60,
+    Minutes = MinutesTotal rem 60,
+    Hours = HoursTotal rem 24,
+    Days = DaysTotal rem 30,
+    Months = MonthsTotal rem 12,
+    list_to_binary(lists:flatten(io_lib:format("~2..0w~2..0w~2..0w~2..0w~2..0w~2..0w000R",
+                  [Years, Months, Days, Hours, Minutes, Seconds]))).

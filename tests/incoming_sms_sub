@@ -2,15 +2,16 @@
 
 HOST=127.0.0.1
 PORT=8081
-CUSTOMER=test-sys-id
+CUSTOMER=oneapi-postpaid
 USER=user
 PASSWORD=password
-DEST_ADDR=tel%3A%2B375296662323
+DEST_ADDR=tel%3A%2B375296660003
 NOTIFY_URL=http://localhost:33333/notifications/DeliveryInfoNotification
-CORRELATOR=correlator
+CORRELATOR=$RANDOM
 CALLBACK='doSomething()'
+BODY="destinationAddress=$DEST_ADDR&notifyURL=$NOTIFY_URL&criteria=$CRITERIA\
+&notificationFormat=JSON&callbackData=$CALLBACK&clientCorrelator=$CORRELATOR"
 
-echo -n "destinationAddress=$DEST_ADDR&notifyURL=$NOTIFY_URL&criteria=$CRITERIA\
-&notificationFormat=JSON&callbackData=$CALLBACK&clientCorrelator=$CORRELATOR" \
-| lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'POST' \
+echo Request body: $BODY
+echo -n $BODY | lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'POST' \
 $HOST:$PORT/2/smsmessaging/inbound/subscriptions; echo

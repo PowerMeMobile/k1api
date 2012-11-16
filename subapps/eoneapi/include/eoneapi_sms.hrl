@@ -2,53 +2,43 @@
 -define(eoneapi_sms_hrl, included).
 -include("eoneapi.hrl").
 
-%% credentials check
-
 -spec init(credentials()) ->
 	{ok, state()} |
-	{error, denied} |
-	{error, error()}.
-
-%% Send an SMS
+	{error, denied}.
 
 -spec handle_send_sms_req(outbound_sms(), state()) ->
 	{ok, request_id()} |
-	{error, denied}.
-	%  |
-	% {error, already_sent}. % by client collerator
-
-% Query the delivery status of an SMS
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
 -spec handle_delivery_status_req(sender_address(), request_id(), state()) ->
 	{ok, sms_delivery_statuses()}  |
-	{error, denied}.
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
-% Subscribe to SMS delivery notifications
-
--spec handle_delivery_notifications_subscribe(del_rec_subscribe(), state()) ->
+-spec handle_delivery_notifications_subscribe(delivery_receipt_subscribe(), state()) ->
 	{ok, subscription_id()} |
-	{error, denied}.
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
 -spec handle_delivery_notifications_unsubscribe(sender_address(), subscription_id(), state()) ->
 	{ok, deleted} |
-	{error, denied}.
-
-%% Retrieve messages sent to your Web application
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
 -spec handle_retrieve_req(retrieve_sms_req(), state()) ->
 	{ok, [inbound_sms()], pending_sms()} |
-	{error, denied}.
-
-%% Subscribe to notifications of messages sent to your application
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
 -spec handle_inbound_subscribe(subscribe_inbound(), state()) ->
 	{ok, subscription_id()} |
-	{error, denied}.
-
-%% Stop the subscription to message notifications
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
 -spec handle_inbound_unsubscribe(subscription_id(), state()) ->
 	{ok, deleted} |
-	{error, denied}.
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
 
 -endif. % eoneapi_sms_hrl

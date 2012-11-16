@@ -1,7 +1,5 @@
 -module(eoa_sms_handler).
-%% TODO
-%% * intelligent binary join that able to exclude undefined paramaters (callback & etc)
-%% * implement exceptions (http://oneapi.gsmworld.com/common-policy-exceptions/)
+
 -behaviour(cowboy_http_handler).
 
 -export([
@@ -12,25 +10,22 @@
 
 -export([behaviour_info/1]).
 
--compile([{parse_transform, lager_transform}]).
-
 -include("logging.hrl").
 -include("eoneapi.hrl").
 
 -record(state, {
-	req :: term(),
-	mod :: atom(),
-	mstate :: term(),
-	creds :: credentials(),
-	protocol :: binary(),
+	req 		:: term(),
+	mod 		:: atom(),
+	mstate 		:: term(),
+	creds 		:: credentials(),
 	sender_addr :: binary(),
-	thendo :: fun(),
+	thendo 		:: fun(),
 	thendo_args :: term()
-	}).
+}).
 
-%%%%%%%%%%%%%%%%
-%% API functions
-%%%%%%%%%%%%%%%%
+%% ===================================================================
+%% API
+%% ===================================================================
 
 behaviour_info(callbacks) ->
 	[
@@ -51,108 +46,80 @@ init({_Any, http}, Req, [Module]) ->
 handle(Req, State = #state{}) ->
 	{Path, Req} = cowboy_http_req:path(Req),
 	{Method, Req} = cowboy_http_req:method(Req),
-	case credentials_check(Req) of
+	case get_credentials(Req) of
 		{ok, {SysId, User, Pass}} ->
-			Creds = #credentials{system_id = SysId, user = User, password = Pass},
+			Creds = #credentials{system_id = SysId, user_id = User, password = Pass},
 			handle_req(Method, Path, State#state{creds = Creds});
-		{error, Error} ->
-			?log_debug("Error: ~p", [Error]),
-			eoneapi:code(401, Req, []);
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, [])
+		{error, unauthorized} ->
+			?log_debug("Unauthorized", []),
+			eoneapi:code(401, Req, [])
 	end.
 
 terminate(_Req, _State) ->
 	ok.
 
-%%%%%%%%%%%%%%%%%%
-%% Local functions
-%%%%%%%%%%%%%%%%%%
-
-	%% Parsing http requests
+%% ===================================================================
+%% Parsing http requests
+%% ===================================================================
 
 handle_req(	'POST',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>],
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"requests">>],
 			State = #state{req = Req, creds = Creds}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			AfterInit = fun(Args, St) -> process_outbound_sms_req(Args,St) end,
-			Args = [],
-			do_init(State#state{
-							protocol = Protocol,
-							sender_addr = Addr,
-							thendo = AfterInit,
-							thendo_args = Args,
-							creds = Creds#credentials{type = transmitter}});
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
+	SenderAddr = convert_addr(RawSenderAddr),
+	AfterInit = fun(Args, St) -> process_outbound_sms_req(Args,St) end,
+	Args = [],
+	do_init(State#state{
+					sender_addr = SenderAddr,
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds });
 
 handle_req(	'GET',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"requests">>, ReqId, <<"deliveryInfos">>],
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"requests">>, ReqId, <<"deliveryInfos">>],
 			State = #state{req = Req, creds = Creds}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			AfterInit = fun(Args, St) -> process_delivery_status_req(Args,St) end,
-			Args = binary_to_list(ReqId),
-			do_init(State#state{
-							protocol = Protocol,
-							sender_addr = Addr,
-							thendo = AfterInit,
-							thendo_args = Args,
-							creds = Creds#credentials{type = dlvrReceiptReceiver}});
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
+	SenderAddr = convert_addr(RawSenderAddr),
+	AfterInit = fun(Args, St) -> process_delivery_status_req(Args,St) end,
+	Args = ReqId,
+	do_init(State#state{
+					sender_addr = SenderAddr,
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds	});
 
 handle_req(	'POST',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"subscriptions">>],
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"subscriptions">>],
 						State = #state{req = Req, creds = Creds}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			AfterInit = fun(Args, St) -> process_sms_delivery_report_subscribe_req(Args,St) end,
-			Args = [],
-			do_init(State#state{
-							protocol = Protocol,
-							sender_addr = Addr,
-							thendo = AfterInit,
-							thendo_args = Args,
-							creds = Creds#credentials{type = dlvrReceiptReceiver}});
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
+	SenderAddr = convert_addr(RawSenderAddr),
+	?log_debug("SenderAddr: ~p", [SenderAddr]),
+	AfterInit = fun(Args, St) -> process_sms_delivery_report_subscribe_req(Args,St) end,
+	Args = [],
+	do_init(State#state{
+					sender_addr = SenderAddr,
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds	});
 
 handle_req(	'DELETE',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, SenderAddr,<<"subscriptions">>, SubId],
+			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"subscriptions">>, SubId],
 						State = #state{req = Req, creds = Creds}) ->
-	case parse_sender_addr(SenderAddr) of
-		{ok, {Protocol, Addr}} ->
-			AfterInit = fun(Args, St) -> process_sms_delivery_report_unsubscribe_req(Args,St) end,
-			Args = binary_to_list(SubId),
-			do_init(State#state{
-							protocol = Protocol,
-							sender_addr = Addr,
-							thendo = AfterInit,
-							thendo_args = Args,
-							creds = Creds#credentials{type = dlvrReceiptReceiver}});
-		Error ->
-			?log_error("Unexpected error: ~p", [Error]),
-			eoneapi:code(500, Req, State)
-	end;
+	SenderAddr = convert_addr(RawSenderAddr),
+	AfterInit = fun(Args, St) -> process_sms_delivery_report_unsubscribe_req(Args,St) end,
+	Args = SubId,
+	do_init(State#state{
+					sender_addr = SenderAddr,
+					thendo = AfterInit,
+					thendo_args = Args,
+					creds = Creds	});
 
 handle_req(	'GET',
 			[_Ver,<<"smsmessaging">>,<<"inbound">>, <<"registrations">>, RegId,<<"messages">>],
 			State = #state{req = Req, creds = Creds}) ->
 	AfterInit = fun(Args, St) -> process_retrieve_sms_req(Args,St) end,
-	Args = RegId,
+	Args = convert_addr(RegId),
 	do_init(State#state{
 					thendo = AfterInit,
 					thendo_args = Args,
-					creds = Creds#credentials{type = incomingSMSReceiver}});
+					creds = Creds	});
 
 handle_req('POST',
 			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
@@ -162,7 +129,7 @@ handle_req('POST',
 	do_init(State#state{
 					thendo = AfterInit,
 					thendo_args = Args,
-					creds = Creds#credentials{type = incomingSMSReceiver}});
+					creds = Creds	});
 
 handle_req('DELETE',
 			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>, SubId],
@@ -172,12 +139,14 @@ handle_req('DELETE',
 	do_init(State#state{
 					thendo = AfterInit,
 					thendo_args = Args,
-					creds = Creds#credentials{type = incomingSMSReceiver}});
+					creds = Creds	});
 
 handle_req(_Method, _Path, State = #state{req = Req}) ->
 	eoneapi:code(404, Req, State).
 
-  %% Handler initialization
+%% ===================================================================
+%% Handler initialization
+%% ===================================================================
 
 do_init(State = #state{
 					thendo = Fun,
@@ -197,26 +166,24 @@ do_init(State = #state{
 			eoneapi:code(500, Req, State)
 	end.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% ===================================================================
+%% 	Outbound sms request
+%% ===================================================================
 
-	%% Outbound sms request processor
-
-process_outbound_sms_req( _ , State = #state{
+process_outbound_sms_req( _, State = #state{
 										mstate = MState,
 										mod = Mod,
-										%creds = Creds,
 										req = Req,
-										protocol = _Protocol,
 										sender_addr = _Addr}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	SendSmsReq = #outbound_sms{
-					address = gmv(ReqPropList, <<"address">>),
-					sender_address = gv(ReqPropList, <<"senderAddress">>),
+					dest_addr = gmv(ReqPropList, <<"address">>),
+					sender_addr = gv(ReqPropList, <<"senderAddress">>),
 					message = gv(ReqPropList, <<"message">>),
 					sender_name = gv(ReqPropList, <<"senderName">>), %opt
 					notify_url = gv(ReqPropList, <<"notifyURL">>), %% opt
-					client_correlator = gv(ReqPropList, <<"clientCorrelator">>), %opt
-					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
+					correlator = gv(ReqPropList, <<"clientCorrelator">>), %opt
+					callback = gv(ReqPropList, <<"callbackData">>) % opt
 					},
 	Result =
 		Mod:handle_send_sms_req(SendSmsReq, MState),
@@ -224,8 +191,13 @@ process_outbound_sms_req( _ , State = #state{
 		{ok, ReqId} ->
 			ContentType = <<"application/json">>,
 			Location = build_location(Req, ReqId),
-			Body = bjoin([<<"{\"resourceReference\":{\"resourceURL\":\"">>, Location, <<"\"}}">>]),
-			{ok, Req2} = cowboy_http_req:reply(201, [{'Content-Type', ContentType}, {'Location', Location}], Body, Req),
+			Body =
+			[{<<"resourceReference">>, [
+				{<<"resourceURL">>, Location}
+			]}],
+			JsonBody = jsx:encode(Body),
+			Headers = [{'Content-Type', ContentType}, {'Location', Location}],
+			{ok, Req2} = cowboy_http_req:reply(201, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State);
@@ -234,7 +206,9 @@ process_outbound_sms_req( _ , State = #state{
 			eoneapi:code(500, Req, State)
 	end.
 
-	% delivery status request processor
+%% ===================================================================
+%% Delivery Status Request
+%% ===================================================================
 
 process_delivery_status_req(ReqId,
 									State = #state{
@@ -246,19 +220,19 @@ process_delivery_status_req(ReqId,
 	Response = Mod:handle_delivery_status_req(SAddr, ReqId, MState),
 	case Response of
 		{ok, ResponseList} ->
-			ReportsList =
+			Reports =
 				lists:map(fun({Address, DeliveryStatus})->
-					AddressBin = list_to_binary(Address),
-					DeliveryStatusBin = list_to_binary(DeliveryStatus),
-					bjoin([<<"{\"address\":\"tel:+">>, AddressBin, <<"\",\"deliveryStatus\":\"">>, DeliveryStatusBin, <<"\"}">>])
+				[{<<"address">>, Address}, {<<"deliveryStatus">>, DeliveryStatus}]
 				end, ResponseList),
-			Reports = bjoin(ReportsList, <<",">>),
 			Resource = build_resource(Req),
-			Body = bjoin([<<"{\"deliveryInfoList\":{\"deliveryInfo\":[">>, Reports, <<"],\"resourceURL\":\"">>, Resource, <<"\"}}">>]),
-
-			ContentType = <<"application/json">>,
-
-			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
+			Body =
+			[{<<"deliveryInfoList">>, [
+				{<<"deliveryInfo">>, Reports},
+				{<<"resourceURL">>, Resource}
+			]}],
+			JsonBody = jsx:encode(Body),
+			Headers = [{'Content-Type', <<"application/json">>}],
+			{ok, Req2} = cowboy_http_req:reply(200, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
@@ -268,24 +242,24 @@ process_delivery_status_req(ReqId,
 			eoneapi:code(500, Req, State)
 	end.
 
-
-	%% Start subscribe to SMS delivery notifications
+%% ===================================================================
+%% Start subscribe to SMS delivery notifications
+%% ===================================================================
 
 process_sms_delivery_report_subscribe_req(_, State = #state{
 																req = Req,
 																mod = Mod,
 																mstate = MState,
 																%creds = Creds,
-																protocol = Protocol,
 																sender_addr = Addr
 															}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
-	Request = #del_rec_subscribe{
-					sender_address = {Protocol, Addr},
+	Request = #delivery_receipt_subscribe{
+					sender_addr = Addr,
 					notify_url = gv(ReqPropList, <<"notifyURL">>),
-					client_correlator = gv(ReqPropList, <<"clientCorrelator">>), % opt
+					correlator = gv(ReqPropList, <<"clientCorrelator">>), % opt
 					criteria = gv(ReqPropList, <<"criteria">>), % opt
-					callback_data = gv(ReqPropList, <<"callbackData">>) % opt
+					callback = gv(ReqPropList, <<"callbackData">>) % opt
 					},
 	Result = Mod:handle_delivery_notifications_subscribe(Request, MState),
 	case Result of
@@ -295,8 +269,18 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 			Location = build_location(Req, SubscribeId),
 			ContentType = <<"application/json">>,
 			Criteria = gv(ReqPropList, <<"criteria">>),
-			Body = bjoin([<<"{\"deliveryReceiptSubscription\":{\"callbackReference\":{\"callbackData\":\"">>, CallBackData, <<"\",\"notifyURL\":\"">>, NotifyURL, <<"\",\"criteria\":\"">>, Criteria, <<"\"},\"resourceURL\":\"">>, Location, <<"\"}}">>]),
-			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}, {'Location', Location}], Body, Req),
+			Body =
+			[{<<"deliveryReceiptSubscription">>, [
+				{<<"callbackReference">>, [
+					{<<"callbackData">>, CallBackData},
+					{<<"notifyURL">>, NotifyURL},
+					{<<"criteria">>, Criteria}
+				]},
+				{<<"resourceURL">>, Location}
+			]}],
+			JsonBody = jsx:encode(Body),
+			Headers = [{'Content-Type', ContentType}, {'Location', Location}],
+			{ok, Req2} = cowboy_http_req:reply(200, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
@@ -306,17 +290,18 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 			eoneapi:code(500, Req, State)
 	end.
 
-	%% Stop the subscription to delivery notifications
+%% ===================================================================
+%% Stop the subscription to delivery notifications
+%% ===================================================================
 
 process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 																req = Req,
 																mod = Mod,
 																mstate = MState,
 																creds = Creds,
-																protocol = Protocol,
 																sender_addr = Addr
 															}) ->
-	Result = Mod:handle_delivery_notifications_unsubscribe({Protocol, Addr}, SubscribeId, MState),
+	Result = Mod:handle_delivery_notifications_unsubscribe(Addr, SubscribeId, MState),
 	case Result of
 		{ok, deleted} ->
 			{ok, Req2} = cowboy_http_req:reply(204, [], <<>>, Req),
@@ -329,7 +314,9 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 			eoneapi:code(500, Req, State)
 	end.
 
-	%% Retrieve messages sent to your Web application
+%% ===================================================================
+%% Retrieve messages sent to your Web application
+%% ===================================================================
 
 process_retrieve_sms_req(RegId, State = #state{
 											mod = Mod,
@@ -339,62 +326,39 @@ process_retrieve_sms_req(RegId, State = #state{
 											}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	RetrieveSmsReq = #retrieve_sms_req{
-						registration_id = RegId,
+						reg_id = RegId,
 						batch_size = gv(ReqPropList, <<"maxBatchSize">>)
 						},
 	Result = Mod:handle_retrieve_req(RetrieveSmsReq, MState),
 	case Result of
 		{ok, ListOfInboundSms, PendingSms} ->
-			MessagesList =
+			Messages =
 				lists:map(fun(#inbound_sms{
 								date_time = DateTime,
-								message_id = MessId,
-								message = MessageText,
-								sender_address = SenderAddr})->
+								message_id = MessIdBin,
+								message = MessageTextBin,
+								sender_addr = SenderAddrBin})->
 					DateTimeBin = iso8601:format(DateTime),
-					MessIdBin = list_to_binary(MessId),
-					MessageTextBin = list_to_binary(MessageText),
-					SenderAddrBin = list_to_binary(SenderAddr),
-					LocationUrl = build_location(Req, MessId),
-					bjoin([
-						<<"{\"dateTime\":\"">>,
-						DateTimeBin,
-						<<"\",\"destinationAddress\":\"">>,
-						RegId,
-						<<"\",\"messageId\":\"">>,
-						MessIdBin,
-						<<"\",\"message\":\"">>,
-						MessageTextBin,
-						<<"\",\"resourceURL\":\"">>,
-						LocationUrl,
-						<<"\",\"senderAddress\":\"">>,
-						SenderAddrBin,
-						<<"\"}">>
-						])
+					LocationUrl = build_location(Req, MessIdBin),
+					[{<<"dateTime">>, DateTimeBin},
+					{<<"destinationAddress">>, RegId},
+					{<<"messageId">>, MessIdBin},
+					{<<"message">>, MessageTextBin},
+					{<<"resourceURL">>, LocationUrl},
+					{<<"senderAddress">>, SenderAddrBin}]
 				end, ListOfInboundSms),
-			Messages = bjoin(MessagesList, <<",">>),
-			ThisBatchSize = list_to_binary(integer_to_list(length(ListOfInboundSms))),
-
+			ThisBatchSize = length(ListOfInboundSms),
 			ResourceURL = build_resource(Req),
-
-			PendingSmsBin = list_to_binary(integer_to_list(PendingSms)),
-
-			Body = bjoin([
-				<<"{\"inboundSMSMessageList\":{\"inboundSMSMessage\":[">>,
-				Messages,
-				<<"],\"numberOfMessagesInThisBatch\":\"">>,
-				ThisBatchSize,
-				<<"\",\"resourceURL\":\"">>,
-				ResourceURL,
-				<<"\",\"totalNumberOfPendingMessages\":\"">>,
-				PendingSmsBin,
-				<<"\"}}">>
-				]),
-
-			ContentType = <<"application/json">>,
-
-			{ok, Req2} = cowboy_http_req:reply(200, [{'Content-Type', ContentType}], Body, Req),
-
+			Body =
+			[{<<"inboundSMSMessageList">>, [
+				{<<"inboundSMSMessage">>, Messages},
+				{<<"numberOfMessagesInThisBatch">>, ThisBatchSize},
+				{<<"resourceURL">>, ResourceURL},
+				{<<"totalNumberOfPendingMessages">>, PendingSms}
+			]}],
+			JsonBody = jsx:encode(Body),
+			Headers = [{'Content-Type', <<"application/json">>}],
+			{ok, Req2} = cowboy_http_req:reply(200, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
@@ -404,7 +368,9 @@ process_retrieve_sms_req(RegId, State = #state{
 			eoneapi:code(500, Req, State)
 	end.
 
-	%% Subscribe to notifications of messages sent to your application
+%% ===================================================================
+%% Subscribe to notifications of messages sent to your application
+%% ===================================================================
 
 process_sms_delivery_subscribe_req( _, State = #state{
 												req = Req,
@@ -415,22 +381,23 @@ process_sms_delivery_subscribe_req( _, State = #state{
 
 	{ok, ReqPropList} = get_prop_list(Req),
 	SubscribeInbound = #subscribe_inbound{
-							destination_address = gv(ReqPropList, <<"destinationAddress">>),
+							dest_addr = convert_addr(gv(ReqPropList, <<"destinationAddress">>)),
 							notify_url = gv(ReqPropList, <<"notifyURL">>),
 							criteria = gv(ReqPropList, <<"criteria">>), % opt
-							callback_data = gv(ReqPropList, <<"callbackData">>), % opt
-							client_correlator = gv(ReqPropList, <<"clientCorrelator">>) % opt
+							callback = gv(ReqPropList, <<"callbackData">>), % opt
+							correlator = gv(ReqPropList, <<"clientCorrelator">>) % opt
 						},
 	case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
 		{ok, SubId} ->
 			Location = build_location(Req, SubId),
 			ContentType = <<"application/json">>,
-			Body = bjoin([
-				<<"{\"resourceReference\":{\"resourceURL\":\"">>,
-				Location,
-				<<"\"}}">>
-				]),
-			{ok, Req2} = cowboy_http_req:reply(201, [{'Location', Location}, {'Content-Type', ContentType}], Body, Req),
+			Body =
+			[{<<"resourceReference">>, [
+				{<<"resourceURL">>, Location}
+			]}],
+			JsonBody = jsx:encode(Body),
+			Headers = [{'Location', Location}, {'Content-Type', ContentType}],
+			{ok, Req2} = cowboy_http_req:reply(201, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
@@ -440,7 +407,9 @@ process_sms_delivery_subscribe_req( _, State = #state{
 			eoneapi:code(500, Req, State)
 	end.
 
-	%% Stop the subscription to message notifications
+%% ===================================================================
+%% Stop the subscription to message notifications
+%% ===================================================================
 
 process_sms_delivery_unsubscribe_req(SubId, State = #state{
 														mod = Mod,
@@ -459,9 +428,10 @@ process_sms_delivery_unsubscribe_req(SubId, State = #state{
 			?log_error("Unexpected error: ~p", [Error]),
 			eoneapi:code(500, Req, State)
 	end.
-%%
-%% UTILS
-%%
+
+%% ===================================================================
+%% Local
+%% ===================================================================
 
 get_prop_list(Req) ->
 	{Method, _} = cowboy_http_req:method(Req),
@@ -478,13 +448,10 @@ get_prop_list(Req) ->
 	?log_debug("ReqPropList: ~p", [ReqPropList]),
 	{ok, ReqPropList}.
 
-parse_sender_addr(SenderAddr) ->
-	case binary:split(SenderAddr, [<<":+">>, <<":">>]) of
-		[ProtocolBin, AddrBin] ->
-			{ok, {binary_to_list(ProtocolBin), binary_to_list(AddrBin)}};
-		[AddrBin] ->
-			{ok, {"", binary_to_list(AddrBin)}}
-	end.
+convert_addr(<<"tel:+", Bin/binary>>) ->
+	Bin;
+convert_addr(Bin) when is_binary(Bin) ->
+	Bin.
 
 gv(ReqPropList, Key) ->
 	case lists:keytake(Key, 1, ReqPropList) of
@@ -502,64 +469,37 @@ gmv(ReqPropList, Key) ->
 		end, ReqPropList)
 		).
 
-build_location(Req, ItemId) ->
+build_location(Req, ItemId) when is_binary(ItemId) ->
 	{RawHost, _} = cowboy_http_req:raw_host(Req),
 	{RawPath, _} = cowboy_http_req:raw_path(Req),
 	Protocol = <<"http://">>,
-	ReqIdBin = list_to_binary("/" ++ ItemId),
-	Location = <<Protocol/binary, RawHost/binary, RawPath/binary, ReqIdBin/binary>>,
-	%% ?log_debug("Location: ~p", [Location]),
-	Location.
+	ReqIdBin = << <<"/">>/binary, ItemId/binary>>,
+	<<Protocol/binary, RawHost/binary, RawPath/binary, ReqIdBin/binary>>.
 
 build_resource(Req) ->
 	{RawHost, _} = cowboy_http_req:raw_host(Req),
 	{RawPath, _} = cowboy_http_req:raw_path(Req),
 	Protocol = <<"http://">>,
-	Resource = <<Protocol/binary, RawHost/binary, RawPath/binary>>,
-	?log_debug("Resource: ~p", [Resource]),
-	Resource.
+	<<Protocol/binary, RawHost/binary, RawPath/binary>>.
 
-bjoin(List) ->
-	bjoin(List, []).
-bjoin(List, []) ->
-	F = fun(A, B) ->
-		<<A/binary, B/binary>>
-		end,
-	lists:foldr(F, <<>>, List);
-bjoin(List, Delimiter) when is_binary(Delimiter) ->
-	F = fun(A, B) ->
-			case B of
-				<<>> ->
-					<<A/binary, B/binary>>;
-				Any ->
-					<<A/binary, Delimiter/binary, B/binary>>
-			end
-		end,
-	lists:foldr(F, <<>>, List).
+%% ===================================================================
+%% Credentials
+%% ===================================================================
 
-%%%%%%%%%%%%%%% Credentials check %%%%%%%%%%%%%%%%
-
-credentials_check(Req) ->
+get_credentials(Req) ->
 	{Header, Req} = cowboy_http_req:header('Authorization', Req),
-	% ?log_debug("Header: ~p", [Header]),
 	case application:get_env(eoneapi, sysid_user_delimiter) of
 		{ok, Delimiter} ->
-			% ?log_debug("Delimiter: ~p", [Delimiter]),
 			parse_credential_header(Header, [Delimiter]);
 		undefined ->
 			parse_credential_header(Header, [])
 	end.
 
-
 parse_credential_header(undefined, _Delimiter) ->
-	{error, 'Unauthorized'};
+	{error, unauthorized};
 parse_credential_header(Header, Delimiter) ->
 	RawList = binary:split(Header, [<<"Basic">>, <<" ">>],[global]),
 	[Base64Bin] = lists:filter(fun(Elem) -> Elem =/= <<>> end, RawList),
-	% ?log_debug("Base64Bin: ~p", [Base64Bin]),
-	UserPassBin = base64:decode(Base64Bin),
-	[SysIdBin, UserBin, PassBin] = binary:split(UserPassBin, [<<":">>] ++ Delimiter,[global]),
-	% ?log_debug("SysIdBin: ~p, UserBin: ~p, PassBin: ~p", [SysIdBin, UserBin, PassBin]),
-	{ok, {binary_to_list(SysIdBin), binary_to_list(UserBin), binary_to_list(PassBin)}}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	CredsBin = base64:decode(Base64Bin),
+	[SysIdBin, UserBin, PassBin] = binary:split(CredsBin, [<<":">>] ++ Delimiter,[global]),
+	{ok, {SysIdBin, UserBin, PassBin}}.

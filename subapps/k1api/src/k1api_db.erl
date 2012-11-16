@@ -86,9 +86,10 @@ update_counter(NextID, NumberOfIDs, CustomerID) ->
 	mnesia:write(#customer_next_message_id{customer_id = CustomerID, next_id = NewNextID}),
 	IDs.
 
--spec check_correlator(customer_id(), user_id(), correlator_id(), request_id()) ->
-	{correlator_exist, request_id()} |
-	{ok, correlator_saved}.
+-spec check_correlator	(customer_id(), user_id(), undefined, request_id()) -> ok
+					;	(customer_id(), user_id(), correlator_id(), request_id()) ->
+						ok | {correlator_exist, request_id()}.
+check_correlator(_, _, undefined, _) -> ok;
 check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
 	{atomic, Result} = mnesia:transaction(fun() ->
 		Key = {CustomerID, UserID, CorrelatorID},
@@ -98,7 +99,7 @@ check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
 				mnesia:write(#correlator{	key = Key,
 											value = NewRequestID,
 											created_at = CreatedAt}),
-				{ok, correlator_saved};
+				ok;
 			[#correlator{value = RequestID}] ->
 				{correlator_exist, RequestID}
 		end

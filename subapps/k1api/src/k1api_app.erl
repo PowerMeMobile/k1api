@@ -17,15 +17,13 @@
 
 start(_StartType, _StartArgs) ->
     ?log_info("k1api initializing...", []),
-
     Result = k1api_sup:start_link(),
-
+	{ok, Port} = application:get_env(oneapi_port),
 	EOneAPIProps = [
-		{port, 8081},
+		{port, Port},
 		{sms_handler, k1api_sms_handler}
 	],
 	eoneapi:start_service(EOneAPIProps),
-
 	Result.
 
 prep_stop(State) ->

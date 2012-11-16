@@ -2,7 +2,7 @@
 
 HOST=127.0.0.1
 PORT=8081
-CUSTOMER=test-sys-id
+CUSTOMER=oneapi-postpaid
 USER=user
 PASSWORD=password
 

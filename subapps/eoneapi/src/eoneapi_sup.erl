@@ -1,4 +1,3 @@
-
 -module(eoneapi_sup).
 
 -behaviour(supervisor).

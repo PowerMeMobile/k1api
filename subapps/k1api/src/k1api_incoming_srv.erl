@@ -63,9 +63,13 @@ handle_info({#'basic.deliver'{},
 		content_type = ContentType
 	} = Props,
 	{ok, DTO} = decode_dto(Payload, ContentType),
-	{ok, ID} = process_dto(DTO),
 	?log_debug("Got DTO: ~p", [DTO]),
-	respond_and_ack(ID, MsgID, ReplyTo, Chan),
+	case process_dto(DTO) of
+		{ok, ID} ->
+			respond_and_ack(ID, MsgID, ReplyTo, Chan);
+		noreply ->
+			ok
+	end,
 	{noreply, State};
 
 handle_info(_Info, State) ->
@@ -99,7 +103,7 @@ decode_dto(Bin, <<"ReceiptBatch">>) ->
 process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 	#k1api_sms_notification_request_dto{
 		callback_data = Callback,
-		datetime = _DateTime,
+		datetime = DateTime,
 		dest_addr = DestAddr,
 		message_id = MessageID,
 		message = Message,
@@ -108,16 +112,18 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 	} = DTO,
 	InboundSms = #inbound_sms{
 		notify_url = URL,
-		date_time = {{2012,10,24},{13,45,00}},
-		destination_address = DestAddr#addr_dto.addr,
-		message_id = uuid:to_string(MessageID),
+		date_time = k_datetime:unix_epoch_to_datetime(DateTime),
+		dest_addr = DestAddr#addr_dto.addr,
+		message_id = list_to_binary(uuid:to_string(MessageID)),
 		message = Message,
-		sender_address = SenderAddr#addr_dto.addr,
-		callback_data = Callback
+		sender_addr = SenderAddr#addr_dto.addr,
+		callback = Callback
 	},
 	?log_debug("Got InboundSms: ~p", [InboundSms]),
-	%% ok = eoneapi:deliver_sms(json, InboundSms),
-	{ok, MessageID};
+	case eoneapi:deliver_sms(InboundSms) of
+		ok -> {ok, MessageID};
+		_Any -> noreply
+	end;
 process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
 	#k1api_sms_delivery_receipt_notification_dto{
 		id = ItemID,
@@ -128,12 +134,12 @@ process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
 	} = DTO,
 	Receipt = #delivery_receipt{
 		notify_url = NotifyURL,
-		callback_data = CallbackData,
-		address = DestAddr#addr_dto.addr,
-		delivery_status = MessageState
+		callback = CallbackData,
+		dest_addr = DestAddr#addr_dto.addr,
+		status = MessageState
 	},
 	?log_debug("Got Receipt: ~p", [Receipt]),
-	%% ok = eoneapi:deliver_sms_status(json, Receipt),
-	{ok, ItemID}.
-
-
+	case eoneapi:deliver_sms_status(Receipt) of
+		ok -> {ok, ItemID};
+		_Any -> noreply
+	end.
