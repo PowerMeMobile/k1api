@@ -24,6 +24,14 @@
 	customer :: term()
 }).
 
+-define(record_info(RecordName, Record),
+	apply(
+	fun() ->
+		Fields = record_info(fields, RecordName),
+		[_ | Values] = tuple_to_list(Record),
+		lists:zip(Fields, Values)
+	end, [])).
+
 %% ===================================================================
 %% eoneapi sms handler callbacks
 %% ===================================================================
@@ -54,9 +62,8 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 			{error, Error}
 	end.
 
-handle_delivery_status_req(SenderAddress, SendSmsRequestIDHex,
-		#state{creds = Creds, customer = Customer}) ->
-	SendSmsRequestID = uuid:to_binary(binary_to_list(SendSmsRequestIDHex)),
+handle_delivery_status_req(SenderAddress, SendSmsRequestID,
+						#state{creds = Creds, customer = Customer}) ->
 	#k1api_auth_response_dto{
 		uuid = CustomerUUID
 	} = Customer,
@@ -72,6 +79,8 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestIDHex,
 	{ok, DeliveryStatuses}.
 
 handle_delivery_notifications_subscribe(Req, State = #state{}) ->
+	ReqInfo = ?record_info(delivery_receipt_subscribe, Req),
+	?log_debug("Got delivery notifications subscribe request: ~p", [ReqInfo]),
 	#state{creds = Creds, customer = Customer} = State,
 	#delivery_receipt_subscribe{
 		sender_addr = Sender,
@@ -85,7 +94,6 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 		} = Customer,
 	#credentials{user_id = UserID} = Creds,
 	ReqID = uuid:newid(),
-	?log_debug("Got correlator: ~p", [Correlator]),
 	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
 		ok ->
 			?log_debug("Correlator saved", []),
@@ -100,15 +108,13 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 			?log_debug("ReqDTO: ~p", [ReqDTO]),
 			{ok, Bin} = adto:encode(ReqDTO),
 			{ok, _RespBin} = k1api_subscription_srv:subscribe_receipts(ReqID, Bin),
-			{ok, list_to_binary(uuid:to_string(ReqID))};
+			{ok, ReqID};
 		{correlator_exist, OrigReqID} ->
-			OrigReqIDBitstr = list_to_binary(uuid:to_string(OrigReqID)),
-			?log_debug("Correlato exist: ~p", [OrigReqIDBitstr]),
-			{ok, OrigReqIDBitstr}
+			?log_debug("Correlator exist: ~p", [OrigReqID]),
+			{ok, OrigReqID}
 	end.
 
 handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State = #state{}) ->
-	SubIDBin = uuid:to_binary(binary_to_list(SubscriptionID)),
 	#state{creds = Creds, customer = Customer} = State,
 	#credentials{user_id = UserID} = Creds,
 	#k1api_auth_response_dto{
@@ -119,7 +125,7 @@ handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State =
 		id = RequestID,
 		customer_id = CustomerID,
 		user_id = UserID,
-		subscription_id = SubIDBin
+		subscription_id = SubscriptionID
 	},
 	{ok, Bin} = adto:encode(DTO),
 	{ok, _RespBin} = k1api_subscription_srv:unsubscribe_receipts(RequestID, Bin),
@@ -155,7 +161,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 		} = MessageDTO,
 		#inbound_sms{
 			date_time = k_datetime:unix_epoch_to_datetime(DateTime),
-			message_id = list_to_binary(uuid:to_string(MessageID)),
+			message_id = MessageID,
 			message = MessageText,
 			sender_addr = SenderAddr#addr_dto.addr}
 	end, MessagesDTO),
@@ -193,14 +199,14 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 			{ok, Bin} = adto:encode(DTO),
 			{ok, SubscriptionID} = k1api_subscription_srv:subscribe_incoming_sms(ReqID, Bin),
 			?log_debug("Got subscriptionID: ~p", [SubscriptionID]),
-			{ok, list_to_binary(uuid:to_string(SubscriptionID))};
+			{ok, SubscriptionID};
 		{correlator_exist, OrigReqID} ->
-			?log_debug("Correlator exist: ~p", [list_to_binary(uuid:to_string(OrigReqID))]),
-			{ok, list_to_binary(uuid:to_string(OrigReqID))}
+			?log_debug("Correlator exist: ~p", [OrigReqID]),
+			{ok, OrigReqID}
 	end.
 
-handle_inbound_unsubscribe(SubscribeIDBitstring, State = #state{}) ->
-	?log_debug("Got inbound unsubscribe event: ~p", [SubscribeIDBitstring]),
+handle_inbound_unsubscribe(SubscribeID, State = #state{}) ->
+	?log_debug("Got inbound unsubscribe event: ~p", [SubscribeID]),
 	#state{
 		creds = Creds,
 		customer = Customer
@@ -209,7 +215,6 @@ handle_inbound_unsubscribe(SubscribeIDBitstring, State = #state{}) ->
 		uuid = CustomerID
 	} = Customer,
 	#credentials{user_id = UserID} = Creds,
-	SubscribeID = uuid:to_binary(binary_to_list(SubscribeIDBitstring)),
 	RequestID = uuid:newid(),
 	DTO = #k1api_unsubscribe_incoming_sms_request_dto{
 		id = RequestID,

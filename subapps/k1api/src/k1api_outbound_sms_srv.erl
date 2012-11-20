@@ -152,10 +152,9 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 	case k1api_db:check_correlator(CustomerID, UserID, Correlator, ReqID) of
 		ok ->
 			{ok, Bin} = adto:encode(DTO),
-			RequestIDStr = uuid:to_string(ReqID),
 			?log_debug("SmsRequest was sucessfully encoded", []),
-			ok = publish_sms_request(Bin, RequestIDStr, GtwID),
-			{ok, RequestIDStr};
+			ok = publish_sms_request(Bin, ReqID, GtwID),
+			{ok, ReqID};
 		{correlator_exist, OrigReqID} ->
 			{ok, OrigReqID}
 	end.
@@ -198,10 +197,10 @@ publish_sms_request(Payload, ReqID, GtwID) ->
         content_type = <<"k1apiSmsRequest">>,
         delivery_mode = 2,
         priority = 1,
-        message_id = list_to_binary(ReqID)
+        message_id = ReqID
     },
 	{ok, Channel} = gen_server:call(?MODULE, get_channel),
-    GtwQueue = re:replace("pmm.just.gateway.%id%", "%id%", uuid:to_string(GtwID), [{return, binary}]),
+	GtwQueue = binary:replace(<<"pmm.just.gateway.%id%">>, <<"%id%">>, GtwID),
 	?log_debug("Sending message to ~p & ~p through the ~p", [?SmsRequestQueue, GtwQueue, Channel]),
     ok = rmql:basic_publish(Channel, ?SmsRequestQueue, Payload, Basic),
     ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).

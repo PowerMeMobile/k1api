@@ -27,6 +27,14 @@
 	chan :: pid()
 }).
 
+-define(record_info(RecordName, Record),
+	apply(
+	fun() ->
+		Fields = record_info(fields, RecordName),
+		[_ | Values] = tuple_to_list(Record),
+		lists:zip(Fields, Values)
+	end, [])).
+
 %% ===================================================================
 %% API
 %% ===================================================================
@@ -91,7 +99,7 @@ respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
     RespProps = #'P_basic'{
         content_type   = <<"BatchAck">>,
         correlation_id = MsgId,
-        message_id     = list_to_binary(uuid:to_string(uuid:newid()))
+        message_id     = uuid:newid()
     },
     rmql:basic_publish(Chan, ReplyTo, Encoded, RespProps).
 
@@ -101,6 +109,8 @@ decode_dto(Bin, <<"ReceiptBatch">>) ->
 	adto:decode(#k1api_sms_delivery_receipt_notification_dto{}, Bin).
 
 process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
+	DTOInfo = ?record_info(k1api_sms_notification_request_dto, DTO),
+	?log_debug("Got InboundSms: ~p", [DTOInfo]),
 	#k1api_sms_notification_request_dto{
 		callback_data = Callback,
 		datetime = DateTime,
@@ -114,12 +124,11 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 		notify_url = URL,
 		date_time = k_datetime:unix_epoch_to_datetime(DateTime),
 		dest_addr = DestAddr#addr_dto.addr,
-		message_id = list_to_binary(uuid:to_string(MessageID)),
+		message_id = MessageID,
 		message = Message,
 		sender_addr = SenderAddr#addr_dto.addr,
 		callback = Callback
 	},
-	?log_debug("Got InboundSms: ~p", [InboundSms]),
 	case eoneapi:deliver_sms(InboundSms) of
 		ok -> {ok, MessageID};
 		_Any -> noreply
