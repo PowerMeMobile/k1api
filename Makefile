@@ -1,28 +1,35 @@
 NAME=k1api
+OTP_PLT=~/.otp.plt
 
 all: generate
-
-get-deps:
-	@./rebar get-deps
-
-clean:
-	@./rebar clean
-
-dialyze:
-	@./rebar clean
-	@./rebar compile debug_info=1
-	@./rebar dialyze skip_deps=true
-	@./rebar clean
-
-build-plt:
-	@./rebar build-plt skip_deps=true
-
-compile: get-deps
-	@./rebar compile
 
 generate: compile
 	@rm -rf ./rel/$(NAME)
 	@./rebar generate
+
+compile: get-deps
+	@./rebar compile
+
+get-deps:
+	@./rebar get-deps
+
+console:
+	./rel/$(NAME)/bin/$(NAME) console
+
+clean:
+	@./rebar clean
+
+dialyze: compile
+	@dialyzer --plt $(NAME).plt -r ./subapps/*/ebin
+
+build-otp-plt:
+	@dialyzer --build_plt --output_plt $(OTP_PLT) --apps erts \
+		kernel stdlib crypto mnesia sasl common_test eunit ssl \
+		asn1 compiler syntax_tools inets
+
+build-project-plt:
+	@dialyzer --add_to_plt --plt $(OTP_PLT) --output_plt $(NAME).plt \
+		-r ./deps/*/ebin ./subapps/*/ebin
 
 compile-fast:
 	@./rebar compile
@@ -30,12 +37,3 @@ compile-fast:
 generate-fast: compile-fast
 	@rm -rf ./rel/$(NAME)
 	@./rebar generate
-
-console:
-	./rel/$(NAME)/bin/$(NAME) console
-
-gdb:
-	./rel/$(NAME)/bin/$(NAME) gdb
-
-release: generate
-	./rel/create-release.sh
