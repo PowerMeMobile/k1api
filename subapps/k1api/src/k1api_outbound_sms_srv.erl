@@ -81,7 +81,7 @@ bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Desti
 
 	{ok, SessionID} = k1api_billy_session:get_session_id(),
 	case billy_client:reserve(
-		SessionID, ?CLIENT_TYPE_ONEAPI, CustomerID, list_to_binary(UserID), ?SERVICE_TYPE_SMS_ON, NumberOfMsgs
+		SessionID, ?CLIENT_TYPE_ONEAPI, CustomerID, UserID, ?SERVICE_TYPE_SMS_ON, NumberOfMsgs
 	) of
 		{accepted, TransID} ->
 			?log_debug("Reserve accepted: ~p", [TransID]),
@@ -92,7 +92,7 @@ bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Desti
 					{ok, RequestIDStr};
 				{error, Reason} ->
 					?log_debug("Send failed with: ~p", [Reason]),
-					rolledback = billy_client:rolledback(TransID),
+					rolledback = billy_client:rollback(TransID),
 					?log_debug("Rolledback.", []),
 					{error, Reason}
 			end;

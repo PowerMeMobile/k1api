@@ -41,10 +41,10 @@ init(Creds = #credentials{}) ->
 	case k1api_auth_srv:authenticate(Creds) of
 		{ok, Customer = #k1api_auth_response_dto{}} ->
 			?log_debug("Customer: ~p", [Customer]),
-			{ok, #state{creds = Creds, customer = Customer}};
-	   	{error, Error} ->
-			?log_error("~p", [Error]),
-			{error, Error}
+			{ok, #state{creds = Creds, customer = Customer}}
+	   	%% {error, Error} ->
+		%% 	?log_error("~p", [Error]),
+		%% 	{error, Error}
 	end.
 
 handle_send_sms_req(OutboundSms = #outbound_sms{},
@@ -53,13 +53,10 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 	case k1api_outbound_sms_srv:send(OutboundSms, Customer, Creds) of
 		{ok, RequestID} ->
 			?log_debug("Message sucessfully sent [id: ~p]", [RequestID]),
-			{ok, list_to_binary(RequestID)};
-		{exist, RequestIDStr} ->
-			?log_debug("Message already sent [id: ~p]", [RequestIDStr]),
-			{ok, RequestIDStr};
-		{error, Error} ->
-			?log_debug("Send message error: ~p", [Error]),
-			{error, Error}
+			{ok, RequestID}
+		%% {error, Error} ->
+		%% 	?log_debug("Send message error: ~p", [Error]),
+		%% 	{error, Error}
 	end.
 
 handle_delivery_status_req(SenderAddress, SendSmsRequestID,
@@ -128,21 +125,20 @@ handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State =
 		subscription_id = SubscriptionID
 	},
 	{ok, Bin} = adto:encode(DTO),
-	{ok, _RespBin} = k1api_subscription_srv:unsubscribe_receipts(RequestID, Bin),
+	{ok, ok} = k1api_subscription_srv:unsubscribe_receipts(RequestID, Bin),
 	?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
 	{ok, deleted}.
 
 handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 	#retrieve_sms_req{
 		reg_id = RegID,
-		batch_size = BatchSizeStr
+		batch_size = BatchSize
 	} = Request,
 	#state{creds = Creds, customer = Customer} = State,
 	#k1api_auth_response_dto{
 		uuid = CustomerUUID
 	} = Customer,
 	#credentials{user_id = UserID} = Creds,
-	BatchSize = list_to_integer(binary_to_list(BatchSizeStr)),
 	?log_debug("Sending retrieve sms request", []),
 	DestinationAddress = RegID,
 	{ok, Response} =
@@ -224,7 +220,7 @@ handle_inbound_unsubscribe(SubscribeID, State = #state{}) ->
 	},
 	?log_debug("Send unsubscribe event: ~p", [DTO]),
 	{ok, Bin} = adto:encode(DTO),
-	{ok, RequestID} = k1api_subscription_srv:unsubscribe_incoming_sms(RequestID, Bin),
+	{ok, ok} = k1api_subscription_srv:unsubscribe_incoming_sms(RequestID, Bin),
 	{ok, deleted}.
 
 %% ===================================================================

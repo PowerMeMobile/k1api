@@ -70,7 +70,7 @@ deliver_sms_status(#delivery_receipt{
 			Any
 	end.
 
--spec deliver_sms(inbound_sms()) -> ok.
+-spec deliver_sms(inbound_sms()) -> ok | {error, term()}.
 deliver_sms(#inbound_sms{
 							notify_url = NotifyURL,
 							date_time = DateTime,
@@ -101,8 +101,8 @@ deliver_sms(#inbound_sms{
 	case Response of
 		{ok, {{_Version, 200, _ReasonPhrase}, _Headers, _Body}} ->
 			ok;
-		Any ->
-			Any
+		{error, Error} ->
+			{error, Error}
 	end.
 
 %% ===================================================================

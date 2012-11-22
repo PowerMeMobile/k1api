@@ -131,7 +131,7 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 	},
 	case eoneapi:deliver_sms(InboundSms) of
 		ok -> {ok, MessageID};
-		_Any -> noreply
+		{error, _Error} -> noreply
 	end;
 process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
 	#k1api_sms_delivery_receipt_notification_dto{
@@ -150,5 +150,5 @@ process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
 	?log_debug("Got Receipt: ~p", [Receipt]),
 	case eoneapi:deliver_sms_status(Receipt) of
 		ok -> {ok, ItemID};
-		_Any -> noreply
+		{error, _Error} -> noreply
 	end.

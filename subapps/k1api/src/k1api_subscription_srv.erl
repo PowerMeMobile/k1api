@@ -59,15 +59,15 @@ start_link() ->
 subscribe_incoming_sms(RequestID, Payload) ->
 	process_request(RequestID, Payload, <<"SubscribeIncomingSms">>).
 
--spec unsubscribe_incoming_sms(binary(), binary()) -> {ok, binary()}.
+-spec unsubscribe_incoming_sms(binary(), binary()) -> {ok, ok}.
 unsubscribe_incoming_sms(RequestID, Payload) ->
 	process_request(RequestID, Payload, <<"UnsubscribeIncomingSms">>).
 
--spec subscribe_receipts(binary(), binary()) -> binary().
+-spec subscribe_receipts(binary(), binary()) -> {ok, binary()}.
 subscribe_receipts(RequestID, Payload) ->
 	process_request(RequestID, Payload, <<"SubscribeReceipts">>).
 
--spec unsubscribe_receipts(binary(), binary()) -> binary().
+-spec unsubscribe_receipts(binary(), binary()) -> {ok, ok}.
 unsubscribe_receipts(RequestID, Payload) ->
 	process_request(RequestID, Payload, <<"UnsubscribeReceipts">>).
 
@@ -160,7 +160,7 @@ decode_incoming(<<"UnsubscribeIncomingSms">>, Content, State) ->
 				id = CorrelationID }} ->
 			?log_debug("Got unsubscribe incoming sms response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = CorrelationID},
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = ok},
 			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
@@ -192,7 +192,7 @@ decode_incoming(<<"UnsubscribeReceipts">>, Content, State) ->
 				id = CorrelationID }} ->
 			?log_debug("Got unsubscribe sms receipts  response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = CorrelationID},
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = ok},
 			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->

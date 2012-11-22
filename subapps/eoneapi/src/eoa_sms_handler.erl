@@ -8,8 +8,6 @@
 	terminate/2
 ]).
 
--export([behaviour_info/1]).
-
 -include("logging.hrl").
 -include("eoneapi.hrl").
 
@@ -24,20 +22,51 @@
 }).
 
 %% ===================================================================
-%% API
+%% Behaviour Callbacks
 %% ===================================================================
 
-behaviour_info(callbacks) ->
-	[
-		{init, 1},
-		{handle_send_sms_req, 2},
-		{handle_delivery_status_req,3},
-		{handle_delivery_notifications_subscribe,2},
-		{handle_delivery_notifications_unsubscribe,3},
-		{handle_retrieve_req,2},
-		{handle_inbound_subscribe,2},
-		{handle_inbound_unsubscribe,2}
-	].
+-callback init(credentials()) ->
+	{ok, state()} |
+	{error, denied}.
+
+-callback handle_send_sms_req(outbound_sms(), state()) ->
+	{ok, request_id()} |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+-callback handle_delivery_status_req(sender_address(), request_id(), state()) ->
+	{ok, sms_delivery_statuses()}  |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+-callback handle_delivery_notifications_subscribe(delivery_receipt_subscribe(), state()) ->
+	{ok, subscription_id()} |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+-callback handle_delivery_notifications_unsubscribe(sender_address(), subscription_id(), state()) ->
+	{ok, deleted} |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+-callback handle_retrieve_req(retrieve_sms_req(), state()) ->
+	{ok, [inbound_sms()], pending_sms()} |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+-callback handle_inbound_subscribe(subscribe_inbound(), state()) ->
+	{ok, subscription_id()} |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+-callback handle_inbound_unsubscribe(subscription_id(), state()) ->
+	{ok, deleted} |
+	{exception, exception()} |
+	{exception, exception(), excep_params()}.
+
+%% ===================================================================
+%% API
+%% ===================================================================
 
 init({_Any, http}, Req, [Module]) ->
 	?log_debug("Req: ~p", [Req]),
@@ -327,7 +356,7 @@ process_retrieve_sms_req(RegId, State = #state{
 	{ok, ReqPropList} = get_prop_list(Req),
 	RetrieveSmsReq = #retrieve_sms_req{
 						reg_id = RegId,
-						batch_size = gv(ReqPropList, <<"maxBatchSize">>)
+						batch_size = giv(ReqPropList, <<"maxBatchSize">>)
 						},
 	Result = Mod:handle_retrieve_req(RetrieveSmsReq, MState),
 	case Result of
@@ -452,6 +481,12 @@ convert_addr(<<"tel:+", Bin/binary>>) ->
 	Bin;
 convert_addr(Bin) when is_binary(Bin) ->
 	Bin.
+
+giv(ReqPropList, Key) ->
+	case gv(ReqPropList, Key) of
+		undefined -> undefined;
+		Value -> list_to_integer(binary_to_list(Value))
+	end.
 
 gv(ReqPropList, Key) ->
 	case lists:keytake(Key, 1, ReqPropList) of
