@@ -309,7 +309,7 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 			]}],
 			JsonBody = jsx:encode(Body),
 			Headers = [{'Content-Type', ContentType}, {'Location', Location}],
-			{ok, Req2} = cowboy_http_req:reply(200, Headers, JsonBody, Req),
+			{ok, Req2} = cowboy_http_req:reply(201, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			?log_debug("Authentication failured", []),
