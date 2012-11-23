@@ -4,8 +4,3 @@ ebin
 deps
 rel/erl_crash.dump
 rel/k1api/
-subapps/k1api_proto/src/FunnelAsn.erl
-subapps/k1api_proto/src/JustAsn.erl
-subapps/k1api_proto/src/*.asn1db
-subapps/k1api_proto/include/FunnelAsn.hrl
-subapps/k1api_proto/include/JustAsn.hrl
