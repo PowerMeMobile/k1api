@@ -38,3 +38,6 @@ compile-fast:
 generate-fast: compile-fast
 	@rm -rf ./rel/$(NAME)
 	@./rebar generate
+
+api-test:
+	@./rebar skip_deps=true eunit suites=k1api_common_test

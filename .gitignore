@@ -1,3 +1,4 @@
+*.eunit
 k1api.plt
 ebin
 deps
