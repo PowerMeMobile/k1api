@@ -219,7 +219,7 @@ process_outbound_sms_req( _, State = #state{
 	case Result of
 		{ok, ReqId} ->
 			ContentType = <<"application/json">>,
-			Location = build_location(Req, ReqId),
+			Location = build_resource_url(Req, ReqId),
 			Body =
 			[{<<"resourceReference">>, [
 				{<<"resourceURL">>, Location}
@@ -253,7 +253,7 @@ process_delivery_status_req(ReqId,
 				lists:map(fun({Address, DeliveryStatus})->
 				[{<<"address">>, Address}, {<<"deliveryStatus">>, DeliveryStatus}]
 				end, ResponseList),
-			Resource = build_resource(Req),
+			Resource = build_resource_url(Req),
 			Body =
 			[{<<"deliveryInfoList">>, [
 				{<<"deliveryInfo">>, Reports},
@@ -295,7 +295,7 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 		{ok, SubscribeId} ->
 			CallBackData = gv(ReqPropList, <<"callbackData">>),
 			NotifyURL = gv(ReqPropList, <<"notifyURL">>),
-			Location = build_location(Req, SubscribeId),
+			Location = build_resource_url(Req, SubscribeId),
 			ContentType = <<"application/json">>,
 			Criteria = gv(ReqPropList, <<"criteria">>),
 			Body =
@@ -368,7 +368,7 @@ process_retrieve_sms_req(RegId, State = #state{
 								message = MessageTextBin,
 								sender_addr = SenderAddrBin})->
 					DateTimeBin = iso8601:format(DateTime),
-					LocationUrl = build_location(Req, MessIdBin),
+					LocationUrl = build_resource_url(Req, MessIdBin),
 					[{<<"dateTime">>, DateTimeBin},
 					{<<"destinationAddress">>, RegId},
 					{<<"messageId">>, MessIdBin},
@@ -377,7 +377,7 @@ process_retrieve_sms_req(RegId, State = #state{
 					{<<"senderAddress">>, SenderAddrBin}]
 				end, ListOfInboundSms),
 			ThisBatchSize = length(ListOfInboundSms),
-			ResourceURL = build_resource(Req),
+			ResourceURL = build_resource_url(Req),
 			Body =
 			[{<<"inboundSMSMessageList">>, [
 				{<<"inboundSMSMessage">>, Messages},
@@ -418,7 +418,7 @@ process_sms_delivery_subscribe_req( _, State = #state{
 						},
 	case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
 		{ok, SubId} ->
-			Location = build_location(Req, SubId),
+			Location = build_resource_url(Req, SubId),
 			ContentType = <<"application/json">>,
 			Body =
 			[{<<"resourceReference">>, [
@@ -504,18 +504,16 @@ gmv(ReqPropList, Key) ->
 		end, ReqPropList)
 		).
 
-build_location(Req, ItemId) when is_binary(ItemId) ->
+build_resource_url(Req) ->
+	build_resource_url(Req, <<>>).
+build_resource_url(Req, ItemId) when is_binary(ItemId) ->
 	{RawHost, _} = cowboy_http_req:raw_host(Req),
 	{RawPath, _} = cowboy_http_req:raw_path(Req),
+	{Port, _} = cowboy_http_req:port(Req),
+	BitstringPort = list_to_binary(integer_to_list(Port)),
 	Protocol = <<"http://">>,
-	ReqIdBin = << <<"/">>/binary, ItemId/binary>>,
-	<<Protocol/binary, RawHost/binary, RawPath/binary, ReqIdBin/binary>>.
-
-build_resource(Req) ->
-	{RawHost, _} = cowboy_http_req:raw_host(Req),
-	{RawPath, _} = cowboy_http_req:raw_path(Req),
-	Protocol = <<"http://">>,
-	<<Protocol/binary, RawHost/binary, RawPath/binary>>.
+	ReqIdBin = case ItemId of <<>> -> <<>>; Any -> << <<"/">>/binary, Any/binary>> end,
+	<<Protocol/binary, RawHost/binary, <<":">>/binary, BitstringPort/binary, RawPath/binary, ReqIdBin/binary>>.
 
 %% ===================================================================
 %% Credentials
