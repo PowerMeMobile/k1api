@@ -161,8 +161,8 @@ process_response(PResponse = #presponse{id = ID, response = Response}, RList, WL
 
 process_worker_request(Worker = #pworker{id = ItemID, from = From}, RList, WList) ->
 	case lists:keytake(ItemID, #presponse.id, RList) of
-		{value, #presponse{}, RestRespList} ->
-			gen_server:reply(From, ok),
+		{value, #presponse{response = AuthResponse}, RestRespList} ->
+			gen_server:reply(From, AuthResponse),
 			{ok, purge(RestRespList), purge(WList)};
 		false ->
 			{ok, purge(RList), [Worker] ++ purge(WList)}
