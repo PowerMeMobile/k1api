@@ -1,8 +1,6 @@
--module(eoa_default_handler).
+-module(eoa_error_handler).
 
 -behaviour(cowboy_http_handler).
-
--include("logging.hrl").
 
 -export([
 	init/3,
@@ -14,8 +12,8 @@ init({_Any, http}, Req, []) ->
 	{ok, Req, undefined}.
 
 handle(Req, State) ->
-	?log_debug("Bad req: ~p", [Req]),
-	{ok, Req2} = cowboy_http_req:reply(404, [], <<"Not found: mistake in the host or path of the service URI">>, Req),
+	Text = <<"Not found: mistake in the host or path of the service URI">>,
+	{ok, Req2} = cowboy_http_req:reply(404, [], Text, Req),
 	{ok, Req2, State}.
 
 terminate(_Req, _State) ->

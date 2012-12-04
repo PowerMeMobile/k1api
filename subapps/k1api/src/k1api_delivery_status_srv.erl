@@ -2,11 +2,13 @@
 
 -behaviour(gen_server).
 
+%% API
 -export([
 	start_link/0,
 	get/4
-	]).
+]).
 
+%% GenServer Callbacks
 -export([
 	init/1,
 	handle_cast/2,
@@ -14,7 +16,7 @@
 	handle_info/2,
 	code_change/3,
 	terminate/2
-	]).
+]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
@@ -44,7 +46,9 @@
 	pending_responses = [] :: [#presponse{}]
 }).
 
-%% API Functions Definitions
+%% ===================================================================
+%% API
+%% ===================================================================
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
@@ -56,34 +60,6 @@ get(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
 	?log_debug("Successfully sent request [~p] to backend", [RequestID]),
 	{ok, Response} = get_response(RequestID),
 	{ok, Response#k1api_sms_delivery_status_response_dto.statuses}.
-
-get_channel() ->
-	gen_server:call(?MODULE, get_channel).
-
-get_response(RequestUUID) ->
-	gen_server:call(?MODULE, {get_response, RequestUUID}).
-
-request_backend(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
- 	{ok, Channel} = get_channel(),
-	RequestUUID = uuid:newid(),
-	DeliveryStatusReqDTO = #k1api_sms_delivery_status_request_dto{
-		id = RequestUUID,
-		customer_id = CustomerUUID,
-		user_id = UserID,
-		sms_request_id = SendSmsRequestId,
-		address = convert_addr_to_dto(SenderAddress)
-	},
-	?log_debug("DeliveryStatusReqDTO: ~p", [DeliveryStatusReqDTO]),
-	{ok, Payload} = adto:encode(DeliveryStatusReqDTO),
-    ok = rmql:basic_publish(Channel, ?deliveryStatusRequestQueue, Payload, #'P_basic'{}),
-	{ok, RequestUUID}.
-
-convert_addr_to_dto(SenderAddress) ->
-	#addr_dto{
-		addr = SenderAddress,
-		ton = 1,
-		npi = 1
-	}.
 
 %% ===================================================================
 %% GenServer Callbacks
@@ -145,6 +121,34 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 %% Internal
 %% ===================================================================
+
+get_channel() ->
+	gen_server:call(?MODULE, get_channel).
+
+get_response(RequestUUID) ->
+	gen_server:call(?MODULE, {get_response, RequestUUID}).
+
+request_backend(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
+ 	{ok, Channel} = get_channel(),
+	RequestUUID = uuid:newid(),
+	DeliveryStatusReqDTO = #k1api_sms_delivery_status_request_dto{
+		id = RequestUUID,
+		customer_id = CustomerUUID,
+		user_id = UserID,
+		sms_request_id = SendSmsRequestId,
+		address = convert_addr_to_dto(SenderAddress)
+	},
+	?log_debug("DeliveryStatusReqDTO: ~p", [DeliveryStatusReqDTO]),
+	{ok, Payload} = adto:encode(DeliveryStatusReqDTO),
+    ok = rmql:basic_publish(Channel, ?deliveryStatusRequestQueue, Payload, #'P_basic'{}),
+	{ok, RequestUUID}.
+
+convert_addr_to_dto(SenderAddress) ->
+	#addr_dto{
+		addr = SenderAddress,
+		ton = 1,
+		npi = 1
+	}.
 
 process_response(PResponse = #presponse{id = ID, response = Response}, RList, WList) ->
 		case lists:keytake(ID, #pworker.id, WList) of

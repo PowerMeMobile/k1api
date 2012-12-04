@@ -2,11 +2,13 @@
 
 -behaviour(gen_server).
 
+%% API
 -export([
 	start_link/0,
 	send/3
-	]).
+]).
 
+%% GenServer Callbacks
 -export([
 	init/1,
 	handle_cast/2,
@@ -14,7 +16,7 @@
 	handle_info/2,
 	code_change/3,
 	terminate/2
-	]).
+]).
 
 -include("logging.hrl").
 -include("gen_server_spec.hrl").
@@ -25,12 +27,24 @@
 
 -define(SmsRequestQueue, <<"pmm.k1api.sms_request">>).
 
+-define(just_sms_request_param(Name, Param),
+	apply(fun
+		(undefined) ->
+			[];
+		(Str) when is_binary(Str) ; is_list(Str) ->
+			{just_sms_request_param_dto, Name, {string, Str}};
+		(Bool) when Bool =:= true ; Bool =:= false ->
+			{just_sms_request_param_dto, Name, {boolean, Bool}};
+		(Int) when is_integer(Int) ->
+			{just_sms_request_param_dto, Name, {integer, Int}}
+	end, [Param])).
+
 -record(state, {
 	chan :: pid()
 }).
 
 %% ===================================================================
-%% API Functions Definitions
+%% API Functions
 %% ===================================================================
 
 -spec start_link() -> {ok, pid()}.
@@ -68,6 +82,39 @@ send(OutboundSms, Customer, Credentials) ->
 			just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations)
 	end.
 
+%% ===================================================================
+%% GenServer Callback Functions Definitions
+%% ===================================================================
+
+init([]) ->
+	{ok, Connection} = rmql:connection_start(),
+	{ok, Channel} = rmql:channel_open(Connection),
+	link(Channel),
+	ok = rmql:queue_declare(Channel, ?SmsRequestQueue, []),
+	{ok, #state{chan = Channel}}.
+
+handle_call(get_channel, _From, State = #state{chan = Chan}) ->
+	{reply, {ok, Chan}, State};
+
+handle_call(_Request, _From, State) ->
+    {stop, unexpected_call, State}.
+
+handle_cast(Req, State) ->
+    {stop, {unexpected_cast, Req}, State}.
+
+handle_info(_Info, State) ->
+    {stop, unexpected_info, State}.
+
+terminate(_Reason, _State) ->
+    ok.
+
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+%% ===================================================================
+%% Local Functions Definitions
+%% ===================================================================
+
 bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
 	#k1api_auth_response_dto{
 		uuid = CustomerID
@@ -101,14 +148,13 @@ bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Desti
 			{error, Reason}
 	end.
 
-%% funnel encode_batch(Common, Dests, BatchId, GtwId)
 just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
 	#outbound_sms{
 		sender_addr = RawSenderAddress,
 		message = Message,
-		notify_url = NotifyURL, % opt
-		correlator = Correlator, %opt
-		callback = CallbackData % opt
+		notify_url = NotifyURL,
+		correlator = Correlator,
+		callback = CallbackData
 	} = OutboundSms,
 	#k1api_auth_response_dto{
 		uuid = CustomerID,
@@ -120,17 +166,17 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		user_id = UserID
 	} = Credentials,
 	ReqID = uuid:newid(),
-	Params = [
-			{just_sms_request_param_dto,<<"registered_delivery">>,{boolean, true}},
-			{just_sms_request_param_dto,<<"service_type">>,{string,<<>>}},
-			{just_sms_request_param_dto,<<"no_retry">>,{boolean, NoRetry}},
-			{just_sms_request_param_dto,<<"validity_period">>,{string, fmt_validity(DefaultValidity)}},
-			{just_sms_request_param_dto,<<"priority_flag">>,{integer,0}},
-			{just_sms_request_param_dto,<<"esm_class">>,{integer,3}},
-			{just_sms_request_param_dto,<<"protocol_id">>,{integer,0}},
-			{just_sms_request_param_dto, <<"k1api_notify_url">>, {string, NotifyURL}},
-			{just_sms_request_param_dto, <<"k1api_callback_data">>, {string, CallbackData}}
-			],
+	Params = lists:flatten([
+			?just_sms_request_param(<<"k1api_notify_url">>, NotifyURL),
+			?just_sms_request_param(<<"k1api_callback_data">>, CallbackData),
+			?just_sms_request_param(<<"registered_delivery">>, true),
+			?just_sms_request_param(<<"service_type">>, <<>>),
+			?just_sms_request_param(<<"no_retry">>, NoRetry),
+			?just_sms_request_param(<<"validity_period">>, fmt_validity(DefaultValidity)),
+			?just_sms_request_param(<<"priority_flag">>, 0),
+			?just_sms_request_param(<<"esm_class">>, 3),
+			?just_sms_request_param(<<"protocol_id">>, 0)
+			]),
 	NumberOfDests = length(Destinations),
 	GtwID = get_suitable_gtw(Customer, NumberOfDests),
 	MessageIDs = get_ids(CustomerID, NumberOfDests, NumberOfParts),
@@ -158,39 +204,6 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		{correlator_exist, OrigReqID} ->
 			{ok, OrigReqID}
 	end.
-
-%% ===================================================================
-%% GenServer Callback Functions Definitions
-%% ===================================================================
-
-init([]) ->
-	{ok, Connection} = rmql:connection_start(),
-	{ok, Channel} = rmql:channel_open(Connection),
-	link(Channel),
-	ok = rmql:queue_declare(Channel, ?SmsRequestQueue, []),
-	{ok, #state{chan = Channel}}.
-
-handle_call(get_channel, _From, State = #state{chan = Chan}) ->
-	{reply, {ok, Chan}, State};
-
-handle_call(_Request, _From, State) ->
-    {stop, unexpected_call, State}.
-
-handle_cast(Req, State) ->
-    {stop, {unexpected_cast, Req}, State}.
-
-handle_info(_Info, State) ->
-    {stop, unexpected_info, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
-
-%% ===================================================================
-%% Local Functions Definitions
-%% ===================================================================
 
 publish_sms_request(Payload, ReqID, GtwID) ->
     Basic = #'P_basic'{

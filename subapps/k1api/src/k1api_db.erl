@@ -47,8 +47,8 @@
 -record(st, {
 }).
 
--define(PURGE_RATE, 10000). %% milliseconds
--define(CORRELATOR_LIFETIME, 60). %% seconds
+-define(PurgeRate, 10000). %% milliseconds
+-define(CorrelatorLifetime, 60). %% seconds
 
 %% ===================================================================
 %% API
@@ -75,17 +75,6 @@ next_id(CustomerID, NumberOfIDs) ->
 	end),
 	{ok, IDs}.
 
-update_counter(NextID, NumberOfIDs, CustomerID) ->
-	Max = 999999999,
-	{From, To, NewNextID} =
-	case (NextID + NumberOfIDs - 1) > Max of
-		true -> {1, NumberOfIDs, NumberOfIDs + 1};
-		false -> {NextID, NextID + NumberOfIDs - 1, NextID + NumberOfIDs}
-	end,
-	IDs = lists:seq(From, To),
-	mnesia:write(#customer_next_message_id{customer_id = CustomerID, next_id = NewNextID}),
-	IDs.
-
 -spec check_correlator	(customer_id(), user_id(), undefined, request_id()) -> ok
 					;	(customer_id(), user_id(), correlator_id(), request_id()) ->
 						ok | {correlator_exist, request_id()}.
@@ -111,8 +100,8 @@ check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
 %% ===================================================================
 
 init([]) ->
-	ok = init(),
-	{ok, #st{}, ?PURGE_RATE}.
+	ok = init_mnesia(),
+	{ok, #st{}, ?PurgeRate}.
 
 handle_call(_Request, _From, State) ->
     {stop, unexpected_call, State}.
@@ -121,14 +110,14 @@ handle_cast(_Msg, State) ->
     {stop, unexpected_cast, State}.
 
 handle_info(timeout, State) ->
-	TimeThreshold  = k_datetime:utc_unix_epoch() - ?CORRELATOR_LIFETIME,
+	TimeThreshold  = k_datetime:utc_unix_epoch() - ?CorrelatorLifetime,
 	MatchHead = #correlator{key = '$1', value = '_', created_at = '$2'},
 	Guard = {'<', '$2', TimeThreshold},
 	Result = '$1',
 	Delete = fun(ID) -> ok = mnesia:dirty_delete(correlator, ID) end,
 	IDs = mnesia:dirty_select(correlator, [{MatchHead, [Guard], [Result]}]),
 	lists:foreach(Delete, IDs),
-	{noreply, State, ?PURGE_RATE};
+	{noreply, State, ?PurgeRate};
 
 handle_info(_Info, State) ->
     {stop, unexpected_info, State}.
@@ -143,8 +132,18 @@ code_change(_OldVsn, State, _Extra) ->
 %% Local Functions
 %% ===================================================================
 
--spec init() -> ok.
-init() ->
+update_counter(NextID, NumberOfIDs, CustomerID) ->
+	Max = 999999999,
+	{From, To, NewNextID} =
+	case (NextID + NumberOfIDs - 1) > Max of
+		true -> {1, NumberOfIDs, NumberOfIDs + 1};
+		false -> {NextID, NextID + NumberOfIDs - 1, NextID + NumberOfIDs}
+	end,
+	IDs = lists:seq(From, To),
+	mnesia:write(#customer_next_message_id{customer_id = CustomerID, next_id = NewNextID}),
+	IDs.
+
+init_mnesia() ->
 	Nodes = [node()],
 	mnesia:set_debug_level(verbose),
 	mnesia:stop(),

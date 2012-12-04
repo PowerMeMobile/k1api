@@ -2,11 +2,13 @@
 
 -behaviour(gen_server).
 
+%% API
 -export([
 	start_link/0,
 	authenticate/1
-	]).
+]).
 
+%% GenServer Callbacks
 -export([
 	init/1,
 	handle_cast/2,
@@ -14,7 +16,7 @@
 	handle_info/2,
 	code_change/3,
 	terminate/2
-	]).
+]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
@@ -44,7 +46,9 @@
 	pending_responses = [] :: [#presponse{}]
 }).
 
-%% API Functions Definitions
+%% ===================================================================
+%% API
+%% ===================================================================
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
@@ -55,38 +59,23 @@ start_link() ->
 	{error, denied} |
 	{error, Error :: term()}.
 authenticate(Credentials = #credentials{}) ->
-	{ok, RequestID} = request_backend_auth(Credentials),
-	?log_debug("Sent auth request [id: ~p]", [RequestID]),
-	Customer = get_auth_response(RequestID),
-	?log_debug("Got sucessful auth response", []),
-	{ok, Customer}.
-
-get_channel() ->
-	gen_server:call(?MODULE, get_channel, 5000).
-
-get_auth_response(RequestUUID) ->
-	gen_server:call(?MODULE, {get_response, RequestUUID}, 5000).
-
-request_backend_auth(Credentials) ->
 	#credentials{
-		system_id = CustomerSystemID,
+		system_id = CustomerID,
 		user_id = UserID,
-		password = Password } = Credentials,
- 	{ok, Channel} = get_channel(),
-	RequestUUID = uuid:newid(),
-    AuthRequest = #k1api_auth_request_dto{
-        id = RequestUUID,
-        customer_id = CustomerSystemID,
-        user_id = UserID,
-        password = Password
-    },
-	{ok, Payload} = adto:encode(AuthRequest),
-    Props = #'P_basic'{
-        %% content_type = <<"OneAPIAuthRequest">>,
-        %% message_id   = RequestUUID
-    },
-    ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
-	{ok, RequestUUID}.
+		password = Pswd } = Credentials,
+	case k1api_auth_cache:fetch({CustomerID, UserID, Pswd}) of
+		{ok, Customer} ->
+			?log_debug("User found in cache", []),
+			{ok, Customer};
+		not_found ->
+			?log_debug("User NOT found in cache", []),
+			{ok, RequestID} = request_backend_auth(Credentials),
+			?log_debug("Sent auth request [id: ~p]", [RequestID]),
+			Customer = get_auth_response(RequestID),
+			ok = k1api_auth_cache:store({CustomerID, UserID, Pswd}, Customer),
+			?log_debug("Got sucessful auth response", []),
+			{ok, Customer}
+	end.
 
 %% ===================================================================
 %% GenServer Callbacks
@@ -146,9 +135,33 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-% ------------------------------------------------------------------
-% Internal Function Definitions
-% ------------------------------------------------------------------
+%% ===================================================================
+%% Internal
+%% ===================================================================
+
+get_channel() ->
+	gen_server:call(?MODULE, get_channel).
+
+get_auth_response(RequestUUID) ->
+	gen_server:call(?MODULE, {get_response, RequestUUID}).
+
+request_backend_auth(Credentials) ->
+	#credentials{
+		system_id = CustomerSystemID,
+		user_id = UserID,
+		password = Password } = Credentials,
+ 	{ok, Channel} = get_channel(),
+	RequestUUID = uuid:newid(),
+    AuthRequest = #k1api_auth_request_dto{
+        id = RequestUUID,
+        customer_id = CustomerSystemID,
+        user_id = UserID,
+        password = Password
+    },
+	{ok, Payload} = adto:encode(AuthRequest),
+    Props = #'P_basic'{},
+    ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
+	{ok, RequestUUID}.
 
 process_response(PResponse = #presponse{id = ID, response = Response}, RList, WList) ->
 		case lists:keytake(ID, #pworker.id, WList) of

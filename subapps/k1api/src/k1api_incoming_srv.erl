@@ -2,10 +2,12 @@
 
 -behaviour(gen_server).
 
+%% API
 -export([
 	start_link/0
-	]).
+]).
 
+%% GenServer Callback Exports
 -export([
 	init/1,
 	handle_cast/2,
@@ -13,7 +15,7 @@
 	handle_info/2,
 	code_change/3,
 	terminate/2
-	]).
+]).
 
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
@@ -27,16 +29,8 @@
 	chan :: pid()
 }).
 
--define(record_info(RecordName, Record),
-	apply(
-	fun() ->
-		Fields = record_info(fields, RecordName),
-		[_ | Values] = tuple_to_list(Record),
-		lists:zip(Fields, Values)
-	end, [])).
-
 %% ===================================================================
-%% API
+%% API Functions
 %% ===================================================================
 
 -spec start_link() -> {ok, pid()}.
@@ -44,7 +38,7 @@ start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% ===================================================================
-%% GenServer Callbacks
+%% GenServer Callback Functions
 %% ===================================================================
 
 init([]) ->
@@ -89,9 +83,9 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-% ------------------------------------------------------------------
-% Internal Function Definitions
-% ------------------------------------------------------------------
+%% ===================================================================
+%% Internal Functions
+%% ===================================================================
 
 respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
 	DTO = #funnel_ack_dto{id = ID},
@@ -109,8 +103,7 @@ decode_dto(Bin, <<"ReceiptBatch">>) ->
 	adto:decode(#k1api_sms_delivery_receipt_notification_dto{}, Bin).
 
 process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
-	DTOInfo = ?record_info(k1api_sms_notification_request_dto, DTO),
-	?log_debug("Got InboundSms: ~p", [DTOInfo]),
+	?log_debug("Got InboundSms: ~p", [DTO]),
 	#k1api_sms_notification_request_dto{
 		callback_data = Callback,
 		datetime = DateTime,
@@ -130,10 +123,11 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 		callback = Callback
 	},
 	case eoneapi:deliver_sms(InboundSms) of
-		ok -> {ok, MessageID};
+		{ok, _} -> {ok, MessageID};
 		{error, _Error} -> noreply
 	end;
 process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
+	?log_debug("Got Receipt: ~p", [DTO]),
 	#k1api_sms_delivery_receipt_notification_dto{
 		id = ItemID,
 		dest_addr = DestAddr,
@@ -147,8 +141,7 @@ process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
 		dest_addr = DestAddr#addr_dto.addr,
 		status = MessageState
 	},
-	?log_debug("Got Receipt: ~p", [Receipt]),
 	case eoneapi:deliver_sms_status(Receipt) of
-		ok -> {ok, ItemID};
+		{ok, _} -> {ok, ItemID};
 		{error, _Error} -> noreply
 	end.

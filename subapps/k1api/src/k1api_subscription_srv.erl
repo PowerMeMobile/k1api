@@ -2,14 +2,16 @@
 
 -behaviour(gen_server).
 
+%% API
 -export([
 	start_link/0,
 	subscribe_incoming_sms/2,
 	unsubscribe_incoming_sms/2,
 	subscribe_receipts/2,
 	unsubscribe_receipts/2
-	]).
+]).
 
+%% GenServer Callbacks
 -export([
 	init/1,
 	handle_cast/2,
@@ -17,7 +19,7 @@
 	handle_info/2,
 	code_change/3,
 	terminate/2
-	]).
+]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
@@ -203,17 +205,8 @@ decode_incoming(ContentType, _Content, State) ->
 	?log_error("Got unexpected message type: ~p", [ContentType]),
 	{noreply, State}.
 
-
 get_channel() ->
 	gen_server:call(?MODULE, get_channel).
-
-%% convert_addr_to_dto(SenderAddress) ->
-%% 	#addr_dto{
-%% 		addr = SenderAddress,
-%% 		ton = 1,
-%% 		npi = 1
-%% 	}.
-
 
 process_response(PResponse = #presponse{id = ID, response = Response}, RList, WList) ->
 		case lists:keytake(ID, #pworker.id, WList) of

@@ -1,5 +1,6 @@
 -module(k_datetime).
 
+%% API
 -export([
 	utc_unix_epoch/0,
 	timestamp/0,
@@ -16,9 +17,9 @@
 	datetime_to_iso_8601/1
 ]).
 
-%%%%%
-%% Datetime
-%%%%%
+%% ===================================================================
+%% API
+%% ===================================================================
 
 -spec utc_unix_epoch() -> integer().
 utc_unix_epoch() ->

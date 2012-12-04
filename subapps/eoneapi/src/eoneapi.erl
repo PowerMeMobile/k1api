@@ -1,13 +1,13 @@
 -module(eoneapi).
 
--include("logging.hrl").
 -include("eoneapi.hrl").
 
 -define(VERSION, <<"2">>).
 
+%% API Exports
 -export([
 	start_service/1,
-	get_spec/1,
+	build_sms_handle_spec/1,
 	deliver_sms_status/1,
 	deliver_sms/1,
 	exception/4,
@@ -22,29 +22,40 @@
 start_service(EOneAPIProps) ->
 	Port = proplists:get_value(port, EOneAPIProps, 8080),
 	SmsHanlerSpec = build_sms_handle_spec(EOneAPIProps),
-	Dispatch = [
-		{'_', SmsHanlerSpec ++
-			[
-			{'_', eoa_default_handler, []}
-			]}
-			],
+	Dispatch =
+		[{'_', SmsHanlerSpec ++
+			[{'_', eoa_error_handler, []}]}],
 	cowboy:start_listener(my_http_listener, 1,
 		cowboy_tcp_transport, [{port, Port}],
-		cowboy_http_protocol, [{dispatch, Dispatch}]
-		).
+		cowboy_http_protocol, [{dispatch, Dispatch}]).
 
--spec get_spec([{term(), term()}]) -> ignore.
-get_spec(EOneAPIProps) ->
-	build_sms_handle_spec(EOneAPIProps).
+-spec build_sms_handle_spec([{any(), any()}]) -> any().
+build_sms_handle_spec(EOneAPIProps) ->
+	case proplists:get_value(sms_handler, EOneAPIProps, undefined) of
+		undefined ->
+			[];
+		SmsHandler ->
+			[{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"requests">>],
+				eoa_sms_handler, [SmsHandler]},
+			{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"requests">>, '_', <<"deliveryInfos">>],
+				eoa_sms_handler, [SmsHandler]},
+			{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"subscriptions">>],
+				eoa_sms_handler, [SmsHandler]},
+			{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"subscriptions">>, '_'],
+				eoa_sms_handler, [SmsHandler]},
+			{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"registrations">>, '_', <<"messages">>],
+				eoa_sms_handler, [SmsHandler]},
+			{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>],
+				eoa_sms_handler, [SmsHandler]},
+			{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>, '_'],
+				eoa_sms_handler, [SmsHandler]}]
+	end.
 
--spec deliver_sms_status(delivery_receipt()) ->
-	ok | {error, term()}.
-deliver_sms_status(#delivery_receipt{
-										notify_url = NotifyURL,
+-spec deliver_sms_status(delivery_receipt()) ->	{ok, term()} | {error, term()}.
+deliver_sms_status(#delivery_receipt{	notify_url = NotifyURL,
 										callback = CallbackData,
 										dest_addr = RawDestAddr,
-										status = Status
-														}) ->
+										status = Status }) ->
 	DestAddr = << <<"tel:+">>/binary, RawDestAddr/binary>>,
 	ContentType = "application/json",
 	StatusBin = atom_to_binary(Status, utf8),
@@ -57,20 +68,12 @@ deliver_sms_status(#delivery_receipt{
 		]}
 	]}],
 	JsonBody = jsx:encode(Body),
-	?log_debug("JsonBody: ~p", [JsonBody]),
-	Response =
 	httpc:request(	post,
 					{binary_to_list(NotifyURL),	[],	ContentType, JsonBody},
 					[{timeout, 5000}],
-					[{body_format, binary}]	),
-	case Response of
-		{ok, {{_Version, 200, _ReasonPhrase}, _Headers, _Body}} ->
-			ok;
-		Any ->
-			Any
-	end.
+					[{body_format, binary}]	).
 
--spec deliver_sms(inbound_sms()) -> ok | {error, term()}.
+-spec deliver_sms(inbound_sms()) -> {ok, term()} | {error, term()}.
 deliver_sms(#inbound_sms{
 							notify_url = NotifyURL,
 							date_time = DateTime,
@@ -79,7 +82,7 @@ deliver_sms(#inbound_sms{
 							message = Message,
 							sender_addr = SenderAddr,
 							callback = CallBack		}) ->
-	DateTimeBin = iso8601:format(DateTime),
+	DateTimeBin = k_datetime:datetime_to_iso_8601(DateTime),
 	Body =
 	[{<<"inboundSMSMessageNotification">>, [
 		{<<"callbackData">>, CallBack},
@@ -93,17 +96,10 @@ deliver_sms(#inbound_sms{
 	]}],
 	JsonBody = jsx:encode(Body),
 	ContentType = "application/json",
-	Response =
-		httpc:request(	post,
-						{binary_to_list(NotifyURL), [], ContentType, JsonBody},
-						[{timeout, 5000}],
-						[{body_format, binary}]	),
-	case Response of
-		{ok, {{_Version, 200, _ReasonPhrase}, _Headers, _Body}} ->
-			ok;
-		{error, Error} ->
-			{error, Error}
-	end.
+	httpc:request(	post,
+					{binary_to_list(NotifyURL), [], ContentType, JsonBody},
+					[{timeout, 5000}],
+					[{body_format, binary}]).
 
 %% ===================================================================
 %% HTTP Response Codes
@@ -142,7 +138,7 @@ exception(ExceptionTag, Variables, Req, State) ->
 
 exception_body_and_code('svc0280', Variables) ->
 	MessageID = <<"SVC0280">>,
-	Text = <<"Message too long. Maximum length is %1 charactes.">>,
+	Text = <<"Message too long. Maximum length is %1 characters.">>,
 	1 = length(Variables),
 	{ok, Body} = service_exception_body(MessageID, Text, Variables),
 	{ok, Body, 400};
@@ -365,23 +361,5 @@ exception_body(ExceptionType, MessageID, Text, Variables) ->
 	{ok, Body}.
 
 %% ===================================================================
-%% Local Functions
+%% Internal Functions
 %% ===================================================================
-
-build_sms_handle_spec(EOneAPIProps) ->
-
-	case proplists:get_value(sms_handler, EOneAPIProps, undefined) of
-		undefined ->
-			[];
-		SmsHandler ->
-			[
-				{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"requests">>], eoa_sms_handler, [SmsHandler]},
-				{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"requests">>, '_', <<"deliveryInfos">>], eoa_sms_handler, [SmsHandler]},
-				{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"subscriptions">>], eoa_sms_handler, [SmsHandler]},
-				{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"subscriptions">>, '_'], eoa_sms_handler, [SmsHandler]},
-				{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"registrations">>, '_', <<"messages">>], eoa_sms_handler, [SmsHandler]},
-				{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>], eoa_sms_handler, [SmsHandler]},
-				{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>, '_'], eoa_sms_handler, [SmsHandler]}
-
-			]
-	end.

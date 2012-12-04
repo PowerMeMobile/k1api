@@ -6,8 +6,8 @@
   {applications, [
                   kernel,
                   stdlib,
-                  iso8601,
-                  inets
+                  inets,
+				  cowboy
                  ]},
   {mod, { eoneapi_app, []}},
   {env, []}

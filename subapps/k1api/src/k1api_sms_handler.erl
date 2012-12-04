@@ -24,40 +24,22 @@
 	customer :: term()
 }).
 
--define(record_info(RecordName, Record),
-	apply(
-	fun() ->
-		Fields = record_info(fields, RecordName),
-		[_ | Values] = tuple_to_list(Record),
-		lists:zip(Fields, Values)
-	end, [])).
-
 %% ===================================================================
 %% eoneapi sms handler callbacks
 %% ===================================================================
 
 init(Creds = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Creds]),
-	case k1api_auth_srv:authenticate(Creds) of
-		{ok, Customer = #k1api_auth_response_dto{}} ->
-			?log_debug("Customer: ~p", [Customer]),
-			{ok, #state{creds = Creds, customer = Customer}}
-	   	%% {error, Error} ->
-		%% 	?log_error("~p", [Error]),
-		%% 	{error, Error}
-	end.
+	{ok, Customer = #k1api_auth_response_dto{}} = k1api_auth_srv:authenticate(Creds),
+	?log_debug("Customer: ~p", [Customer]),
+	{ok, #state{creds = Creds, customer = Customer}}.
 
 handle_send_sms_req(OutboundSms = #outbound_sms{},
 						#state{customer = Customer, creds = Creds}) ->
 	?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
-	case k1api_outbound_sms_srv:send(OutboundSms, Customer, Creds) of
-		{ok, RequestID} ->
-			?log_debug("Message sucessfully sent [id: ~p]", [RequestID]),
-			{ok, RequestID}
-		%% {error, Error} ->
-		%% 	?log_debug("Send message error: ~p", [Error]),
-		%% 	{error, Error}
-	end.
+	{ok, RequestID} = k1api_outbound_sms_srv:send(OutboundSms, Customer, Creds),
+	?log_debug("Message sucessfully sent [id: ~p]", [RequestID]),
+	{ok, RequestID}.
 
 handle_delivery_status_req(SenderAddress, SendSmsRequestID,
 						#state{creds = Creds, customer = Customer}) ->
@@ -76,8 +58,7 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestID,
 	{ok, DeliveryStatuses}.
 
 handle_delivery_notifications_subscribe(Req, State = #state{}) ->
-	ReqInfo = ?record_info(delivery_receipt_subscribe, Req),
-	?log_debug("Got delivery notifications subscribe request: ~p", [ReqInfo]),
+	?log_debug("Got delivery notifications subscribe request: ~p", [Req]),
 	#state{creds = Creds, customer = Customer} = State,
 	#delivery_receipt_subscribe{
 		sender_addr = Sender,
@@ -173,9 +154,9 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	#subscribe_inbound{
 		dest_addr = DestAddr,
 		notify_url = NotifyURL,
-		criteria = Criteria, % opt
-		callback = CallbackData, % opt
-		correlator = Correlator % opt
+		criteria = Criteria,
+		callback = CallbackData,
+		correlator = Correlator
 	} = Req,
 	ReqID = uuid:newid(),
 	?log_debug("Got correlator: ~p", [Correlator]),

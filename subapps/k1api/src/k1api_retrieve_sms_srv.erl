@@ -2,12 +2,14 @@
 
 -behaviour(gen_server).
 
+%% API
 -export([
 	start_link/0,
 	get/4,
 	remove_retrieved_sms/0
-	]).
+]).
 
+%% GenServer Callbacks
 -export([
 	init/1,
 	handle_cast/2,
@@ -15,7 +17,7 @@
 	handle_info/2,
 	code_change/3,
 	terminate/2
-	]).
+]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
@@ -64,7 +66,7 @@ get(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 
 %% not implemented yet
 -spec remove_retrieved_sms() -> ok.
-remove_retrieved_sms() -> ok.
+remove_retrieved_sms() -> erlang:error(not_implemented).
 
 %% ===================================================================
 %% GenServer Callbacks
@@ -126,7 +128,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 %% Internal
 %% ===================================================================
-
 
 get_channel() ->
 	gen_server:call(?MODULE, get_channel).
