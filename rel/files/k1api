@@ -1,6 +1,6 @@
 #!/bin/sh
-# -*- tab-width:4;indent-tabs-mode:nil -*-
-# ex: ts=4 sw=4 et
+
+ENTOP_NODE_ARG="-name entop@127.0.0.1"
 
 RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd)
 
@@ -180,8 +180,21 @@ case "$1" in
         exec $CMD
         ;;
 
+    top)
+        # Make sure a node IS running
+        RES=`$NODETOOL ping`
+        if [ "$RES" != "pong" ]; then
+            echo "Node is not running!"
+            exit 1
+        fi
+
+        shift
+        APP_NODE=`grep -e '-[s]*name' $RUNNER_BASE_DIR/releases/$APP_VSN/vm.args | awk '{print $2}'`
+        $ERTS_PATH/erl -noinput -hidden +A 20 +Bc -eval "entop:start('${APP_NODE}')" $ENTOP_NODE_ARG $COOKIE_ARG $@
+        ;;
+
     *)
-        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|console_clean|attach}"
+        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|develop|top|console_clean|attach}"
         exit 1
         ;;
 esac
