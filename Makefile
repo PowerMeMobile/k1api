@@ -17,6 +17,9 @@ get-deps:
 console:
 	./rel/$(NAME)/bin/$(NAME) console
 
+develop:
+	./rel/$(NAME)/bin/$(NAME) develop
+
 clean:
 	@./rebar clean
 
