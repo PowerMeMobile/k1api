@@ -14,6 +14,9 @@ compile: get-deps
 get-deps:
 	@./rebar get-deps
 
+update-deps:
+	./rebar update-deps
+
 console:
 	./rel/$(NAME)/bin/$(NAME) console
 
