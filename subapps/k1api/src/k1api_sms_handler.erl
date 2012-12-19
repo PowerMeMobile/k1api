@@ -80,7 +80,7 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 				customer_id = CustomerUUID,
 				user_id = UserID,
 				url = Url,
-				dest_addr = #addr_dto{addr = Sender, ton = 1, npi = 1},
+				dest_addr = #addr{addr = Sender, ton = 1, npi = 1},
 				callback_data = Callback
 			},
 			?log_debug("ReqDTO: ~p", [ReqDTO]),
@@ -141,7 +141,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 			date_time = k_datetime:unix_epoch_to_datetime(UnixEpochDateTime),
 			message_id = MessageID,
 			message = MessageText,
-			sender_addr = SenderAddr#addr_dto.addr}
+			sender_addr = SenderAddr#addr.addr}
 	end, MessagesDTO),
 	?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
 	{ok, Messages, Total}.
@@ -168,7 +168,7 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 				id = ReqID,
 				customer_id = CustomerID,
 				user_id = UserID,
-				dest_addr = #addr_dto{addr = DestAddr, ton = 1, npi = 1},
+				dest_addr = #addr{addr = DestAddr, ton = 1, npi = 1},
 				notify_url = NotifyURL,
 				criteria = Criteria,
 				correlator = Correlator,
@@ -214,7 +214,7 @@ convert_delivery_statuses(Status = #k1api_sms_status_dto{}) ->
 		address = AddrDTO,
 		status = StatusNameDTO
 	} = Status,
-	{AddrDTO#addr_dto.addr, translate_status_name(StatusNameDTO)};
+	{AddrDTO#addr.addr, translate_status_name(StatusNameDTO)};
 convert_delivery_statuses(Statuses) ->
 	[convert_delivery_statuses(Status) || Status <- Statuses].
 

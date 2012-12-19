@@ -222,9 +222,9 @@ publish_sms_request(Payload, ReqID, GtwID) ->
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
 	[_, SenderAddress] = binary:split(RawSenderAddress, <<"tel:+">>),
 	IsAddrAllowed = lists:filter(fun(AllowedSource) ->
-		AllowedSource#addr_dto.addr == SenderAddress andalso
-		AllowedSource#addr_dto.ton == 1 andalso
-		AllowedSource#addr_dto.npi == 1
+		AllowedSource#addr.addr == SenderAddress andalso
+		AllowedSource#addr.ton == 1 andalso
+		AllowedSource#addr.npi == 1
 		end, AllowedSources),
 	case IsAddrAllowed of
 		[] ->
@@ -237,7 +237,7 @@ oneapi_addr_to_dto(OneAPIAddresses) when is_list(OneAPIAddresses) ->
 	[oneapi_addr_to_dto(Addr) || Addr <- OneAPIAddresses];
 oneapi_addr_to_dto(OneAPIAddress) ->
 	[_, Address] = binary:split(OneAPIAddress, <<"tel:+">>),
-	#addr_dto{
+	#addr{
 		addr = Address,
 		ton = 1,
 		npi = 1

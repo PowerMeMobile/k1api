@@ -150,7 +150,7 @@ request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 	{ok, RequestUUID}.
 
 convert_addr_to_dto(SenderAddress) ->
-	#addr_dto{
+	#addr{
 		addr = SenderAddress,
 		ton = 1,
 		npi = 1

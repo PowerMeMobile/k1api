@@ -117,10 +117,10 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
 	InboundSms = #inbound_sms{
 		notify_url = URL,
 		date_time = k_datetime:unix_epoch_to_datetime(UnixEpochDateTime),
-		dest_addr = DestAddr#addr_dto.addr,
+		dest_addr = DestAddr#addr.addr,
 		message_id = MessageID,
 		message = Message,
-		sender_addr = SenderAddr#addr_dto.addr,
+		sender_addr = SenderAddr#addr.addr,
 		callback = Callback
 	},
 	case eoneapi:deliver_sms(InboundSms) of
@@ -139,7 +139,7 @@ process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
 	Receipt = #delivery_receipt{
 		notify_url = NotifyURL,
 		callback = CallbackData,
-		dest_addr = DestAddr#addr_dto.addr,
+		dest_addr = DestAddr#addr.addr,
 		status = MessageState
 	},
 	case eoneapi:deliver_sms_status(Receipt) of
