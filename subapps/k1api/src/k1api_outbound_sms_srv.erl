@@ -66,8 +66,8 @@ send(OutboundSms, Customer, Credentials) ->
 
 	{Encoding, Encoded} =
 		case gsm0338:from_utf8(Message) of
-			{valid, Binary} -> {{text, default}, Binary};
-			{invalid, Binary} -> {{text, ucs2}, Binary}
+			{valid, Binary} -> {default, Binary};
+			{invalid, Binary} -> {ucs2, Binary}
 		end,
 	NumberOfSymbols = size(Encoded),
 
@@ -269,16 +269,16 @@ get_ids(CustomerID, NumberOfDests, Parts) ->
 		end, {[], []}, StringIDs),
 	lists:map(fun(ID) -> list_to_binary(ID) end, lists:reverse(GroupStringIDs)).
 
-get_message_parts(Size, {text, default}) when Size =< 160 ->
+get_message_parts(Size, default) when Size =< 160 ->
 	{ok, 1};
-get_message_parts(Size, {text, default}) ->
+get_message_parts(Size, default) ->
 	case (Size rem 153) == 0 of
 		true -> {ok, trunc(Size/153)};
 		false -> {ok, trunc(Size/153) +1}
 	end;
-get_message_parts(Size, {text, ucs2}) when Size =< 70 ->
+get_message_parts(Size, ucs2) when Size =< 70 ->
 	{ok, 1};
-get_message_parts(Size, {text, ucs2}) ->
+get_message_parts(Size, ucs2) ->
 	case (Size rem 67) == 0 of
 		true -> {ok, trunc(Size/67)};
 		false -> {ok, trunc(Size/67) + 1}
