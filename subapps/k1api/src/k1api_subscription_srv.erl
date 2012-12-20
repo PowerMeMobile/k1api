@@ -25,28 +25,17 @@
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include("gen_server_spec.hrl").
+-include("application.hrl").
 -include("logging.hrl").
 
 -define(SubscriptionRequestQueue, <<"pmm.k1api.subscription_request">>).
 -define(SubscriptionResponseQueue, <<"pmm.k1api.subscription_response">>).
 
--record(pworker, {
-	id,
-	timestamp,
-	from
-}).
-
--record(presponse, {
-	id,
-	timestamp,
-	response
-}).
-
 -record(state, {
-	chan :: pid(),
-	reply_to :: binary(),
-	pending_workers = [] :: [#pworker{}],
-	pending_responses = [] :: [#presponse{}]
+	chan 					:: pid(),
+	reply_to 				:: binary(),
+	pending_workers = [] 	:: [#pworker{}],
+	pending_responses = [] 	:: [#presponse{}]
 }).
 
 %% ===================================================================
@@ -94,8 +83,8 @@ handle_call({get_response, MesID}, From,
 					State = #state{
 								pending_workers = WList,
 								pending_responses = RList}) ->
-	Worker = #pworker{id = MesID, from = From, timestamp = get_now()},
-	{ok, NRList, NWList} = process_worker_request(Worker, RList, WList),
+	Worker = #pworker{id = MesID, from = From, timestamp = k1api_lib:get_now()},
+	{ok, NRList, NWList} = k1api_lib:process_worker_request(Worker, RList, WList),
 	{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 
 handle_call(_Request, _From, State) ->
@@ -146,8 +135,8 @@ decode_incoming(<<"SubscribeIncomingSms">>, Content, State) ->
 				subscription_id = SubscriptionID }} ->
 			?log_debug("Got subscribe incoming sms response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = SubscriptionID},
-			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = SubscriptionID},
+			{ok, NRList, NWList} = k1api_lib:process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
 			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
@@ -162,8 +151,8 @@ decode_incoming(<<"UnsubscribeIncomingSms">>, Content, State) ->
 				id = CorrelationID }} ->
 			?log_debug("Got unsubscribe incoming sms response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = ok},
-			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = ok},
+			{ok, NRList, NWList} = k1api_lib:process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
 			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
@@ -178,8 +167,8 @@ decode_incoming(<<"SubscribeReceipts">>, Content, State) ->
 				id = CorrelationID }} ->
 			?log_debug("Got subscribe sms receipts  response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = CorrelationID},
-			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = CorrelationID},
+			{ok, NRList, NWList} = k1api_lib:process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
 			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
@@ -194,8 +183,8 @@ decode_incoming(<<"UnsubscribeReceipts">>, Content, State) ->
 				id = CorrelationID }} ->
 			?log_debug("Got unsubscribe sms receipts  response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = get_now(), response = ok},
-			{ok, NRList, NWList} = process_response(NewPendingResponse, ResponsesList, WorkersList),
+			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = ok},
+			{ok, NRList, NWList} = k1api_lib:process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
 			?log_error("Failed To Decode Response Due To ~p : ~p", [Error, Content]),
@@ -207,36 +196,3 @@ decode_incoming(ContentType, _Content, State) ->
 
 get_channel() ->
 	gen_server:call(?MODULE, get_channel).
-
-process_response(PResponse = #presponse{id = ID, response = Response}, RList, WList) ->
-		case lists:keytake(ID, #pworker.id, WList) of
-		{value, #pworker{from = From}, RestWorkerList} ->
-			gen_server:reply(From, {ok, Response}),
-			{ok, purge(RList), purge(RestWorkerList)};
-		false ->
-			{ok, [PResponse] ++ purge(RList), purge(WList)}
-	end.
-
-process_worker_request(Worker = #pworker{id = ItemID, from = From}, RList, WList) ->
-	case lists:keytake(ItemID, #presponse.id, RList) of
-		{value, #presponse{response = Response}, RestRespList} ->
-			gen_server:reply(From, {ok, Response}),
-			{ok, purge(RestRespList), purge(WList)};
-		false ->
-			{ok, purge(RList), [Worker] ++ purge(WList)}
-	end.
-
-purge(List) ->
-	{ok, ExpirationInterval} = application:get_env(k1api, request_timeout),
-	purge(List, [], get_now() - ExpirationInterval).
-
-purge([], Acc, _Now) -> Acc;
-purge([#pworker{timestamp = TS} | RestList], Acc, Now) when Now >= TS ->
-	purge(RestList, Acc, Now);
-purge([#presponse{timestamp = TS} | RestList], Acc, Now) when Now >= TS ->
-	purge(RestList, Acc, Now);
-purge([Item | RestList], Acc, Now) ->
-	purge(RestList, [Item | Acc], Now).
-
-get_now() ->
-	 calendar:datetime_to_gregorian_seconds(calendar:local_time()).
