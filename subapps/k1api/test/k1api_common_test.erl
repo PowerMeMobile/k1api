@@ -50,15 +50,20 @@ prot() -> "http://".
 host() -> "127.0.0.1".
 port() -> "8081".
 postpaid_customer() -> "oneapi-postpaid".
+prepaid_customer() -> "oneapi-prepaid".
 user() -> "user".
 pass() -> "password".
 delimiter() -> "@".
 sender_addr() -> "tel%3A%2B375296660003".
+prepaid_sender_addr() -> "tel%3A%2B375296660004".
 k1api_client_msisdn() -> "tel%3A%2B375296660003".
 message() -> "Hello World!".
 ver() -> "2".
 creds() ->
 	Creds = ?join([postpaid_customer(), delimiter(), user(), ":", pass()]),
+	base64:encode_to_string(Creds).
+prepaid_creds() ->
+	Creds = ?join([prepaid_customer(), delimiter(), user(), ":", pass()]),
 	base64:encode_to_string(Creds).
 correlator() -> base64:encode_to_string(crypto:rand_bytes(14)).
 addr_preffix() -> ?join([prot(), host(), ":", port(), "/", ver()]).
@@ -78,6 +83,47 @@ receipts_notify_url() ->
 
 setup() ->
 	oneapi_incoming_srv:start().
+
+mt_prepaid_sms_test_() ->
+	{setup,
+		fun setup/0,
+		{timeout, 60,
+			[?_test(outbound_sms_prepaid())]}}.
+
+outbound_sms_prepaid() ->
+
+	%% Send sms request with delivery receipts
+
+	Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
+	NotifyURL = receipts_notify_url(),
+	Body = ?url_encode([{"address", "tel%3A%2B13500000991"},
+						{"address", "tel%3A%2B13500000992"},
+						{"senderAddress", prepaid_sender_addr()},
+						{"message", message()},
+						{"clientCorrelator", correlator()},
+						{"notifyURL", NotifyURL},
+						{"callbackData", "some-data-useful-to-the-requester"},
+						{"senderName", "ACME%20Inc."}]),
+	Headers = [{"Authorization", prepaid_creds()}],
+    Response = ?perform_post(Url, Headers, Body),
+    ?assert_status(201, Response),
+	?assert_json_key([<<"resourceReference">>, <<"resourceURL">>], Response),
+
+	%% Send sms status request
+
+	ResourceUrl = ?json_value([<<"resourceReference">>, <<"resourceURL">>], Response),
+	ResourceID = binary_to_list(filename:basename(ResourceUrl)),
+	SmsStUrl = ?join([addr_preffix(), "/smsmessaging/outbound/", prepaid_sender_addr(), "/requests/", ResourceID, "/deliveryInfos"]),
+	SmsStResponse = ?perform_get(SmsStUrl, Headers),
+	?assert_status(200, SmsStResponse),
+	?assert_json_key([<<"deliveryInfoList">>, <<"deliveryInfo">>], SmsStResponse),
+	?assert_json_value([<<"deliveryInfoList">>, <<"resourceURL">>], list_to_binary(SmsStUrl), SmsStResponse),
+
+	%% Retrive receipts from test http server
+
+	timer:sleep(3000),
+	{ok, GotReceipts} = oneapi_incoming_srv:give_receipts(),
+	?assertEqual(2, length(GotReceipts)).
 
 outbound_sms_postpaid_test_() ->
 	{setup,

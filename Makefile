@@ -47,3 +47,12 @@ generate-fast: compile-fast
 
 api-test:
 	@./rebar skip_deps=true eunit suites=k1api_common_test
+
+mt-postpaid-test:
+	@./rebar skip_deps=true eunit suites=k1api_common_test tests=outbound_sms_postpaid_test_
+
+mt-prepaid-test:
+	@./rebar skip_deps=true eunit suites=k1api_common_test tests=mt_prepaid_sms_test_
+
+mo-test:
+	@./rebar skip_deps=true eunit suites=k1api_common_test tests=incoming_sms_sub_test_
