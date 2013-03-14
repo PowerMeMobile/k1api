@@ -46,7 +46,7 @@ delete(Key) ->
 init([]) ->
     process_flag(trap_exit, true),
     ?log_info("cache: initializing", []),
-    {ok, cache} = dets:open_file(cache, [{file, "cache.dets"}]),
+    {ok, cache} = dets:open_file(cache, [{file, "data/auth_cache.dets"}]),
     {ok, #st{}}.
 
 terminate(Reason, _St) ->
