@@ -21,12 +21,10 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
+-include_lib("queue_fabric/include/queue_fabric.hrl").
 -include("gen_server_spec.hrl").
 -include("application.hrl").
 -include("logging.hrl").
-
--define(AuthRequestQueue, <<"pmm.k1api.auth_request">>).
--define(AuthResponseQueue, <<"pmm.k1api.auth_response">>).
 
 -record(state, {
 	chan 					:: pid(),
@@ -74,10 +72,10 @@ init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?AuthResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?AuthRequestQueue, []),
+	ok = rmql:queue_declare(Chan, ?K1API_AUTH_RESP_Q, []),
+	ok = rmql:queue_declare(Chan, ?K1API_AUTH_REQ_Q, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?AuthResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?K1API_AUTH_RESP_Q, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -149,5 +147,5 @@ request_backend_auth(Credentials) ->
     },
 	{ok, Payload} = adto:encode(AuthRequest),
     Props = #'P_basic'{},
-    ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
+    ok = rmql:basic_publish(Channel, ?K1API_AUTH_REQ_Q, Payload, Props),
 	{ok, RequestUUID}.

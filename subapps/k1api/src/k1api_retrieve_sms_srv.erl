@@ -22,12 +22,10 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
+-include_lib("queue_fabric/include/queue_fabric.hrl").
 -include("gen_server_spec.hrl").
 -include("application.hrl").
 -include("logging.hrl").
-
--define(RetrieveSmsRequestQueue, <<"pmm.k1api.retrieve_sms_request">>).
--define(RetrieveSmsResponseQueue, <<"pmm.k1api.retrieve_sms_response">>).
 
 -record(state, {
 	  chan 						:: pid(),
@@ -63,10 +61,10 @@ init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?RetrieveSmsResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?RetrieveSmsRequestQueue, []),
+	ok = rmql:queue_declare(Chan, ?K1API_RETRIEVE_SMS_REQ_Q, []),
+	ok = rmql:queue_declare(Chan, ?K1API_RETRIEVE_SMS_RESP_Q, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?RetrieveSmsResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?K1API_RETRIEVE_SMS_RESP_Q, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -133,5 +131,5 @@ request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 		batch_size = BatchSize
 	},
 	{ok, Payload} = adto:encode(DTO),
-    ok = rmql:basic_publish(Channel, ?RetrieveSmsRequestQueue, Payload, #'P_basic'{}),
+    ok = rmql:basic_publish(Channel, ?K1API_RETRIEVE_SMS_REQ_Q, Payload, #'P_basic'{}),
 	{ok, RequestUUID}.

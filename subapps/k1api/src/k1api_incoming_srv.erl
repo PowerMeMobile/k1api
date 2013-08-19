@@ -20,10 +20,9 @@
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
+-include_lib("queue_fabric/include/queue_fabric.hrl").
 -include("gen_server_spec.hrl").
 -include("logging.hrl").
-
--define(IncomingQueue, <<"pmm.k1api.incoming">>).
 
 -record(state, {
 	chan :: pid()
@@ -45,9 +44,9 @@ init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?IncomingQueue, []),
+	ok = rmql:queue_declare(Chan, ?K1API_INCOMING_Q, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?IncomingQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?K1API_INCOMING_Q, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(_Request, _From, State) ->

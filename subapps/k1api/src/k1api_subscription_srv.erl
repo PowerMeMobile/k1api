@@ -24,12 +24,10 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
+-include_lib("queue_fabric/include/queue_fabric.hrl").
 -include("gen_server_spec.hrl").
 -include("application.hrl").
 -include("logging.hrl").
-
--define(SubscriptionRequestQueue, <<"pmm.k1api.subscription_request">>).
--define(SubscriptionResponseQueue, <<"pmm.k1api.subscription_response">>).
 
 -record(state, {
 	chan 					:: pid(),
@@ -70,10 +68,10 @@ init([]) ->
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?SubscriptionResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?SubscriptionRequestQueue, []),
+	ok = rmql:queue_declare(Chan, ?K1API_SUBSCRIPTION_REQ_Q, []),
+	ok = rmql:queue_declare(Chan, ?K1API_SUBSCRIPTION_RESP_Q, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?SubscriptionResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?K1API_SUBSCRIPTION_RESP_Q, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -120,7 +118,7 @@ request_backend(_RequestID, Payload, ContentType) ->
 	BasicProps = #'P_basic'{
 		content_type = ContentType
 	},
-    ok = rmql:basic_publish(Channel, ?SubscriptionRequestQueue, Payload, BasicProps).
+    ok = rmql:basic_publish(Channel, ?K1API_SUBSCRIPTION_REQ_Q, Payload, BasicProps).
 
 get_response(RequestUUID) ->
 	gen_server:call(?MODULE, {get_response, RequestUUID}).

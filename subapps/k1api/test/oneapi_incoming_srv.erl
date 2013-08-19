@@ -109,9 +109,9 @@ init([]) ->
 	{ok, #st{}}.
 
 handle_call(give_sms, _From, State = #st{sms = Sms}) ->
-	{reply, {ok, Sms}, State};
+	{reply, {ok, Sms}, State#st{sms = []}};
 handle_call(give_receipts, _From, State = #st{receipts = Receipts}) ->
-	{reply, {ok, Receipts}, State};
+	{reply, {ok, Receipts}, State#st{receipts = []}};
 handle_call(_Request, _From, State) ->
     {stop, unexpected_call, State}.
 
