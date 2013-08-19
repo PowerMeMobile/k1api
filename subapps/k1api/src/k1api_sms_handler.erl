@@ -44,7 +44,7 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 handle_delivery_status_req(SenderAddress, SendSmsRequestID,
 						#state{creds = Creds, customer = Customer}) ->
 	#k1api_auth_response_dto{
-		uuid = CustomerUUID
+		customer_uuid = CustomerUUID
 	} = Customer,
 	#credentials{user_id = UserID} = Creds,
 	?log_debug("Got delivery status request "
@@ -68,10 +68,10 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 		callback = Callback
 	} = Req,
 	#k1api_auth_response_dto{
-		uuid = CustomerUUID
+		customer_uuid = CustomerUUID
 		} = Customer,
 	#credentials{user_id = UserID} = Creds,
-	ReqID = uuid:newid(),
+	ReqID = uuid:unparse(uuid:generate()),
 	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
 		ok ->
 			?log_debug("Correlator saved", []),
@@ -96,9 +96,9 @@ handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State =
 	#state{creds = Creds, customer = Customer} = State,
 	#credentials{user_id = UserID} = Creds,
 	#k1api_auth_response_dto{
-		uuid = CustomerID
+		customer_uuid = CustomerID
 		} = Customer,
-	RequestID = uuid:newid(),
+	RequestID = uuid:unparse(uuid:generate()),
 	DTO = #k1api_unsubscribe_sms_receipts_request_dto{
 		id = RequestID,
 		customer_id = CustomerID,
@@ -117,7 +117,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 	} = Request,
 	#state{creds = Creds, customer = Customer} = State,
 	#k1api_auth_response_dto{
-		uuid = CustomerUUID
+		customer_uuid = CustomerUUID
 	} = Customer,
 	#credentials{user_id = UserID} = Creds,
 	?log_debug("Sending retrieve sms request", []),
@@ -149,7 +149,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	?log_debug("Got inbound subscribe event: ~p", [Req]),
 	#k1api_auth_response_dto{
-		uuid = CustomerID
+		customer_uuid = CustomerID
 		} = Customer,
 	#credentials{user_id = UserID} = Creds,
 	#subscribe_inbound{
@@ -159,7 +159,7 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 		callback = CallbackData,
 		correlator = Correlator
 	} = Req,
-	ReqID = uuid:newid(),
+	ReqID = uuid:unparse(uuid:generate()),
 	?log_debug("Got correlator: ~p", [Correlator]),
 	case k1api_db:check_correlator(CustomerID, UserID, Correlator, ReqID) of
 		ok ->
@@ -190,10 +190,10 @@ handle_inbound_unsubscribe(SubscribeID, State = #state{}) ->
 		customer = Customer
 	} = State,
 	#k1api_auth_response_dto{
-		uuid = CustomerID
+		customer_uuid = CustomerID
 	} = Customer,
 	#credentials{user_id = UserID} = Creds,
-	RequestID = uuid:newid(),
+	RequestID = uuid:unparse(uuid:generate()),
 	DTO = #k1api_unsubscribe_incoming_sms_request_dto{
 		id = RequestID,
 		customer_id = CustomerID,
@@ -218,29 +218,29 @@ convert_delivery_statuses(Status = #k1api_sms_status_dto{}) ->
 convert_delivery_statuses(Statuses) ->
 	[convert_delivery_statuses(Status) || Status <- Statuses].
 
-translate_status_name(submitted) ->
+translate_status_name(<<"submitted">>) ->
 	<<"MessageWaiting">>;
-translate_status_name(success_waiting_delivery) ->
+translate_status_name(<<"success_waiting_delivery">>) ->
 	<<"MessageWaiting">>;
-translate_status_name(success_no_delivery) ->
+translate_status_name(<<"success_no_delivery">>) ->
 	<<"DeliveryImpossible">>;
-translate_status_name(failure) ->
+translate_status_name(<<"failure">>) ->
 	<<"DeliveryUncertain">>;
-translate_status_name(enroute) ->
+translate_status_name(<<"enroute">>) ->
 	<<"Enroute">>;
-translate_status_name(delivered) ->
+translate_status_name(<<"delivered">>) ->
 	<<"DeliveredToTerminal">>;
-translate_status_name(expired) ->
+translate_status_name(<<"expired">>) ->
 	<<"DeliveryImpossible">>;
-translate_status_name(deleted) ->
+translate_status_name(<<"deleted">>) ->
 	<<"Deleted">>;
-translate_status_name(undeliverable) ->
+translate_status_name(<<"undeliverable">>) ->
 	<<"DeliveryImpossible">>;
-translate_status_name(accepted) ->
+translate_status_name(<<"accepted">>) ->
 	<<"DeliveredToNetwork">>;
-translate_status_name(unknown) ->
+translate_status_name(<<"unknown">>) ->
 	<<"DeliveryUncertain">>;
-translate_status_name(rejected) ->
+translate_status_name(<<"rejected">>) ->
 	<<"Rejected">>;
-translate_status_name(unrecognized) ->
+translate_status_name(<<"unrecognized">>) ->
 	<<"Unrecognized">>.

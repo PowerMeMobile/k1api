@@ -58,7 +58,7 @@ deliver_sms_status(#delivery_receipt{	notify_url = NotifyURL,
 										status = Status }) ->
 	DestAddr = << <<"tel:+">>/binary, RawDestAddr/binary>>,
 	ContentType = "application/json",
-	StatusBin = atom_to_binary(Status, utf8),
+	StatusBin = Status,
 	Body =
 	[{<<"deliveryInfoNotification">>, [
 		{<<"callbackData">>, CallbackData},

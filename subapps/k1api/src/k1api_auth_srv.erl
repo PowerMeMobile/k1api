@@ -140,7 +140,7 @@ request_backend_auth(Credentials) ->
 		user_id = UserID,
 		password = Password } = Credentials,
  	{ok, Channel} = get_channel(),
-	RequestUUID = uuid:newid(),
+	RequestUUID = uuid:unparse(uuid:generate()),
     AuthRequest = #k1api_auth_request_dto{
         id = RequestUUID,
         customer_id = CustomerSystemID,

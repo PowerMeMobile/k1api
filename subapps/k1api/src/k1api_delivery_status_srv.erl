@@ -119,7 +119,7 @@ get_response(RequestUUID) ->
 
 request_backend(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
  	{ok, Channel} = get_channel(),
-	RequestUUID = uuid:newid(),
+	RequestUUID = uuid:unparse(uuid:generate()),
 	DeliveryStatusReqDTO = #k1api_sms_delivery_status_request_dto{
 		id = RequestUUID,
 		customer_id = CustomerUUID,

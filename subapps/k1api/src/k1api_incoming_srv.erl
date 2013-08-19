@@ -93,7 +93,7 @@ respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
     RespProps = #'P_basic'{
         content_type   = <<"BatchAck">>,
         correlation_id = MsgId,
-        message_id     = uuid:newid()
+        message_id     = uuid:unparse(uuid:generate())
     },
     rmql:basic_publish(Chan, ReplyTo, Encoded, RespProps).
 

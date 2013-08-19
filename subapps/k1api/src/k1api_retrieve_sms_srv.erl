@@ -124,7 +124,7 @@ get_response(RequestUUID) ->
 
 request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
  	{ok, Channel} = get_channel(),
-	RequestUUID = uuid:newid(),
+	RequestUUID = uuid:unparse(uuid:generate()),
 	DTO = #k1api_retrieve_sms_request_dto{
 		id = RequestUUID,
 		customer_id = CustomerUUID,

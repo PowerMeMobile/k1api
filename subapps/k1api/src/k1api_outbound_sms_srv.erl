@@ -62,7 +62,7 @@ send(OutboundSms, Customer, Credentials) ->
 		billing_type = BillingType
 	} = Customer,
 
-	Destinations = oneapi_addr_to_dto(RawDestAddresses),
+	Destinations = addr_to_dto(RawDestAddresses),
 
 	{Encoding, Encoded} =
 		case gsm0338:from_utf8(Message) of
@@ -117,7 +117,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
 	#k1api_auth_response_dto{
-		uuid = CustomerID
+		customer_uuid = CustomerID
 	} = Customer,
 	#credentials{
 		user_id = UserID
@@ -157,7 +157,7 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		callback = CallbackData
 	} = OutboundSms,
 	#k1api_auth_response_dto{
-		uuid = CustomerID,
+		customer_uuid = CustomerID,
 		allowed_sources = AllowedSources,
 		default_validity = DefaultValidity,
 		no_retry = NoRetry
@@ -165,7 +165,7 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 	#credentials{
 		user_id = UserID
 	} = Credentials,
-	ReqID = uuid:newid(),
+	ReqID = uuid:unparse(uuid:generate()),
 	Params = lists:flatten([
 			?just_sms_request_param(<<"k1api_notify_url">>, NotifyURL),
 			?just_sms_request_param(<<"k1api_callback_data">>, CallbackData),
@@ -185,6 +185,7 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		id = ReqID,
 		gateway_id = GtwID,
 		customer_id = CustomerID,
+		user_id = UserID,
 		client_type = k1api,
 		type = regular,
 		message = Message,
@@ -220,11 +221,9 @@ publish_sms_request(Payload, ReqID, GtwID) ->
 
 
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
-	[_, SenderAddress] = binary:split(RawSenderAddress, <<"tel:+">>),
+	SenderAddress = k1api_utils:addr_to_dto(RawSenderAddress),
 	IsAddrAllowed = lists:filter(fun(AllowedSource) ->
-		AllowedSource#addr.addr == SenderAddress andalso
-		AllowedSource#addr.ton == 1 andalso
-		AllowedSource#addr.npi == 1
+		AllowedSource =:= SenderAddress
 		end, AllowedSources),
 	case IsAddrAllowed of
 		[] ->
@@ -233,15 +232,9 @@ prepare_source_addr(AllowedSources, RawSenderAddress) ->
 			Addr
 	end.
 
-oneapi_addr_to_dto(OneAPIAddresses) when is_list(OneAPIAddresses) ->
-	[oneapi_addr_to_dto(Addr) || Addr <- OneAPIAddresses];
-oneapi_addr_to_dto(OneAPIAddress) ->
-	[_, Address] = binary:split(OneAPIAddress, <<"tel:+">>),
-	#addr{
-		addr = Address,
-		ton = 1,
-		npi = 1
-	}.
+addr_to_dto(OneAPIAddresses) when is_list(OneAPIAddresses) ->
+	lager:debug("OneAPIAddresses: ~p", [OneAPIAddresses]),
+	[k1api_utils:addr_to_dto(Addr) || Addr <- OneAPIAddresses].
 
 get_suitable_gtw(Customer, NumberOfDests) ->
 	#k1api_auth_response_dto{
