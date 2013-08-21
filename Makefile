@@ -4,7 +4,7 @@ PRJ_PLT=$(NAME).plt
 
 all: generate
 
-generate: compile
+generate: compile xref
 	@rm -rf ./rel/$(NAME)
 	@./rebar generate
 
@@ -44,6 +44,9 @@ compile-fast:
 generate-fast: compile-fast
 	@rm -rf ./rel/$(NAME)
 	@./rebar generate
+
+xref:
+	@./rebar skip_deps=true xref
 
 api-test:
 	@./rebar skip_deps=true eunit suites=k1api_common_test
