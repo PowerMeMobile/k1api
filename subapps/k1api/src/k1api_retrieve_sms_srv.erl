@@ -131,5 +131,6 @@ request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 		batch_size = BatchSize
 	},
 	{ok, Payload} = adto:encode(DTO),
-    ok = rmql:basic_publish(Channel, ?K1API_RETRIEVE_SMS_REQ_Q, Payload, #'P_basic'{}),
+	Props = [{reply_to, ?K1API_RETRIEVE_SMS_RESP_Q}],
+    ok = rmql:basic_publish(Channel, ?K1API_RETRIEVE_SMS_REQ_Q, Payload, Props),
 	{ok, RequestUUID}.

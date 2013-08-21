@@ -115,10 +115,11 @@ process_request(RequestID, Payload, ContentType) ->
 
 request_backend(_RequestID, Payload, ContentType) ->
  	{ok, Channel} = get_channel(),
-	BasicProps = #'P_basic'{
-		content_type = ContentType
-	},
-    ok = rmql:basic_publish(Channel, ?K1API_SUBSCRIPTION_REQ_Q, Payload, BasicProps).
+	Props = [
+		{content_type, ContentType},
+		{reply_to, ?K1API_SUBSCRIPTION_RESP_Q}
+	],
+    ok = rmql:basic_publish(Channel, ?K1API_SUBSCRIPTION_REQ_Q, Payload, Props).
 
 get_response(RequestUUID) ->
 	gen_server:call(?MODULE, {get_response, RequestUUID}).

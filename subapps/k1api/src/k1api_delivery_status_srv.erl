@@ -127,5 +127,6 @@ request_backend(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
 	},
 	?log_debug("DeliveryStatusReqDTO: ~p", [DeliveryStatusReqDTO]),
 	{ok, Payload} = adto:encode(DeliveryStatusReqDTO),
-    ok = rmql:basic_publish(Channel, ?K1API_DELIVERY_STATUS_REQ_Q, Payload, #'P_basic'{}),
+	Props = [{reply_to, ?K1API_DELIVERY_STATUS_RESP_Q}],
+    ok = rmql:basic_publish(Channel, ?K1API_DELIVERY_STATUS_REQ_Q, Payload, Props),
 	{ok, RequestUUID}.

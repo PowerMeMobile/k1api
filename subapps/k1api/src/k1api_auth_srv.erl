@@ -146,6 +146,6 @@ request_backend_auth(Credentials) ->
         password = Password
     },
 	{ok, Payload} = adto:encode(AuthRequest),
-    Props = #'P_basic'{},
+	Props = [{reply_to, ?K1API_AUTH_RESP_Q}],
     ok = rmql:basic_publish(Channel, ?K1API_AUTH_REQ_Q, Payload, Props),
 	{ok, RequestUUID}.
