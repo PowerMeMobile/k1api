@@ -213,7 +213,7 @@ publish_sms_request(Payload, ReqID, GtwID) ->
         message_id = ReqID
     },
 	{ok, Channel} = gen_server:call(?MODULE, get_channel),
-	GtwQueue = binary:replace(<<"pmm.just.gateway.%id%">>, <<"%id%">>, GtwID),
+	GtwQueue = << ?JUST_GTW_Q_PREFIX/binary, $., GtwID/binary >>,
 	?log_debug("Sending message to ~p & ~p through the ~p", [?K1API_SMS_REQ_Q, GtwQueue, Channel]),
     ok = rmql:basic_publish(Channel, ?K1API_SMS_REQ_Q, Payload, Basic),
     ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).
