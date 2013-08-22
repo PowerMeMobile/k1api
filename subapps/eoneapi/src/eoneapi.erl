@@ -82,7 +82,7 @@ deliver_sms(#inbound_sms{
 							message = Message,
 							sender_addr = SenderAddr,
 							callback = CallBack		}) ->
-	DateTimeBin = k_datetime:datetime_to_iso_8601(DateTime),
+	DateTimeBin = eoneapi_datetime:datetime_to_iso_8601(DateTime),
 	Body =
 	[{<<"inboundSMSMessageNotification">>, [
 		{<<"callbackData">>, CallBack},

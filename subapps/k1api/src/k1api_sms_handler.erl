@@ -138,7 +138,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 		} = MessageDTO,
 		UnixEpochDateTime = MegaSecs * 1000000 + Secs,
 		#inbound_sms{
-			date_time = k_datetime:unix_epoch_to_datetime(UnixEpochDateTime),
+			date_time = k1api_datetime:unix_epoch_to_datetime(UnixEpochDateTime),
 			message_id = MessageID,
 			message = MessageText,
 			sender_addr = SenderAddr#addr.addr}

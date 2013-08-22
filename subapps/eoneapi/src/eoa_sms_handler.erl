@@ -331,7 +331,7 @@ process_retrieve_sms_req(RegId, State = #state{
 								message_id = MessIdBin,
 								message = MessageTextBin,
 								sender_addr = SenderAddrBin})->
-					DateTimeBin = k_datetime:datetime_to_iso_8601(DateTime),
+					DateTimeBin = eoneapi_datetime:datetime_to_iso_8601(DateTime),
 					LocationUrl = build_resource_url(Req, MessIdBin),
 					[{<<"dateTime">>, DateTimeBin},
 					{<<"destinationAddress">>, RegId},
