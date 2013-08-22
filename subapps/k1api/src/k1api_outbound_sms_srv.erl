@@ -220,7 +220,7 @@ publish_sms_request(Payload, ReqID, GtwID) ->
 
 
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
-	SenderAddress = k1api_utils:addr_to_dto(RawSenderAddress),
+	SenderAddress = k1api_lib:addr_to_dto(RawSenderAddress),
 	IsAddrAllowed = lists:filter(fun(AllowedSource) ->
 		AllowedSource =:= SenderAddress
 		end, AllowedSources),
@@ -233,7 +233,7 @@ prepare_source_addr(AllowedSources, RawSenderAddress) ->
 
 addr_to_dto(OneAPIAddresses) when is_list(OneAPIAddresses) ->
 	lager:debug("OneAPIAddresses: ~p", [OneAPIAddresses]),
-	[k1api_utils:addr_to_dto(Addr) || Addr <- OneAPIAddresses].
+	[k1api_lib:addr_to_dto(Addr) || Addr <- OneAPIAddresses].
 
 get_suitable_gtw(Customer, NumberOfDests) ->
 	#k1api_auth_response_dto{
