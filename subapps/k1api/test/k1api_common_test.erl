@@ -96,8 +96,8 @@ outbound_sms_prepaid() ->
 
 	Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
 	NotifyURL = receipts_notify_url(),
-	Body = ?url_encode([{"address", "tel%3A%2B13500000991"},
-						{"address", "tel%3A%2B13500000992"},
+	Body = ?url_encode([{"address", "tel%3A%2B375291234567"},
+						{"address", "tel%3A%2B375291234568"},
 						{"senderAddress", prepaid_sender_addr()},
 						{"message", message()},
 						{"clientCorrelator", correlator()},
@@ -137,8 +137,8 @@ outbound_sms_postpaid() ->
 
 	Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
 	NotifyURL = receipts_notify_url(),
-	Body = ?url_encode([{"address", "tel%3A%2B13500000991"},
-						{"address", "tel%3A%2B13500000992"},
+	Body = ?url_encode([{"address", "tel%3A%2B375251234567"},
+						{"address", "tel%3A%2B375251234568"},
 						{"senderAddress", sender_addr()},
 						{"message", message()},
 						{"clientCorrelator", correlator()},
