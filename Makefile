@@ -59,3 +59,6 @@ mt-prepaid-test:
 
 mo-test:
 	@./rebar skip_deps=true eunit suites=k1api_common_test tests=incoming_sms_sub_test_
+
+retrieve-msgs-test:
+	@./rebar skip_deps=true eunit suites=k1api_common_test tests=retrieve_sms_test
