@@ -70,10 +70,10 @@ init([]) ->
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
 	{reply, {ok, Chan}, State};
 
-handle_call({get_response, MesID}, From,
-					State = #state{
-								pending_workers = WList,
-								pending_responses = RList}) ->
+handle_call({get_response, MesID}, From, State = #state{
+	pending_workers = WList,
+	pending_responses = RList
+}) ->
 	Worker = #pworker{id = MesID, from = From, timestamp = k1api_lib:get_now()},
 	{ok, NRList, NWList} = k1api_lib:process_worker_request(Worker, RList, WList),
 	{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
@@ -84,14 +84,15 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {stop, unexpected_cast, State}.
 
-handle_info({#'basic.deliver'{}, #amqp_msg{payload = Content}},
-			 State = #state{
-			 	pending_responses = ResponsesList,
-				pending_workers = WorkersList}) ->
+handle_info({#'basic.deliver'{}, #amqp_msg{payload = Content}}, State = #state{
+	pending_responses = ResponsesList,
+	pending_workers = WorkersList
+}) ->
 	?log_debug("Got retrieve sms response", []),
 	case adto:decode(#k1api_retrieve_sms_response_dto{}, Content) of
 		{ok, Response = #k1api_retrieve_sms_response_dto{
-				id = CorrelationID }} ->
+			id = CorrelationID
+		}} ->
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
 			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = Response},
 			{ok, NRList, NWList} = k1api_lib:process_response(NewPendingResponse, ResponsesList, WorkersList),
@@ -131,6 +132,8 @@ request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 		batch_size = BatchSize
 	},
 	{ok, Payload} = adto:encode(DTO),
-	Props = [{reply_to, ?K1API_RETRIEVE_SMS_RESP_Q}],
+	Props = [
+		{reply_to, ?K1API_RETRIEVE_SMS_RESP_Q}
+	],
     ok = rmql:basic_publish(Channel, ?K1API_RETRIEVE_SMS_REQ_Q, Payload, Props),
 	{ok, RequestUUID}.

@@ -175,7 +175,7 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 			?just_sms_request_param(<<"priority_flag">>, 0),
 			?just_sms_request_param(<<"esm_class">>, 3),
 			?just_sms_request_param(<<"protocol_id">>, 0)
-			]),
+	]),
 	NumberOfDests = length(Destinations),
 	GtwID = get_suitable_gtw(Customer, NumberOfDests),
 	MessageIDs = get_ids(CustomerID, NumberOfDests, NumberOfParts),
@@ -206,18 +206,17 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 	end.
 
 publish_sms_request(Payload, ReqID, GtwID) ->
-    Basic = #'P_basic'{
-        content_type = <<"k1apiSmsRequest">>,
-        delivery_mode = 2,
-        priority = 1,
-        message_id = ReqID
-    },
+    Props = [
+        {content_type, <<"k1apiSmsRequest">>},
+        {delivery_mode, 2},
+        {priority, 1},
+        {message_id, ReqID}
+    ],
 	{ok, Channel} = gen_server:call(?MODULE, get_channel),
 	GtwQueue = << ?JUST_GTW_Q_PREFIX/binary, $., GtwID/binary >>,
 	?log_debug("Sending message to ~p & ~p through the ~p", [?K1API_SMS_REQ_Q, GtwQueue, Channel]),
-    ok = rmql:basic_publish(Channel, ?K1API_SMS_REQ_Q, Payload, Basic),
-    ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).
-
+    ok = rmql:basic_publish(Channel, ?K1API_SMS_REQ_Q, Payload, Props),
+    ok = rmql:basic_publish(Channel, GtwQueue, Payload, Props).
 
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
 	SenderAddress = k1api_lib:addr_to_dto(RawSenderAddress),

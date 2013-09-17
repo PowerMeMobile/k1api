@@ -77,10 +77,10 @@ init([]) ->
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
 	{reply, {ok, Chan}, State};
 
-handle_call({get_response, MesID}, From,
-					State = #state{
-								pending_workers = WList,
-								pending_responses = RList}) ->
+handle_call({get_response, MesID}, From, State = #state{
+	pending_workers = WList,
+	pending_responses = RList
+}) ->
 	Worker = #pworker{id = MesID, from = From, timestamp = k1api_lib:get_now()},
 	{ok, NRList, NWList} = k1api_lib:process_worker_request(Worker, RList, WList),
 	{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
@@ -130,11 +130,16 @@ decode_incoming(<<"SubscribeIncomingSms">>, Content, State) ->
 		pending_workers = WorkersList} = State,
 	case adto:decode(#k1api_subscribe_incoming_sms_response_dto{}, Content) of
 		{ok, #k1api_subscribe_incoming_sms_response_dto{
-				id = CorrelationID,
-				subscription_id = SubscriptionID }} ->
+			id = CorrelationID,
+			subscription_id = SubscriptionID
+		}} ->
 			?log_debug("Got subscribe incoming sms response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
-			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = SubscriptionID},
+			NewPendingResponse = #presponse{
+				id = CorrelationID,
+				timestamp = k1api_lib:get_now(),
+				response = SubscriptionID
+			},
 			{ok, NRList, NWList} = k1api_lib:process_response(NewPendingResponse, ResponsesList, WorkersList),
 			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
 		{error, Error} ->
@@ -147,7 +152,8 @@ decode_incoming(<<"UnsubscribeIncomingSms">>, Content, State) ->
 		pending_workers = WorkersList} = State,
 	case adto:decode(#k1api_unsubscribe_incoming_sms_response_dto{}, Content) of
 		{ok, #k1api_unsubscribe_incoming_sms_response_dto{
-				id = CorrelationID }} ->
+			id = CorrelationID
+		}} ->
 			?log_debug("Got unsubscribe incoming sms response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
 			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = ok},
@@ -163,7 +169,8 @@ decode_incoming(<<"SubscribeReceipts">>, Content, State) ->
 		pending_workers = WorkersList} = State,
 	case adto:decode(#k1api_subscribe_sms_receipts_response_dto{}, Content) of
 		{ok, #k1api_subscribe_sms_receipts_response_dto{
-				id = CorrelationID }} ->
+			id = CorrelationID
+		}} ->
 			?log_debug("Got subscribe sms receipts  response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
 			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = CorrelationID},
@@ -179,7 +186,8 @@ decode_incoming(<<"UnsubscribeReceipts">>, Content, State) ->
 		pending_workers = WorkersList} = State,
 	case adto:decode(#k1api_unsubscribe_sms_receipts_response_dto{}, Content) of
 		{ok, #k1api_unsubscribe_sms_receipts_response_dto{
-				id = CorrelationID }} ->
+			id = CorrelationID
+		}} ->
 			?log_debug("Got unsubscribe sms receipts  response", []),
 			?log_debug("Response was sucessfully decoded [id: ~p]", [CorrelationID]),
 			NewPendingResponse = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = ok},

@@ -81,10 +81,10 @@ init([]) ->
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
 	{reply, {ok, Chan}, State};
 
-handle_call({get_response, MesID}, From,
-					State = #state{
-								pending_workers = WList,
-								pending_responses = RList}) ->
+handle_call({get_response, MesID}, From, State = #state{
+	pending_workers = WList,
+	pending_responses = RList
+}) ->
 	Worker = #pworker{id = MesID, from = From, timestamp = k1api_lib:get_now()},
 	{ok, NRList, NWList} = k1api_lib:process_worker_request(Worker, RList, WList),
 	{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
@@ -103,7 +103,8 @@ handle_info({#'basic.deliver'{},
 	?log_debug("Got auth response", []),
 	case adto:decode(#k1api_auth_response_dto{}, Content) of
 		{ok, AuthResponse = #k1api_auth_response_dto{
-				id = CorrelationID }} ->
+			id = CorrelationID
+		}} ->
 			?log_debug("AuthResponse was sucessfully decoded [id: ~p]", [CorrelationID]),
 			Response = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = AuthResponse},
 			{ok, NRList, NWList} = k1api_lib:process_response(Response, ResponsesList, WorkersList),
@@ -146,6 +147,8 @@ request_backend_auth(Credentials) ->
         password = Password
     },
 	{ok, Payload} = adto:encode(AuthRequest),
-	Props = [{reply_to, ?K1API_AUTH_RESP_Q}],
+	Props = [
+		{reply_to, ?K1API_AUTH_RESP_Q}
+	],
     ok = rmql:basic_publish(Channel, ?K1API_AUTH_REQ_Q, Payload, Props),
 	{ok, RequestUUID}.

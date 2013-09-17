@@ -57,7 +57,7 @@ handle_cast(_Msg, State) ->
 
 handle_info({#'basic.deliver'{},
 			 #amqp_msg{props = Props, payload = Payload}},
-									 State = #state{chan = Chan}) ->
+			 State = #state{chan = Chan}) ->
 	#'P_basic'{
 		reply_to = ReplyTo,
 		message_id = MsgID,
@@ -89,12 +89,12 @@ code_change(_OldVsn, State, _Extra) ->
 respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
 	DTO = #funnel_ack_dto{id = ID},
     {ok, Encoded} =	adto:encode(DTO),
-    RespProps = #'P_basic'{
-        content_type   = <<"BatchAck">>,
-        correlation_id = MsgId,
-        message_id     = uuid:unparse(uuid:generate())
-    },
-    rmql:basic_publish(Chan, ReplyTo, Encoded, RespProps).
+    Props = [
+        {content_type, <<"BatchAck">>},
+        {correlation_id, MsgId},
+        {message_id, uuid:unparse(uuid:generate())}
+    ],
+    rmql:basic_publish(Chan, ReplyTo, Encoded, Props).
 
 decode_dto(Bin, <<"OutgoingBatch">>) ->
 	adto:decode(#k1api_sms_notification_request_dto{}, Bin);
