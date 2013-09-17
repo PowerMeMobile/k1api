@@ -62,3 +62,6 @@ mo-test:
 
 retrieve-msgs-test:
 	@./rebar skip_deps=true eunit suites=k1api_common_test tests=retrieve_sms_test
+
+tags:
+	@find . -name "*.[e,h]rl" -print | etags -
