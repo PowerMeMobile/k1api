@@ -36,20 +36,21 @@ get_session_id() ->
 %% ===================================================================
 
 init([]) ->
-	{ok, PropList} = application:get_env(?APP, billy_props),
-	Host 		= proplists:get_value(host, PropList),
-	Port 		= proplists:get_value(port, PropList),
-	ClientId 	= proplists:get_value(username, PropList),
-	ClientPw 	= proplists:get_value(password, PropList),
-
-	case billy_client:start_session(Host, Port, ClientId, ClientPw) of
-		{ok, SessionId} ->
-			{ok, #state{session_id = SessionId}};
-		{error, econnrefused} ->
-			{ok, #state{}, ?RECONNECT_TIMEOUT};
-		{error, invalid_credentials} ->
-			{error, invalid_credentials}
-	end.
+    P = fun(Prop) -> {ok, Value} = application:get_env(billy_client, Prop), Value end,
+	case P(enabled) of
+		true ->
+		    case billy_client:start_session(P(host), P(port), P(username), P(password)) of
+        		{ok, SessionId} ->
+		            {ok, #state{session_id = SessionId}};
+        		{error, econnrefused} ->
+		            {ok, #state{}, ?RECONNECT_TIMEOUT};
+        		{error, invalid_credentials} ->
+		            {error, invalid_credentials}
+			end;
+		false ->
+			gen_server:cast(?MODULE, stop),
+			{ok, #state{}}
+    end.
 
 handle_call({get_session_id}, _From, State = #state{session_id = undefined}) ->
 	%% return the error and timeout instantly.
@@ -60,6 +61,9 @@ handle_call({get_session_id}, _From, State = #state{session_id = SessionId}) ->
 
 handle_call(_Request, _From, State = #state{}) ->
 	{stop, bad_arg, State}.
+
+handle_cast(stop, St) ->
+	{stop, normal, St};
 
 handle_cast(_Msg, State) ->
 	{stop, bad_arg, State}.
