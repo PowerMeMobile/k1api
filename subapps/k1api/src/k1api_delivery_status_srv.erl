@@ -43,7 +43,7 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec get(binary(), bitstring(), bitstring(), binary()) -> {ok, [#k1api_sms_status_dto{}]}.
+-spec get(binary(), binary(), binary(), binary()) -> {ok, [#k1api_sms_status_dto{}]}.
 get(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
 	{ok, RequestID} = request_backend(CustomerUUID, UserID, SenderAddress, SendSmsRequestId),
 	?log_debug("Successfully sent request [~p] to backend", [RequestID]),

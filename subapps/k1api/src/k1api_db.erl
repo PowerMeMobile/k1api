@@ -23,7 +23,7 @@
 -include("logging.hrl").
 
 -type customer_id() 	:: binary().
--type user_id() 		:: bitstring().
+-type user_id() 		:: binary().
 -type correlator_id() 	:: binary().
 -type request_id() 		:: binary().
 

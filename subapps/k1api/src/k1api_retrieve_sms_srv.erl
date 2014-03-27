@@ -44,7 +44,7 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec get(binary(), bitstring(), bitstring(), undefined | integer()) ->
+-spec get(binary(), binary(), binary(), undefined | integer()) ->
 				 {ok, #k1api_retrieve_sms_response_dto{}}.
 get(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 	{ok, RequestID} = request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize),
