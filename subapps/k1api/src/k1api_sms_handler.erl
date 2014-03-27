@@ -30,7 +30,7 @@
 
 init(Creds = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Creds]),
-	{ok, Customer = #k1api_auth_response_dto{}} = k1api_auth_srv:authenticate(Creds),
+	{ok, Customer = #k1api_auth_response_customer_dto{}} = k1api_auth_srv:authenticate(Creds),
 	?log_debug("Customer: ~p", [Customer]),
 	{ok, #state{creds = Creds, customer = Customer}}.
 
@@ -43,10 +43,8 @@ handle_send_sms_req(OutboundSms = #outbound_sms{},
 
 handle_delivery_status_req(SenderAddress, SendSmsRequestID,
 						#state{creds = Creds, customer = Customer}) ->
-	#k1api_auth_response_dto{
-		customer_uuid = CustomerUUID
-	} = Customer,
-	#credentials{user_id = UserID} = Creds,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
 	?log_debug("Got delivery status request "
 		"[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
 		[CustomerUUID, UserID, SenderAddress, SendSmsRequestID]),
@@ -67,10 +65,8 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 		criteria = _Criteria,
 		callback = Callback
 	} = Req,
-	#k1api_auth_response_dto{
-		customer_uuid = CustomerUUID
-		} = Customer,
-	#credentials{user_id = UserID} = Creds,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
 	ReqID = uuid:unparse(uuid:generate()),
 	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
 		ok ->
@@ -94,14 +90,12 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 
 handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State = #state{}) ->
 	#state{creds = Creds, customer = Customer} = State,
-	#credentials{user_id = UserID} = Creds,
-	#k1api_auth_response_dto{
-		customer_uuid = CustomerID
-		} = Customer,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
 	RequestID = uuid:unparse(uuid:generate()),
 	DTO = #k1api_unsubscribe_sms_receipts_request_dto{
 		id = RequestID,
-		customer_id = CustomerID,
+		customer_id = CustomerUUID,
 		user_id = UserID,
 		subscription_id = SubscriptionID
 	},
@@ -116,10 +110,8 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 		batch_size = BatchSize
 	} = Request,
 	#state{creds = Creds, customer = Customer} = State,
-	#k1api_auth_response_dto{
-		customer_uuid = CustomerUUID
-	} = Customer,
-	#credentials{user_id = UserID} = Creds,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
 	?log_debug("Sending retrieve sms request", []),
 	DestinationAddress = RegID,
 	{ok, Response} =
@@ -148,10 +140,8 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 
 handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	?log_debug("Got inbound subscribe event: ~p", [Req]),
-	#k1api_auth_response_dto{
-		customer_uuid = CustomerID
-		} = Customer,
-	#credentials{user_id = UserID} = Creds,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
 	#subscribe_inbound{
 		dest_addr = DestAddr,
 		notify_url = NotifyURL,
@@ -161,12 +151,12 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 	} = Req,
 	ReqID = uuid:unparse(uuid:generate()),
 	?log_debug("Got correlator: ~p", [Correlator]),
-	case k1api_db:check_correlator(CustomerID, UserID, Correlator, ReqID) of
+	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
 		ok ->
 			?log_debug("Correlator saved", []),
 			DTO = #k1api_subscribe_incoming_sms_request_dto{
 				id = ReqID,
-				customer_id = CustomerID,
+				customer_id = CustomerUUID,
 				user_id = UserID,
 				dest_addr = #addr{addr = DestAddr, ton = 1, npi = 1},
 				notify_url = NotifyURL,
@@ -189,14 +179,12 @@ handle_inbound_unsubscribe(SubscribeID, State = #state{}) ->
 		creds = Creds,
 		customer = Customer
 	} = State,
-	#k1api_auth_response_dto{
-		customer_uuid = CustomerID
-	} = Customer,
-	#credentials{user_id = UserID} = Creds,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
 	RequestID = uuid:unparse(uuid:generate()),
 	DTO = #k1api_unsubscribe_incoming_sms_request_dto{
 		id = RequestID,
-		customer_id = CustomerID,
+		customer_id = CustomerUUID,
 		user_id = UserID,
 		subscription_id = SubscribeID
 	},
