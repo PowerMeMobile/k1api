@@ -84,7 +84,7 @@ check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
 		Key = {CustomerID, UserID, CorrelatorID},
 		case mnesia:read(correlator, Key, write) of
 			[] ->
-				CreatedAt = k1api_datetime:utc_unix_epoch(),
+				CreatedAt = ac_datetime:utc_unixepoch(),
 				mnesia:write(#correlator{	key = Key,
 											value = NewRequestID,
 											created_at = CreatedAt}),
@@ -110,7 +110,7 @@ handle_cast(_Msg, State) ->
     {stop, unexpected_cast, State}.
 
 handle_info(timeout, State) ->
-	TimeThreshold  = k1api_datetime:utc_unix_epoch() - ?CorrelatorLifetime,
+	TimeThreshold  = ac_datetime:utc_unixepoch() - ?CorrelatorLifetime,
 	MatchHead = #correlator{key = '$1', value = '_', created_at = '$2'},
 	Guard = {'<', '$2', TimeThreshold},
 	Result = '$1',
