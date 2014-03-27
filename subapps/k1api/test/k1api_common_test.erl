@@ -91,9 +91,9 @@ mt_prepaid_sms_test_() ->
 			[?_test(outbound_sms_prepaid())]}}.
 
 outbound_sms_prepaid() ->
-
+    %%
 	%% Send sms request with delivery receipts
-
+    %%
 	Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
 	NotifyURL = receipts_notify_url(),
 	Body = ?url_encode([{"address", "tel%3A%2B375291234567"},
@@ -109,8 +109,9 @@ outbound_sms_prepaid() ->
     ?assert_status(201, Response),
 	?assert_json_key([<<"resourceReference">>, <<"resourceURL">>], Response),
 
+    %%
 	%% Send sms status request
-
+    %%
 	ResourceUrl = ?json_value([<<"resourceReference">>, <<"resourceURL">>], Response),
 	ResourceID = binary_to_list(filename:basename(ResourceUrl)),
 	SmsStUrl = ?join([addr_preffix(), "/smsmessaging/outbound/", prepaid_sender_addr(), "/requests/", ResourceID, "/deliveryInfos"]),
@@ -119,8 +120,9 @@ outbound_sms_prepaid() ->
 	?assert_json_key([<<"deliveryInfoList">>, <<"deliveryInfo">>], SmsStResponse),
 	?assert_json_value([<<"deliveryInfoList">>, <<"resourceURL">>], list_to_binary(SmsStUrl), SmsStResponse),
 
+    %%
 	%% Retrive receipts from test http server
-
+    %%
 	timer:sleep(3000),
 	{ok, GotReceipts} = oneapi_incoming_srv:give_receipts(),
 	?assertEqual(2, length(GotReceipts)).
@@ -132,9 +134,9 @@ outbound_sms_postpaid_test_() ->
 			[?_test(outbound_sms_postpaid())]}}.
 
 outbound_sms_postpaid() ->
-
+    %%
 	%% Send sms request with delivery receipts
-
+    %%
 	Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
 	NotifyURL = receipts_notify_url(),
 	Body = ?url_encode([{"address", "tel%3A%2B375251234567"},
@@ -150,8 +152,9 @@ outbound_sms_postpaid() ->
     ?assert_status(201, Response),
 	?assert_json_key([<<"resourceReference">>, <<"resourceURL">>], Response),
 
+    %%
 	%% Send sms status request
-
+    %%
 	ResourceUrl = ?json_value([<<"resourceReference">>, <<"resourceURL">>], Response),
 	ResourceID = binary_to_list(filename:basename(ResourceUrl)),
 	SmsStUrl = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests/", ResourceID, "/deliveryInfos"]),
@@ -160,8 +163,9 @@ outbound_sms_postpaid() ->
 	?assert_json_key([<<"deliveryInfoList">>, <<"deliveryInfo">>], SmsStResponse),
 	?assert_json_value([<<"deliveryInfoList">>, <<"resourceURL">>], list_to_binary(SmsStUrl), SmsStResponse),
 
-	%% Retrive receipts from test http server
-
+    %%
+	%% Retrieve receipts from test http server
+    %%
 	timer:sleep(3000),
 	{ok, GotReceipts} = oneapi_incoming_srv:give_receipts(),
 	?assertEqual(2, length(GotReceipts)).
@@ -184,9 +188,9 @@ incoming_sms_sub_test_() ->
 			[?_test(incoming_sms_sub())]}}.
 
 incoming_sms_sub() ->
-
+    %%
 	%% Subscribe
-
+    %%
 	CallbackData = "doSomething()",
 	Url = ?join([addr_preffix(), "/smsmessaging/inbound/subscriptions"]),
 	Body = ?url_encode([
@@ -201,9 +205,9 @@ incoming_sms_sub() ->
     Response = ?perform_post(Url, Headers, Body),
     ?assert_status(201, Response),
 
-
+    %%
 	%% Send incoming sms via SmppSim
-
+    %%
 	SendInSmsUrl = "http://localhost:8071/inject_mo",
 	TestIncomingSmsText = "TestOneApiIncomingSms",
 	Queries = [{"short_message", TestIncomingSmsText},
@@ -216,8 +220,9 @@ incoming_sms_sub() ->
 	SendInSmsResponse = ?perform_get(SendInSmsUrl, [], Queries),
 	?assert_status(200, SendInSmsResponse),
 
+    %%
 	%% Receive incoming sms
-
+    %%
 	timer:sleep(3000), %% wait for delivery
 	{ok, IncomingSMSes} = oneapi_incoming_srv:give_sms(),
 	?assertEqual(1, length(IncomingSMSes)),
@@ -239,8 +244,9 @@ incoming_sms_sub() ->
 				<<"inboundSMSMessage">>,
 				<<"senderAddress">>], IncomingSMS),
 
+    %%
 	%% Unsubscribe
-
+    %%
 	ResourceUrl = ?json_value([<<"resourceReference">>, <<"resourceURL">>], Response),
 	ResourceID = binary_to_list(filename:basename(ResourceUrl)),
 	DelSubUrl = ?join([addr_preffix(), "/smsmessaging/inbound/subscriptions/", ResourceID]),
@@ -248,9 +254,9 @@ incoming_sms_sub() ->
 	?assert_status(204, DelResponse).
 
 sms_receipts_sub_test() ->
-
+    %%
 	%% Subscribe
-
+    %%
 	Url = ?join([addr_preffix(), "/smsmessaging/outbound/", k1api_client_msisdn(), "/subscriptions"]),
 	NotifyURL = receipts_notify_url(),
 	Criteria = "Tag",
@@ -272,8 +278,9 @@ sms_receipts_sub_test() ->
 	?assert_json_value([<<"deliveryReceiptSubscription">>, <<"callbackReference">>, <<"criteria">>],
 		list_to_binary(Criteria), Response),
 
+    %%
 	%% Unsubscribe
-
+    %%
 	ResourceUrl = ?json_value([<<"deliveryReceiptSubscription">>, <<"resourceURL">>], Response),
 	ResourceID = binary_to_list(filename:basename(ResourceUrl)),
 	DelSubUrl = ?join([addr_preffix(), "/smsmessaging/outbound/", k1api_client_msisdn(), "/subscriptions/", ResourceID]),
