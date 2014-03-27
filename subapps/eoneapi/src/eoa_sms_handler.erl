@@ -74,8 +74,8 @@ handle(Req, State = #state{}) ->
 	{Path, Req} = cowboy_http_req:path(Req),
 	{Method, Req} = cowboy_http_req:method(Req),
 	case get_credentials(Req) of
-		{ok, {SysId, User, Pass}} ->
-			Creds = #credentials{system_id = SysId, user_id = User, password = Pass},
+		{ok, {CustId, UserId, Pass}} ->
+			Creds = #credentials{customer_id = CustId, user_id = UserId, password = Pass},
 			handle_req(Method, Path, State#state{creds = Creds});
 		{error, unauthorized} ->
 			eoneapi:code(401, Req, [])
@@ -467,7 +467,7 @@ build_resource_url(Req, ItemId) when is_binary(ItemId) ->
 
 get_credentials(Req) ->
 	{Header, Req} = cowboy_http_req:header('Authorization', Req),
-	case application:get_env(eoneapi, sysid_user_delimiter) of
+	case application:get_env(eoneapi, customer_user_delimiter) of
 		{ok, Delimiter} ->
 			parse_credential_header(Header, [Delimiter]);
 		undefined ->
@@ -480,5 +480,5 @@ parse_credential_header(Header, Delimiter) ->
 	RawList = binary:split(Header, [<<"Basic">>, <<" ">>],[global]),
 	[Base64Bin] = lists:filter(fun(Elem) -> Elem =/= <<>> end, RawList),
 	CredsBin = base64:decode(Base64Bin),
-	[SysIdBin, UserBin, PassBin] = binary:split(CredsBin, [<<":">>] ++ Delimiter,[global]),
-	{ok, {SysIdBin, UserBin, PassBin}}.
+	[CustIdBin, UserBin, PassBin] = binary:split(CredsBin, [<<":">>] ++ Delimiter, [global]),
+	{ok, {CustIdBin, UserBin, PassBin}}.

@@ -21,7 +21,7 @@
 
 -record(state, {
 	creds :: term(),
-	customer :: term()
+	response :: term()
 }).
 
 %% ===================================================================
@@ -30,19 +30,23 @@
 
 init(Creds = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Creds]),
-	{ok, Customer = #k1api_auth_response_customer_dto{}} = k1api_auth_srv:authenticate(Creds),
-	?log_debug("Customer: ~p", [Customer]),
-	{ok, #state{creds = Creds, customer = Customer}}.
+	{ok, Response = #k1api_auth_response_dto{}} = k1api_auth_srv:authenticate(Creds),
+	?log_debug("Response: ~p", [Response]),
+	{ok, #state{creds = Creds, response = Response}}.
 
-handle_send_sms_req(OutboundSms = #outbound_sms{},
-						#state{customer = Customer, creds = Creds}) ->
+handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
+    creds = Creds,
+    response = Response
+}) ->
 	?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
-	{ok, RequestID} = k1api_outbound_sms_srv:send(OutboundSms, Customer, Creds),
+	{ok, RequestID} = k1api_outbound_sms_srv:send(OutboundSms, Response, Creds),
 	?log_debug("Message sucessfully sent [id: ~p]", [RequestID]),
 	{ok, RequestID}.
 
-handle_delivery_status_req(SenderAddress, SendSmsRequestID,
-						#state{creds = Creds, customer = Customer}) ->
+handle_delivery_status_req(SenderAddress, SendSmsRequestID, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
 	?log_debug("Got delivery status request "
@@ -55,9 +59,11 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestID,
 
 	{ok, DeliveryStatuses}.
 
-handle_delivery_notifications_subscribe(Req, State = #state{}) ->
+handle_delivery_notifications_subscribe(Req, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
 	?log_debug("Got delivery notifications subscribe request: ~p", [Req]),
-	#state{creds = Creds, customer = Customer} = State,
 	#delivery_receipt_subscribe{
 		sender_addr = Sender,
 		notify_url = Url,
@@ -88,8 +94,10 @@ handle_delivery_notifications_subscribe(Req, State = #state{}) ->
 			{ok, OrigReqID}
 	end.
 
-handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State = #state{}) ->
-	#state{creds = Creds, customer = Customer} = State,
+handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
 	RequestID = uuid:unparse(uuid:generate()),
@@ -104,12 +112,14 @@ handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, State =
 	?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
 	{ok, deleted}.
 
-handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
+handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
 	#retrieve_sms_req{
 		reg_id = RegID,
 		batch_size = BatchSize
 	} = Request,
-	#state{creds = Creds, customer = Customer} = State,
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
 	?log_debug("Sending retrieve sms request", []),
@@ -138,7 +148,10 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, State = #state{}) ->
 	?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
 	{ok, Messages, Total}.
 
-handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
+handle_inbound_subscribe(Req, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
 	?log_debug("Got inbound subscribe event: ~p", [Req]),
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
@@ -173,12 +186,11 @@ handle_inbound_subscribe(Req, #state{creds = Creds, customer = Customer}) ->
 			{ok, OrigReqID}
 	end.
 
-handle_inbound_unsubscribe(SubscribeID, State = #state{}) ->
+handle_inbound_unsubscribe(SubscribeID, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
 	?log_debug("Got inbound unsubscribe event: ~p", [SubscribeID]),
-	#state{
-		creds = Creds,
-		customer = Customer
-	} = State,
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
 	RequestID = uuid:unparse(uuid:generate()),

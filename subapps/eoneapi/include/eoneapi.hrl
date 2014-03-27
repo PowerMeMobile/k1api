@@ -14,7 +14,7 @@
 -type excep_params()	:: [term()].
 
 -record(credentials, {
-	system_id		 	:: bitstring(),
+	customer_id		 	:: bitstring(),
 	user_id				:: bitstring(),
 	password		 	:: bitstring()
 }).

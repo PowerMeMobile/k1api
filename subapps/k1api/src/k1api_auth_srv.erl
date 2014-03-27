@@ -43,15 +43,15 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec authenticate(Credentials :: #credentials{}) ->
-	{ok, Customer :: #k1api_auth_response_dto{}} |
+-spec authenticate(#credentials{}) ->
+	{ok, #k1api_auth_response_customer_dto{}} |
 	{error, denied} |
-	{error, Error :: term()}.
-authenticate(Credentials = #credentials{}) ->
-	#credentials{
-		system_id = CustomerID,
-		user_id = UserID,
-		password = Pswd } = Credentials,
+	{error, term()}.
+authenticate(Credentials = #credentials{
+    customer_id = CustomerID,
+	user_id = UserID,
+	password = Pswd
+}) ->
 	case k1api_auth_cache:fetch({CustomerID, UserID, Pswd}) of
 		{ok, Customer} ->
 			?log_debug("User found in cache", []),
@@ -83,10 +83,10 @@ init([]) ->
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
 	{reply, {ok, Chan}, State};
 
-handle_call({get_response, MesID}, From,
-					State = #state{
-								pending_workers = WList,
-								pending_responses = RList}) ->
+handle_call({get_response, MesID}, From, State = #state{
+    pending_workers = WList,
+	pending_responses = RList
+}) ->
 	Worker = #pworker{id = MesID, from = From, timestamp = k1api_lib:get_now()},
 	{ok, NRList, NWList} = k1api_lib:process_worker_request(Worker, RList, WList),
 	{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
@@ -97,19 +97,26 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {stop, unexpected_cast, State}.
 
-handle_info({#'basic.deliver'{},
-			 #amqp_msg{props = #'P_basic'{}, payload = Content}},
-			 State = #state{
-			 	pending_responses = ResponsesList,
-				pending_workers = WorkersList}) ->
+handle_info({#'basic.deliver'{}, AmqpMsg = #amqp_msg{}}, State = #state{}) ->
 	?log_debug("Got auth response", []),
+    Content = AmqpMsg#amqp_msg.payload,
+    ResponsesList = State#state.pending_responses,
+    WorkersList = State#state.pending_workers,
 	case adto:decode(#k1api_auth_response_dto{}, Content) of
-		{ok, AuthResponse = #k1api_auth_response_dto{
-				id = CorrelationID }} ->
-			?log_debug("AuthResponse was sucessfully decoded [id: ~p]", [CorrelationID]),
-			Response = #presponse{id = CorrelationID, timestamp = k1api_lib:get_now(), response = AuthResponse},
-			{ok, NRList, NWList} = k1api_lib:process_response(Response, ResponsesList, WorkersList),
-			{noreply, State#state{pending_workers = NWList, pending_responses = NRList}};
+		{ok, AuthResp = #k1api_auth_response_dto{}} ->
+            CorrelationID = AuthResp#k1api_auth_response_dto.id,
+            ?log_debug("Got auth response: ~p", [AuthResp]),
+            Response = #presponse{
+                id = CorrelationID,
+                timestamp = k1api_lib:get_now(),
+                response = AuthResp
+            },
+			{ok, NRList, NWList} =
+                k1api_lib:process_response(Response, ResponsesList, WorkersList),
+			{noreply, State#state{
+                pending_workers = NWList,
+                pending_responses = NRList
+            }};
 		{error, Error} ->
 			?log_error("Failed To Decode Auth Response Due To ~p : ~p", [Error, Content]),
 			{noreply, State}
@@ -134,19 +141,20 @@ get_channel() ->
 get_auth_response(RequestUUID) ->
 	gen_server:call(?MODULE, {get_response, RequestUUID}).
 
-request_backend_auth(Credentials) ->
-	#credentials{
-		system_id = CustomerSystemID,
-		user_id = UserID,
-		password = Password } = Credentials,
+request_backend_auth(#credentials{
+    customer_id = CustomerID,
+	user_id = UserID,
+	password = Password
+}) ->
  	{ok, Channel} = get_channel(),
 	RequestUUID = uuid:unparse(uuid:generate()),
     AuthRequest = #k1api_auth_request_dto{
         id = RequestUUID,
-        customer_id = CustomerSystemID,
+        customer_id = CustomerID,
         user_id = UserID,
         password = Password
     },
+    ?log_debug("Sending auth request: ~p", [AuthRequest]),
 	{ok, Payload} = adto:encode(AuthRequest),
     Props = #'P_basic'{},
     ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
