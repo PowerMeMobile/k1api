@@ -5,3 +5,4 @@ deps
 rel/erl_crash.dump
 rel/k1api/
 subapps/*/priv
+TAGS
