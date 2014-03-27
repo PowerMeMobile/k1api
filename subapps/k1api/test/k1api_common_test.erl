@@ -84,11 +84,11 @@ receipts_notify_url() ->
 setup() ->
 	oneapi_incoming_srv:start().
 
-mt_prepaid_sms_test_() ->
-	{setup,
-		fun setup/0,
-		{timeout, 60,
-			[?_test(outbound_sms_prepaid())]}}.
+%% mt_prepaid_sms_test_() ->
+%% 	{setup,
+%% 		fun setup/0,
+%% 		{timeout, 60,
+%% 			[?_test(outbound_sms_prepaid())]}}.
 
 outbound_sms_prepaid() ->
     %%
