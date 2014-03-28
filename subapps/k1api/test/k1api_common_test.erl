@@ -181,11 +181,11 @@ retrieve_sms_test() ->
 	?assert_json_key([<<"inboundSMSMessageList">>, <<"resourceURL">>], Resp),
 	?assert_json_key([<<"inboundSMSMessageList">>, <<"totalNumberOfPendingMessages">>], Resp).
 
-incoming_sms_sub_test_() ->
-	{setup,
-		fun setup/0,
-		{timeout, 60,
-			[?_test(incoming_sms_sub())]}}.
+%% incoming_sms_sub_test_() ->
+%% 	{setup,
+%% 		fun setup/0,
+%% 		{timeout, 60,
+%% 			[?_test(incoming_sms_sub())]}}.
 
 incoming_sms_sub() ->
     %%
