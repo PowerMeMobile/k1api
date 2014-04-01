@@ -123,7 +123,7 @@ outbound_sms_prepaid() ->
     %%
 	%% Retrive receipts from test http server
     %%
-	timer:sleep(3000),
+	timer:sleep(5000),
 	{ok, GotReceipts} = oneapi_incoming_srv:give_receipts(),
 	?assertEqual(2, length(GotReceipts)).
 
@@ -166,7 +166,7 @@ outbound_sms_postpaid() ->
     %%
 	%% Retrieve receipts from test http server
     %%
-	timer:sleep(3000),
+	timer:sleep(5000),
 	{ok, GotReceipts} = oneapi_incoming_srv:give_receipts(),
 	?assertEqual(2, length(GotReceipts)).
 
@@ -223,7 +223,7 @@ incoming_sms_sub() ->
     %%
 	%% Receive incoming sms
     %%
-	timer:sleep(3000), %% wait for delivery
+	timer:sleep(5000), %% wait for delivery
 	{ok, IncomingSMSes} = oneapi_incoming_srv:give_sms(),
 	?assertEqual(1, length(IncomingSMSes)),
 	[IncomingSMS] = IncomingSMSes,
