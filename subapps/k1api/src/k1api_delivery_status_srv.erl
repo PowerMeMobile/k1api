@@ -25,9 +25,6 @@
 -include("application.hrl").
 -include("logging.hrl").
 
--define(deliveryStatusRequestQueue, <<"pmm.k1api.delivery_status_request">>).
--define(deliveryStatusResponseQueue, <<"pmm.k1api.delivery_status_response">>).
-
 -record(state, {
 	chan 					:: pid(),
 	reply_to 				:: binary(),
@@ -55,13 +52,15 @@ get(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
 %% ===================================================================
 
 init([]) ->
+    {ok, DeliveryStatusReqQueue} = application:get_env(?APP, delivery_status_req_queue),
+    {ok, DeliveryStatusRespQueue} = application:get_env(?APP, delivery_status_resp_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?deliveryStatusResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?deliveryStatusRequestQueue, []),
+	ok = rmql:queue_declare(Chan, DeliveryStatusReqQueue, []),
+	ok = rmql:queue_declare(Chan, DeliveryStatusRespQueue, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?deliveryStatusResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, DeliveryStatusRespQueue, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -120,14 +119,17 @@ get_response(RequestUUID) ->
 request_backend(CustomerUUID, UserID, SenderAddress, SendSmsRequestId) ->
  	{ok, Channel} = get_channel(),
 	RequestUUID = uuid:unparse(uuid:generate()),
-	DeliveryStatusReqDTO = #k1api_sms_delivery_status_request_dto{
+	DeliveryStatusReq = #k1api_sms_delivery_status_request_dto{
 		id = RequestUUID,
 		customer_id = CustomerUUID,
 		user_id = UserID,
 		sms_request_id = SendSmsRequestId,
 		address = k1api_lib:addr_to_dto(SenderAddress)
 	},
-	?log_debug("DeliveryStatusReqDTO: ~p", [DeliveryStatusReqDTO]),
-	{ok, Payload} = adto:encode(DeliveryStatusReqDTO),
-    ok = rmql:basic_publish(Channel, ?deliveryStatusRequestQueue, Payload, #'P_basic'{}),
+	?log_debug("DeliveryStatusReq: ~p", [DeliveryStatusReq]),
+    {ok, DeliveryStatusReqQueue} = application:get_env(?APP, delivery_status_req_queue),
+    {ok, DeliveryStatusRespQueue} = application:get_env(?APP, delivery_status_resp_queue),
+    {ok, Payload} = adto:encode(DeliveryStatusReq),
+    Props = #'P_basic'{reply_to = DeliveryStatusRespQueue},
+    ok = rmql:basic_publish(Channel, DeliveryStatusReqQueue, Payload, Props),
 	{ok, RequestUUID}.

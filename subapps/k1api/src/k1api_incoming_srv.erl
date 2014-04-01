@@ -21,9 +21,8 @@
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include("gen_server_spec.hrl").
+-include("application.hrl").
 -include("logging.hrl").
-
--define(IncomingQueue, <<"pmm.k1api.incoming">>).
 
 -record(state, {
 	chan :: pid()
@@ -42,12 +41,13 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    {ok, IncomingQueue} = application:get_env(?APP, incoming_sms_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?IncomingQueue, []),
+	ok = rmql:queue_declare(Chan, IncomingQueue, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?IncomingQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, IncomingQueue, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(_Request, _From, State) ->

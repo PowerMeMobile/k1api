@@ -25,9 +25,6 @@
 -include("application.hrl").
 -include("logging.hrl").
 
--define(AuthRequestQueue, <<"pmm.k1api.auth_request">>).
--define(AuthResponseQueue, <<"pmm.k1api.auth_response">>).
-
 -record(state, {
 	chan 					:: pid(),
 	reply_to 				:: binary(),
@@ -71,13 +68,15 @@ authenticate(Credentials = #credentials{
 %% ===================================================================
 
 init([]) ->
+    {ok, AuthReqQueue} = application:get_env(?APP, auth_req_queue),
+    {ok, AuthRespQueue} = application:get_env(?APP, auth_resp_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?AuthResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?AuthRequestQueue, []),
+	ok = rmql:queue_declare(Chan, AuthReqQueue, []),
+	ok = rmql:queue_declare(Chan, AuthRespQueue, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?AuthResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, AuthRespQueue, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -156,6 +155,8 @@ request_backend_auth(#credentials{
     },
     ?log_debug("Sending auth request: ~p", [AuthRequest]),
 	{ok, Payload} = adto:encode(AuthRequest),
-    Props = #'P_basic'{},
-    ok = rmql:basic_publish(Channel, ?AuthRequestQueue, Payload, Props),
+    {ok, AuthReqQueue} = application:get_env(?APP, auth_req_queue),
+    {ok, AuthRespQueue} = application:get_env(?APP, auth_resp_queue),
+    Props = #'P_basic'{reply_to = AuthRespQueue},
+    ok = rmql:basic_publish(Channel, AuthReqQueue, Payload, Props),
 	{ok, RequestUUID}.

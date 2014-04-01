@@ -19,13 +19,12 @@
 ]).
 
 -include("logging.hrl").
+-include("application.hrl").
 -include("gen_server_spec.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("eoneapi/include/eoneapi.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("billy_client/include/billy_client.hrl").
-
--define(SmsRequestQueue, <<"pmm.k1api.sms_request">>).
 
 -define(just_sms_request_param(Name, Param),
 	apply(fun
@@ -90,10 +89,11 @@ send(OutboundSms, Response, Credentials) ->
 %% ===================================================================
 
 init([]) ->
+    {ok, SmsRequestQueue} = application:get_env(?APP, sms_request_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Channel} = rmql:channel_open(Connection),
 	link(Channel),
-	ok = rmql:queue_declare(Channel, ?SmsRequestQueue, []),
+	ok = rmql:queue_declare(Channel, SmsRequestQueue, []),
 	{ok, #state{chan = Channel}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -216,12 +216,14 @@ publish_sms_request(Payload, ReqID, GtwID) ->
         priority = 1,
         message_id = ReqID
     },
-	{ok, Channel} = gen_server:call(?MODULE, get_channel),
-	GtwQueue = binary:replace(<<"pmm.just.gateway.%id%">>, <<"%id%">>, GtwID),
-	?log_debug("Sending message to ~p & ~p through the ~p", [?SmsRequestQueue, GtwQueue, Channel]),
-    ok = rmql:basic_publish(Channel, ?SmsRequestQueue, Payload, Basic),
-    ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).
+    {ok, SmsRequestQueue} = application:get_env(?APP, sms_request_queue),
+    {ok, SmsGtwQueueFmt} = application:get_env(?APP, sms_gtw_queue_fmt),
+    GtwQueue = binary:replace(SmsGtwQueueFmt, <<"%id%">>, GtwID),
 
+	{ok, Channel} = gen_server:call(?MODULE, get_channel),
+	?log_debug("Sending message to ~p & ~p through the ~p", [SmsRequestQueue, GtwQueue, Channel]),
+    ok = rmql:basic_publish(Channel, SmsRequestQueue, Payload, Basic),
+    ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).
 
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
 	SenderAddress = k1api_lib:addr_to_dto(RawSenderAddress),

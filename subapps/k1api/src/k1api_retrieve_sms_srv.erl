@@ -26,9 +26,6 @@
 -include("application.hrl").
 -include("logging.hrl").
 
--define(RetrieveSmsRequestQueue, <<"pmm.k1api.retrieve_sms_request">>).
--define(RetrieveSmsResponseQueue, <<"pmm.k1api.retrieve_sms_response">>).
-
 -record(state, {
 	  chan 						:: pid(),
 	  reply_to 					:: binary(),
@@ -60,13 +57,15 @@ remove_retrieved_sms() -> erlang:error(not_implemented).
 %% ===================================================================
 
 init([]) ->
+    {ok, RetrieveSmsReqQueue} = application:get_env(?APP, retrieve_sms_req_queue),
+    {ok, RetrieveSmsRespQueue} = application:get_env(?APP, retrieve_sms_resp_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?RetrieveSmsResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?RetrieveSmsRequestQueue, []),
+	ok = rmql:queue_declare(Chan, RetrieveSmsReqQueue, []),
+	ok = rmql:queue_declare(Chan, RetrieveSmsRespQueue, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?RetrieveSmsResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, RetrieveSmsRespQueue, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -132,6 +131,9 @@ request_backend(CustomerUUID, UserID, DestinationAddress, BatchSize) ->
 		dest_addr = k1api_lib:addr_to_dto(DestinationAddress),
 		batch_size = BatchSize
 	},
+    {ok, RetrieveSmsReqQueue} = application:get_env(?APP, retrieve_sms_req_queue),
+    {ok, RetrieveSmsRespQueue} = application:get_env(?APP, retrieve_sms_resp_queue),
 	{ok, Payload} = adto:encode(DTO),
-    ok = rmql:basic_publish(Channel, ?RetrieveSmsRequestQueue, Payload, #'P_basic'{}),
+    Props = #'P_basic'{reply_to = RetrieveSmsRespQueue},
+    ok = rmql:basic_publish(Channel, RetrieveSmsReqQueue, Payload, Props),
 	{ok, RequestUUID}.

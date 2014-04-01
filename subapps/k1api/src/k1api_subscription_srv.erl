@@ -28,9 +28,6 @@
 -include("application.hrl").
 -include("logging.hrl").
 
--define(SubscriptionRequestQueue, <<"pmm.k1api.subscription_request">>).
--define(SubscriptionResponseQueue, <<"pmm.k1api.subscription_response">>).
-
 -record(state, {
 	chan 					:: pid(),
 	reply_to 				:: binary(),
@@ -67,13 +64,15 @@ unsubscribe_receipts(RequestID, Payload) ->
 %% ===================================================================
 
 init([]) ->
+    {ok, SubscriptionReqQueue} = application:get_env(?APP, subscription_req_queue),
+    {ok, SubscriptionRespQueue} = application:get_env(?APP, subscription_resp_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Chan} = rmql:channel_open(Connection),
 	link(Chan),
-	ok = rmql:queue_declare(Chan, ?SubscriptionResponseQueue, []),
-	ok = rmql:queue_declare(Chan, ?SubscriptionRequestQueue, []),
+	ok = rmql:queue_declare(Chan, SubscriptionReqQueue, []),
+	ok = rmql:queue_declare(Chan, SubscriptionRespQueue, []),
 	NoAck = true,
-	{ok, _ConsumerTag} = rmql:basic_consume(Chan, ?SubscriptionResponseQueue, NoAck),
+	{ok, _ConsumerTag} = rmql:basic_consume(Chan, SubscriptionRespQueue, NoAck),
 	{ok, #state{chan = Chan}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
@@ -116,11 +115,14 @@ process_request(RequestID, Payload, ContentType) ->
 	get_response(RequestID).
 
 request_backend(_RequestID, Payload, ContentType) ->
+    {ok, SubscriptionReqQueue} = application:get_env(?APP, subscription_req_queue),
+    {ok, SubscriptionRespQueue} = application:get_env(?APP, subscription_resp_queue),
  	{ok, Channel} = get_channel(),
 	BasicProps = #'P_basic'{
+        reply_to = SubscriptionRespQueue,
 		content_type = ContentType
 	},
-    ok = rmql:basic_publish(Channel, ?SubscriptionRequestQueue, Payload, BasicProps).
+    ok = rmql:basic_publish(Channel, SubscriptionReqQueue, Payload, BasicProps).
 
 get_response(RequestUUID) ->
 	gen_server:call(?MODULE, {get_response, RequestUUID}).
