@@ -81,7 +81,7 @@ get_now() ->
 %% ===================================================================
 
 purge(List) ->
-	{ok, ExpirationInterval} = application:get_env(k1api, request_timeout),
+	{ok, ExpirationInterval} = application:get_env(?APP, request_timeout),
 	purge(List, [], get_now() - ExpirationInterval).
 
 purge([], Acc, _Now) -> Acc;

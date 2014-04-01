@@ -9,6 +9,7 @@
 ]).
 
 -include("eoneapi.hrl").
+-include("application.hrl").
 
 -record(state, {
 	req 		:: term(),
@@ -467,7 +468,7 @@ build_resource_url(Req, ItemId) when is_binary(ItemId) ->
 
 get_credentials(Req) ->
 	{Header, Req} = cowboy_http_req:header('Authorization', Req),
-	case application:get_env(eoneapi, customer_user_delimiter) of
+	case application:get_env(?APP, customer_user_delimiter) of
 		{ok, Delimiter} ->
 			parse_credential_header(Header, [Delimiter]);
 		undefined ->
