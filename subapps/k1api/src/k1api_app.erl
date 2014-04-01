@@ -3,6 +3,7 @@
 -behaviour(application).
 
 -include("logging.hrl").
+-include("application.hrl").
 
 %% Application callbacks
 -export([
@@ -23,9 +24,15 @@
 start(_StartType, _StartArgs) ->
     ?log_info("k1api initializing...", []),
     Result = k1api_sup:start_link(),
-	{ok, Port} = application:get_env(oneapi_port),
+
+    {ok, Addr} = application:get_env(?APP, http_addr),
+	{ok, Port} = application:get_env(?APP, http_port),
+    {ok, AcceptorsNum} = application:get_env(?APP, http_acceptors_num),
+
 	EOneAPIProps = [
+        {addr, Addr},
 		{port, Port},
+        {acceptors_num, AcceptorsNum},
 		{sms_handler, k1api_sms_handler}
 	],
 	eoneapi:start_service(EOneAPIProps),

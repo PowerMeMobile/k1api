@@ -20,14 +20,22 @@
 
 -spec start_service([{term(), term()}]) -> ignore.
 start_service(EOneAPIProps) ->
+    Addr = proplists:get_value(addr, EOneAPIProps, {0,0,0,0}),
 	Port = proplists:get_value(port, EOneAPIProps, 8080),
+    AcceptorsNum = proplists:get_value(acceptors_num, EOneAPIProps, 1),
 	SmsHanlerSpec = build_sms_handle_spec(EOneAPIProps),
+
+    TransOpts = [{ip, Addr}, {port, Port}],
 	Dispatch =
 		[{'_', SmsHanlerSpec ++
 			[{'_', eoa_error_handler, []}]}],
-	cowboy:start_listener(my_http_listener, 1,
-		cowboy_tcp_transport, [{port, Port}],
-		cowboy_http_protocol, [{dispatch, Dispatch}]).
+    ProtocolOpts = [{dispatch, Dispatch}],
+
+	{ok, _Pid} = cowboy:start_listener(my_http_listener, AcceptorsNum,
+		cowboy_tcp_transport, TransOpts,
+		cowboy_http_protocol, ProtocolOpts),
+    lager:info("http server is listening to ~p:~p", [Addr, Port]),
+    ok.
 
 -spec build_sms_handle_spec([{any(), any()}]) -> any().
 build_sms_handle_spec(EOneAPIProps) ->
