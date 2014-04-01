@@ -217,8 +217,8 @@ publish_sms_request(Payload, ReqID, GtwID) ->
         message_id = ReqID
     },
     {ok, SmsRequestQueue} = application:get_env(?APP, sms_request_queue),
-    {ok, SmsGtwQueueFmt} = application:get_env(?APP, sms_gtw_queue_fmt),
-    GtwQueue = binary:replace(SmsGtwQueueFmt, <<"%id%">>, GtwID),
+    {ok, GtwQueueFmt} = application:get_env(?APP, just_gateway_queue_fmt),
+    GtwQueue = binary:replace(GtwQueueFmt, <<"%id%">>, GtwID),
 
 	{ok, Channel} = gen_server:call(?MODULE, get_channel),
 	?log_debug("Sending message to ~p & ~p through the ~p", [SmsRequestQueue, GtwQueue, Channel]),
