@@ -61,7 +61,7 @@ send(OutboundSms, Response, Credentials) ->
         result = {customer, Customer}
 	} = Response,
     #k1api_auth_response_customer_dto{
-        billing_type = BillingType
+        pay_type = PayType
     } = Customer,
 
 	Destinations = addr_to_dto(RawDestAddresses),
@@ -77,7 +77,7 @@ send(OutboundSms, Response, Credentials) ->
 	?log_debug("Encoded message: ~p, Encoding: ~p, Symbols: ~p, Parts: ~p",
 		[Encoded, Encoding, NumberOfSymbols, NumberOfParts]),
 
-	case BillingType of
+	case PayType of
 		prepaid ->
 			bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations);
 		postpaid ->
