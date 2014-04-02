@@ -170,8 +170,8 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 	} = Credentials,
 	ReqID = uuid:unparse(uuid:generate()),
 	Params = lists:flatten([
-			?just_sms_request_param(<<"k1api_notify_url">>, NotifyURL),
-			?just_sms_request_param(<<"k1api_callback_data">>, CallbackData),
+        	?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
+			?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
 			?just_sms_request_param(<<"registered_delivery">>, true),
 			?just_sms_request_param(<<"service_type">>, <<>>),
 			?just_sms_request_param(<<"no_retry">>, NoRetry),
@@ -189,7 +189,7 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 		gateway_id = GtwID,
 		customer_id = CustomerUUID,
 		user_id = UserID,
-		client_type = k1api,
+		client_type = oneapi,
 		type = regular,
 		message = Message,
 		encoding = Encoding,
@@ -211,7 +211,7 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 
 publish_sms_request(Payload, ReqID, GtwID) ->
     Basic = #'P_basic'{
-        content_type = <<"k1apiSmsRequest">>,
+        content_type = <<"OneAPISmsRequest">>,
         delivery_mode = 2,
         priority = 1,
         message_id = ReqID

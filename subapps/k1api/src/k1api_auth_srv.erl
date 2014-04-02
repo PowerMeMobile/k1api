@@ -151,7 +151,8 @@ request_backend_auth(#credentials{
         id = RequestUUID,
         customer_id = CustomerID,
         user_id = UserID,
-        password = Password
+        password = Password,
+        connection_type = oneapi
     },
     ?log_debug("Sending auth request: ~p", [AuthRequest]),
 	{ok, Payload} = adto:encode(AuthRequest),
