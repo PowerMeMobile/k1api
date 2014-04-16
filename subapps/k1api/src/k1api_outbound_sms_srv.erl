@@ -170,16 +170,16 @@ just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinati
 	} = Credentials,
 	ReqID = uuid:unparse(uuid:generate()),
 	Params = lists:flatten([
-        	?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
-			?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
-			?just_sms_request_param(<<"registered_delivery">>, true),
-			?just_sms_request_param(<<"service_type">>, <<>>),
-			?just_sms_request_param(<<"no_retry">>, NoRetry),
-			?just_sms_request_param(<<"validity_period">>, fmt_validity(DefaultValidity)),
-			?just_sms_request_param(<<"priority_flag">>, 0),
-			?just_sms_request_param(<<"esm_class">>, 3),
-			?just_sms_request_param(<<"protocol_id">>, 0)
-			]),
+    	?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
+		?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
+		?just_sms_request_param(<<"registered_delivery">>, true),
+		?just_sms_request_param(<<"service_type">>, <<>>),
+		?just_sms_request_param(<<"no_retry">>, NoRetry),
+		?just_sms_request_param(<<"validity_period">>, fmt_validity(DefaultValidity)),
+		?just_sms_request_param(<<"priority_flag">>, 0),
+		?just_sms_request_param(<<"esm_class">>, 3),
+		?just_sms_request_param(<<"protocol_id">>, 0)
+	]),
 	NumberOfDests = length(Destinations),
 	GtwID = get_suitable_gtw(Customer, NumberOfDests),
 	MessageIDs = get_ids(CustomerUUID, NumberOfDests, NumberOfParts),
@@ -294,4 +294,4 @@ fmt_validity(SecondsTotal) ->
     Days = DaysTotal rem 30,
     Months = MonthsTotal rem 12,
     list_to_binary(lists:flatten(io_lib:format("~2..0w~2..0w~2..0w~2..0w~2..0w~2..0w000R",
-                  [Years, Months, Days, Hours, Minutes, Seconds]))).
+        [Years, Months, Days, Hours, Minutes, Seconds]))).
