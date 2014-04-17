@@ -29,8 +29,6 @@ init([]) ->
             permanent, 5000, worker, [soap_srv_auth]},
         {mm_srv_kelly_api, {mm_srv_kelly_api, start_link, []},
             permanent, 5000, worker, [mm_srv_kelly_api]},
-        {k1api_retrieve_sms_srv, {k1api_retrieve_sms_srv, start_link, []},
-            permanent, 5000, worker, [k1api_retrieve_sms_srv]},
         {k1api_outbound_sms_srv, {k1api_outbound_sms_srv, start_link, []},
             permanent, 5000, worker, [k1api_outbound_sms_srv]},
         {k1api_subscription_srv, {k1api_subscription_srv, start_link, []},

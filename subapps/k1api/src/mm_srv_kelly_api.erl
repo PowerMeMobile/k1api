@@ -10,7 +10,8 @@
 -export([
     get_coverage/3,
     get_delivery_status/3,
-    get_delivery_status/4
+    get_delivery_status/4,
+    retrieve_sms/4
 ]).
 
 -include("logging.hrl").
@@ -21,7 +22,8 @@
 -type user_id()     :: binary().
 -type version()     :: binary().
 -type request_id()  :: binary().
--type sender_addr() :: binary().
+-type src_addr()    :: binary().
+-type dst_addr()    :: binary().
 
 %% ===================================================================
 %% API
@@ -64,7 +66,7 @@ get_coverage(CustomerId, UserId, Version) ->
 get_delivery_status(CustomerId, UserId, SmsReqId) ->
     get_delivery_status(CustomerId, UserId, SmsReqId, <<>>).
 
--spec get_delivery_status(customer_id(), user_id(), request_id(), sender_addr()) ->
+-spec get_delivery_status(customer_id(), user_id(), request_id(), src_addr()) ->
     {ok, [#k1api_sms_delivery_status_response_dto{}]} | {error, timeout}.
 get_delivery_status(CustomerId, UserId, SmsReqId, SenderAddr) ->
     ReqId = uuid:unparse(uuid:generate_time()),
@@ -89,5 +91,33 @@ get_delivery_status(CustomerId, UserId, SmsReqId, SenderAddr) ->
             end;
         {error, timeout} ->
             ?log_debug("Got delivery status response: timeout", []),
+            {error, timeout}
+    end.
+
+-spec retrieve_sms(customer_id(), user_id(), dst_addr(), pos_integer()) ->
+    {ok, [#k1api_retrieve_sms_response_dto{}]} | {error, timeout}.
+retrieve_sms(CustomerId, UserId, DestAddr, BatchSize) ->
+    ReqId = uuid:unparse(uuid:generate_time()),
+    Req = #k1api_retrieve_sms_request_dto{
+        id = ReqId,
+        customer_id = CustomerId,
+        user_id = UserId,
+        dest_addr = k1api_lib:addr_to_dto(DestAddr),
+        batch_size = BatchSize
+    },
+    ?log_debug("Sending retrieve sms request: ~p", [Req]),
+    {ok, Payload} = adto:encode(Req),
+    case rmql_rpc_client:call(?MODULE, Payload, <<"RetrieveSmsReq">>) of
+        {ok, Bin} ->
+            case adto:decode(#k1api_retrieve_sms_response_dto{}, Bin) of
+                {ok, Resp = #k1api_retrieve_sms_response_dto{}} ->
+                    ?log_debug("Got retrieve sms response: ~p", [Resp]),
+                    {ok, Resp};
+                {error, Error} ->
+                    ?log_error("Retrive sms response decode error: ~p", [Error]),
+                    {error, Error}
+            end;
+        {error, timeout} ->
+            ?log_debug("Got retrive sms response: timeout", []),
             {error, timeout}
     end.

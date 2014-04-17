@@ -130,7 +130,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
 	?log_debug("Sending retrieve sms request", []),
 	DestinationAddress = RegID,
 	{ok, Response} =
-		k1api_retrieve_sms_srv:get(CustomerUUID, UserID, DestinationAddress, BatchSize),
+		mm_srv_kelly_api:retrieve_sms(CustomerUUID, UserID, DestinationAddress, BatchSize),
 	?log_debug("Response: ~p", [Response]),
 	#k1api_retrieve_sms_response_dto{
 		messages = MessagesDTO,
