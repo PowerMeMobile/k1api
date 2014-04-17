@@ -21,12 +21,12 @@ start_link() ->
 
 init([]) ->
     {ok, {{one_for_one, 5, 10}, [
-        {k1api_auth_cache, {k1api_auth_cache, start_link, []},
-            permanent, 5000, worker, [k1api_auth_cache]},
+        {soap_srv_auth_cache, {soap_srv_auth_cache, start_link, []},
+            permanent, 5000, worker, [soap_srv_auth_cache]},
         {k1api_db, {k1api_db, start_link, []},
             permanent, 5000, worker, [k1api_db]},
-        {k1api_auth_srv, {k1api_auth_srv, start_link, []},
-            permanent, 5000, worker, [k1api_auth_srv]},
+        {soap_srv_auth, {soap_srv_auth, start_link, []},
+            permanent, 5000, worker, [soap_srv_auth]},
         {k1api_delivery_status_srv, {k1api_delivery_status_srv, start_link, []},
             permanent, 5000, worker, [k1api_delivery_status_srv]},
         {k1api_retrieve_sms_srv, {k1api_retrieve_sms_srv, start_link, []},

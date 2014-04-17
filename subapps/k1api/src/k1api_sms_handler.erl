@@ -30,7 +30,11 @@
 
 init(Creds = #credentials{}) ->
 	?log_debug("Credentials: ~p", [Creds]),
-	{ok, Response = #k1api_auth_response_dto{}} = k1api_auth_srv:authenticate(Creds),
+    CustomerId = Creds#credentials.customer_id,
+    UserId     = Creds#credentials.user_id,
+    Password   = Creds#credentials.password,
+	{ok, Response = #k1api_auth_response_dto{}} =
+        soap_srv_auth:authenticate(CustomerId, UserId, Password),
 	?log_debug("Response: ~p", [Response]),
 	{ok, #state{creds = Creds, response = Response}}.
 
