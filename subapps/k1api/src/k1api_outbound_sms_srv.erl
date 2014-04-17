@@ -89,7 +89,7 @@ send(OutboundSms, Response, Credentials) ->
 %% ===================================================================
 
 init([]) ->
-    {ok, SmsRequestQueue} = application:get_env(?APP, sms_request_queue),
+    {ok, SmsRequestQueue} = application:get_env(?APP, kelly_sms_request_queue),
 	{ok, Connection} = rmql:connection_start(),
 	{ok, Channel} = rmql:channel_open(Connection),
 	link(Channel),
@@ -216,7 +216,7 @@ publish_sms_request(Payload, ReqID, GtwID) ->
         priority = 1,
         message_id = ReqID
     },
-    {ok, SmsRequestQueue} = application:get_env(?APP, sms_request_queue),
+    {ok, SmsRequestQueue} = application:get_env(?APP, kelly_sms_request_queue),
     {ok, GtwQueueFmt} = application:get_env(?APP, just_gateway_queue_fmt),
     GtwQueue = binary:replace(GtwQueueFmt, <<"%id%">>, GtwID),
 
