@@ -56,8 +56,9 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestID, #state{
 	?log_debug("Got delivery status request "
 		"[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
 		[CustomerUUID, UserID, SenderAddress, SendSmsRequestID]),
-	{ok, Statuses} = k1api_delivery_status_srv:get(CustomerUUID, UserID, SenderAddress, SendSmsRequestID),
-
+    {ok, Response} =
+        mm_srv_kelly_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddress),
+	Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
 	%% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
 	DeliveryStatuses = convert_delivery_statuses(Statuses),
 
