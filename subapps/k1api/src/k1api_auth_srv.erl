@@ -158,6 +158,9 @@ request_backend_auth(#credentials{
 	{ok, Payload} = adto:encode(AuthRequest),
     {ok, AuthReqQueue} = application:get_env(?APP, auth_req_queue),
     {ok, AuthRespQueue} = application:get_env(?APP, auth_resp_queue),
-    Props = #'P_basic'{reply_to = AuthRespQueue},
+    Props = #'P_basic'{
+        content_type = <<"OneAPIAuthReq">>,
+        reply_to = AuthRespQueue
+    },
     ok = rmql:basic_publish(Channel, AuthReqQueue, Payload, Props),
 	{ok, RequestUUID}.
