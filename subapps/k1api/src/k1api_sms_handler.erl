@@ -61,61 +61,7 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestID, #state{
 	Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
 	%% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
 	DeliveryStatuses = convert_delivery_statuses(Statuses),
-
 	{ok, DeliveryStatuses}.
-
-handle_delivery_notifications_subscribe(Req, #state{
-    creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
-}) ->
-	?log_debug("Got delivery notifications subscribe request: ~p", [Req]),
-	#delivery_receipt_subscribe{
-		sender_addr = Sender,
-		notify_url = Url,
-		correlator = Correlator,
-		criteria = _Criteria,
-		callback = Callback
-	} = Req,
-	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
-	ReqID = uuid:unparse(uuid:generate()),
-	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
-		ok ->
-			?log_debug("Correlator saved", []),
-			ReqDTO = #k1api_subscribe_sms_receipts_request_dto{
-				id = ReqID,
-				customer_id = CustomerUUID,
-				user_id = UserID,
-				url = Url,
-				dest_addr = #addr{addr = Sender, ton = 1, npi = 1},
-				callback_data = Callback
-			},
-			?log_debug("ReqDTO: ~p", [ReqDTO]),
-			{ok, Bin} = adto:encode(ReqDTO),
-			{ok, _RespBin} = k1api_subscription_srv:subscribe_receipts(ReqID, Bin),
-			{ok, ReqID};
-		{correlator_exist, OrigReqID} ->
-			?log_debug("Correlator exist: ~p", [OrigReqID]),
-			{ok, OrigReqID}
-	end.
-
-handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, #state{
-    creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
-}) ->
-	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
-	RequestID = uuid:unparse(uuid:generate()),
-	DTO = #k1api_unsubscribe_sms_receipts_request_dto{
-		id = RequestID,
-		customer_id = CustomerUUID,
-		user_id = UserID,
-		subscription_id = SubscriptionID
-	},
-	{ok, Bin} = adto:encode(DTO),
-	{ok, ok} = k1api_subscription_srv:unsubscribe_receipts(RequestID, Bin),
-	?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
-	{ok, deleted}.
 
 handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
     creds = Creds,
@@ -153,6 +99,45 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
 	?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
 	{ok, Messages, Total}.
 
+handle_delivery_notifications_subscribe(Req, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
+	?log_debug("Got delivery notifications subscribe request: ~p", [Req]),
+	#delivery_receipt_subscribe{
+		sender_addr = Sender,
+		notify_url = Url,
+		correlator = Correlator,
+		criteria = _Criteria,
+		callback = Callback
+	} = Req,
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
+	ReqID = uuid:unparse(uuid:generate()),
+	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+		ok ->
+			?log_debug("Correlator saved", []),
+            DestAddr = #addr{addr = Sender, ton = 1, npi = 1},
+            {ok, _Response} = mm_srv_kelly_api:subscribe_sms_receipts(
+                ReqID, CustomerUUID, UserID, Url, DestAddr, Callback),
+			{ok, ReqID};
+		{correlator_exist, OrigReqID} ->
+			?log_debug("Correlator exist: ~p", [OrigReqID]),
+			{ok, OrigReqID}
+	end.
+
+handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
+	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
+	RequestID = uuid:unparse(uuid:generate()),
+    {ok, _Resp} = mm_srv_kelly_api:unsubscribe_sms_receipts(
+        RequestID, CustomerUUID, UserID, SubscriptionID),
+	?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
+	{ok, deleted}.
+
 handle_inbound_subscribe(Req, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
@@ -172,18 +157,11 @@ handle_inbound_subscribe(Req, #state{
 	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
 		ok ->
 			?log_debug("Correlator saved", []),
-			DTO = #k1api_subscribe_incoming_sms_request_dto{
-				id = ReqID,
-				customer_id = CustomerUUID,
-				user_id = UserID,
-				dest_addr = #addr{addr = DestAddr, ton = 1, npi = 1},
-				notify_url = NotifyURL,
-				criteria = Criteria,
-				correlator = Correlator,
-				callback_data = CallbackData
-			},
-			{ok, Bin} = adto:encode(DTO),
-			{ok, SubscriptionID} = k1api_subscription_srv:subscribe_incoming_sms(ReqID, Bin),
+            DestAddr2 = #addr{addr = DestAddr, ton = 1, npi = 1},
+            {ok, Resp} = mm_srv_kelly_api:subscribe_incoming_sms(
+                ReqID, CustomerUUID, UserID, DestAddr2,
+                NotifyURL, Criteria, Correlator, CallbackData),
+            SubscriptionID = Resp#k1api_subscribe_incoming_sms_response_dto.subscription_id,
 			?log_debug("Got subscriptionID: ~p", [SubscriptionID]),
 			{ok, SubscriptionID};
 		{correlator_exist, OrigReqID} ->
@@ -199,15 +177,8 @@ handle_inbound_unsubscribe(SubscribeID, #state{
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
 	RequestID = uuid:unparse(uuid:generate()),
-	DTO = #k1api_unsubscribe_incoming_sms_request_dto{
-		id = RequestID,
-		customer_id = CustomerUUID,
-		user_id = UserID,
-		subscription_id = SubscribeID
-	},
-	?log_debug("Send unsubscribe event: ~p", [DTO]),
-	{ok, Bin} = adto:encode(DTO),
-	{ok, ok} = k1api_subscription_srv:unsubscribe_incoming_sms(RequestID, Bin),
+    {ok, _Resp} = mm_srv_kelly_api:unsubscribe_incoming_sms(
+        RequestID, CustomerUUID, UserID, SubscribeID),
 	{ok, deleted}.
 
 %% ===================================================================

@@ -31,8 +31,6 @@ init([]) ->
             permanent, 5000, worker, [mm_srv_kelly_api]},
         {k1api_outbound_sms_srv, {k1api_outbound_sms_srv, start_link, []},
             permanent, 5000, worker, [k1api_outbound_sms_srv]},
-        {k1api_subscription_srv, {k1api_subscription_srv, start_link, []},
-            permanent, 5000, worker, [k1api_subscription_srv]},
         {k1api_incoming_srv, {k1api_incoming_srv, start_link, []},
             permanent, 5000, worker, [k1api_incoming_srv]},
         {k1api_billy_session, {k1api_billy_session, start_link, []},
