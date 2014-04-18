@@ -81,7 +81,7 @@ get_delivery_status(CustomerId, UserId, SmsReqId, SenderAddr) ->
         customer_id = CustomerId,
         user_id = UserId,
         sms_request_id = SmsReqId,
-        address = soap_srv_utils:addr_to_dto(SenderAddr)
+        address = SenderAddr
     },
     ?log_debug("Sending delivery status request: ~p", [Req]),
     {ok, ReqBin} = adto:encode(Req),
@@ -108,7 +108,7 @@ retrieve_sms(CustomerId, UserId, DestAddr, BatchSize) ->
         id = ReqId,
         customer_id = CustomerId,
         user_id = UserId,
-        dest_addr = k1api_lib:addr_to_dto(DestAddr),
+        dest_addr = DestAddr,
         batch_size = BatchSize
     },
     ?log_debug("Sending retrieve sms request: ~p", [Req]),

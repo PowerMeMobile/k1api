@@ -47,7 +47,7 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
 	?log_debug("Message sucessfully sent [id: ~p]", [RequestID]),
 	{ok, RequestID}.
 
-handle_delivery_status_req(SenderAddress, SendSmsRequestID, #state{
+handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
@@ -55,9 +55,10 @@ handle_delivery_status_req(SenderAddress, SendSmsRequestID, #state{
     UserID = Creds#credentials.user_id,
 	?log_debug("Got delivery status request "
 		"[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
-		[CustomerUUID, UserID, SenderAddress, SendSmsRequestID]),
+		[CustomerUUID, UserID, SenderAddr, SendSmsRequestID]),
+    SenderAddr2 = k1api_lib:addr_to_dto(SenderAddr),
     {ok, Response} =
-        mm_srv_kelly_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddress),
+        mm_srv_kelly_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddr2),
 	Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
 	%% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
 	DeliveryStatuses = convert_delivery_statuses(Statuses),
@@ -74,9 +75,10 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
 	CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
 	?log_debug("Sending retrieve sms request", []),
-	DestinationAddress = RegID,
+	DestAddr = RegID,
+    DestAddr2 = k1api_lib:addr_to_dto(DestAddr),
 	{ok, Response} =
-		mm_srv_kelly_api:retrieve_sms(CustomerUUID, UserID, DestinationAddress, BatchSize),
+		mm_srv_kelly_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
 	?log_debug("Response: ~p", [Response]),
 	#k1api_retrieve_sms_response_dto{
 		messages = MessagesDTO,
