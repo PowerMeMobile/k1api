@@ -1,7 +1,7 @@
 -module(oneapi_incoming_srv).
 
 -behaviour(gen_server).
--behaviour(cowboy_http_handler). %% here conflict of behaviours, but it isn't matter now
+-behaviour(cowboy_http_handler).
 
 %% API
 -export([
@@ -13,8 +13,8 @@
 %% Cowboy Callbacks
 -export([
 	init/3,
-	handle/2
-	%% terminate/2
+	handle/2,
+	terminate/3
 ]).
 
 %% GenServer Callbacks
@@ -61,51 +61,58 @@ init({tcp, http}, Req, [Type]) ->
     {ok, Req, Type}.
 
 handle(Req, State = receipts) ->
-	{Method, _} = cowboy_http_req:method(Req),
+	{Method, _} = cowboy_req:method(Req),
 	case Method of
-		'POST' ->
-			{ok, Body, _} = cowboy_http_req:body(Req),
+		<<"POST">> ->
+			{ok, Body, _} = cowboy_req:body(Req),
 			save_receipt(Body),
-		    {ok, Req2} = cowboy_http_req:reply(201, [], <<"Created">>, Req),
+		    {ok, Req2} = cowboy_req:reply(201, [], <<"Created">>, Req),
 		    {ok, Req2, State};
 		_Any ->
-		    {ok, Req2} = cowboy_http_req:reply(400, [], <<"Improper method">>, Req),
+		    {ok, Req2} = cowboy_req:reply(400, [], <<"Improper method">>, Req),
 		    {ok, Req2, State}
 	end;
 handle(Req, State = incoming_sms) ->
-	{Method, _} = cowboy_http_req:method(Req),
+	{Method, _} = cowboy_req:method(Req),
 	case Method of
-		'POST' ->
-			{ok, Body, _} = cowboy_http_req:body(Req),
+		<<"POST">> ->
+			{ok, Body, _} = cowboy_req:body(Req),
 			save_sms(Body),
-		    {ok, Req2} = cowboy_http_req:reply(201, [], <<"Created">>, Req),
+		    {ok, Req2} = cowboy_req:reply(201, [], <<"Created">>, Req),
 		    {ok, Req2, State};
 		_Any ->
-		    {ok, Req2} = cowboy_http_req:reply(400, [], <<"Improper method">>, Req),
+		    {ok, Req2} = cowboy_req:reply(400, [], <<"Improper method">>, Req),
 		    {ok, Req2, State}
 	end.
 
-%% terminate(Req, State) ->
-%%     ok.
+terminate(_Reason, _Req, _State) ->
+     ok.
 
 %% ===================================================================
 %% GenServer Callbacks
 %% ===================================================================
 
 init([]) ->
+    ok = application:start(cowlib),
+    ok = application:start(ranch),
 	ok = application:start(cowboy),
-	Dispatch = [
+
+    TransportOpts = [{port, ?PORT}],
+	Dispatch = cowboy_router:compile([
 	    %% {Host, list({Path, Handler, Opts})}
 	   	{'_', [
 			%% REST API
-            {[<<"incoming_sms">>], ?MODULE, [incoming_sms]},
-            {[<<"receipts">>], ?MODULE, [receipts]}
-			]}],
-	%% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
-	cowboy:start_listener(my_http_listener, 1,
-	    cowboy_tcp_transport, [{port, ?PORT}],
-	    cowboy_http_protocol, [{dispatch, Dispatch}]
-	),
+            {"/incoming_sms", ?MODULE, [incoming_sms]},
+            {"/receipts", ?MODULE, [receipts]}
+		]}
+    ]),
+    ProtocolOpts = [
+        {env, [{dispatch, Dispatch}]}
+    ],
+
+	{ok, _Pid} = cowboy:start_http(
+        my_http_listener, 1, TransportOpts, ProtocolOpts
+    ),
 	{ok, #st{}}.
 
 handle_call(give_sms, _From, State = #st{sms = Sms}) ->

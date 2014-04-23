@@ -82,7 +82,12 @@ receipts_notify_url() ->
 %% ===================================================================
 
 setup() ->
-	oneapi_incoming_srv:start().
+    case oneapi_incoming_srv:start() of
+        {ok, _Pid} ->
+            ok;
+        {error, {already_started, _Pid}} ->
+            ok
+    end.
 
 %% mt_prepaid_sms_test_() ->
 %% 	{setup,

@@ -1,8 +1,9 @@
 -module(eoneapi).
 
 -include("eoneapi.hrl").
+-include("logging.hrl").
 
--define(VERSION, <<"2">>).
+-define(VERSION, "2").
 
 %% API Exports
 -export([
@@ -25,16 +26,20 @@ start_service(EOneAPIProps) ->
     AcceptorsNum = proplists:get_value(acceptors_num, EOneAPIProps, 1),
 	SmsHanlerSpec = build_sms_handle_spec(EOneAPIProps),
 
-    TransOpts = [{ip, Addr}, {port, Port}],
-	Dispatch =
-		[{'_', SmsHanlerSpec ++
-			[{'_', eoa_error_handler, []}]}],
-    ProtocolOpts = [{dispatch, Dispatch}],
+    TransportOpts = [{ip, Addr}, {port, Port}],
+	Dispatch = cowboy_router:compile([
+        {'_', SmsHanlerSpec ++
+			  [{'_', eoa_error_handler, []}]
+        }
+    ]),
+    ProtocolOpts = [
+        {env, [{dispatch, Dispatch}]}
+    ],
 
-	{ok, _Pid} = cowboy:start_listener(my_http_listener, AcceptorsNum,
-		cowboy_tcp_transport, TransOpts,
-		cowboy_http_protocol, ProtocolOpts),
-    lager:info("http server is listening to ~p:~p", [Addr, Port]),
+	{ok, _Pid} = cowboy:start_http(
+        my_http_listener, AcceptorsNum, TransportOpts, ProtocolOpts
+    ),
+    ?log_info("http server is listening to ~p:~p", [Addr, Port]),
     ok.
 
 -spec build_sms_handle_spec([{any(), any()}]) -> any().
@@ -42,21 +47,22 @@ build_sms_handle_spec(EOneAPIProps) ->
 	case proplists:get_value(sms_handler, EOneAPIProps, undefined) of
 		undefined ->
 			[];
-		SmsHandler ->
-			[{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"requests">>],
+		SmsHandler -> [
+            {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/requests",
 				eoa_sms_handler, [SmsHandler]},
-			{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"requests">>, '_', <<"deliveryInfos">>],
+			{"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/requests/:request_id/deliveryInfos",
 				eoa_sms_handler, [SmsHandler]},
-			{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"subscriptions">>],
+			{"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions",
 				eoa_sms_handler, [SmsHandler]},
-			{[?VERSION, <<"smsmessaging">>, <<"outbound">>, '_', <<"subscriptions">>, '_'],
+			{"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions/:subscription_id",
 				eoa_sms_handler, [SmsHandler]},
-			{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"registrations">>, '_', <<"messages">>],
+			{"/" ++ ?VERSION ++ "/smsmessaging/inbound/registrations/:registration_id/messages",
 				eoa_sms_handler, [SmsHandler]},
-			{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>],
+			{"/" ++ ?VERSION ++ "/smsmessaging/inbound/subscriptions",
 				eoa_sms_handler, [SmsHandler]},
-			{[?VERSION, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>, '_'],
-				eoa_sms_handler, [SmsHandler]}]
+			{"/" ++ ?VERSION ++ "/smsmessaging/inbound/subscriptions/:subscription_id",
+				eoa_sms_handler, [SmsHandler]}
+        ]
 	end.
 
 -spec deliver_sms_status(delivery_receipt()) ->	{ok, term()} | {error, term()}.
@@ -116,18 +122,18 @@ deliver_sms(#inbound_sms{
 -spec code(integer(), term(), term()) -> {ok, term(), term()}.
 code(500, Req, State) ->
 	Body = <<"Internal Server Error">>,
-	{ok, Req2} = cowboy_http_req:reply(500, [], Body, Req),
+	{ok, Req2} = cowboy_req:reply(500, [], Body, Req),
 	{ok, Req2, State};
 
 code(401, Req, State) ->
 	Headers = [{'Www-Authenticate', <<"Basic">>}],
 	Body = <<"Authentication failure, check your authentication details">>,
-	{ok, Req2} = cowboy_http_req:reply(401, Headers, Body, Req),
+	{ok, Req2} = cowboy_req:reply(401, Headers, Body, Req),
 	{ok, Req2, State};
 
 code(404, Req, State) ->
 	Body = <<"Not found: mistake in the host or path of the service URI">>,
-	{ok, Req2} = cowboy_http_req:reply(404, [], Body, Req),
+	{ok, Req2} = cowboy_req:reply(404, [], Body, Req),
 	{ok, Req2, State}.
 
 %% ===================================================================
@@ -139,7 +145,7 @@ code(404, Req, State) ->
 exception(ExceptionTag, Variables, Req, State) ->
 	{ok, Body, Code} = exception_body_and_code(ExceptionTag, Variables),
 	Headers = [{'Content-Type', <<"application/json">>}],
-	{ok, Req2} = cowboy_http_req:reply(Code, Headers, Body, Req),
+	{ok, Req2} = cowboy_req:reply(Code, Headers, Body, Req),
 	{ok, Req2, State}.
 
 %% SMS service exceptions

@@ -5,7 +5,7 @@
 -export([
 	init/3,
 	handle/2,
-	terminate/2
+	terminate/3
 ]).
 
 -include("eoneapi.hrl").
@@ -72,102 +72,131 @@ init({_Any, http}, Req, [Module]) ->
 	{ok, Req, #state{mod = Module, req = Req}}.
 
 handle(Req, State = #state{}) ->
-	{Path, Req} = cowboy_http_req:path(Req),
-	{Method, Req} = cowboy_http_req:method(Req),
+	{Path, Req} = cowboy_req:path(Req),
+	{Method, Req} = cowboy_req:method(Req),
 	case get_credentials(Req) of
 		{ok, {CustId, UserId, Pass}} ->
 			Creds = #credentials{customer_id = CustId, user_id = UserId, password = Pass},
-			handle_req(Method, Path, State#state{creds = Creds});
+            [<<>> | Segments] = binary:split(Path, <<"/">>, [global]),
+			handle_req(Method, Segments, State#state{creds = Creds});
 		{error, unauthorized} ->
 			eoneapi:code(401, Req, [])
 	end.
 
-terminate(_Req, _State) ->
+terminate(_Reason, _Req, _State) ->
 	ok.
 
 %% ===================================================================
 %% Parsing http requests
 %% ===================================================================
 
-handle_req(	'POST',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"requests">>],
-			State = #state{creds = Creds}) ->
+handle_req(<<"POST">>,
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _RawSenderAddr, <<"requests">>],
+	State = #state{req = Req, creds = Creds}
+) ->
+    {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
 	SenderAddr = convert_addr(RawSenderAddr),
-	AfterInit = fun(Args, St) -> process_outbound_sms_req(Args,St) end,
+	AfterInit = fun(Args, St) -> process_outbound_sms_req(Args, St) end,
 	Args = [],
 	do_init(State#state{
-					sender_addr = SenderAddr,
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds });
+        req = Req2,
+        sender_addr = SenderAddr,
+		thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req(	'GET',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"requests">>, ReqId, <<"deliveryInfos">>],
-			State = #state{creds = Creds}) ->
+handle_req(<<"GET">>,
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _ServerAddr, <<"requests">>, _ReqId, <<"deliveryInfos">>],
+    State = #state{req = Req, creds = Creds}
+) ->
+    {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
+    {ReqId, Req3} = cowboy_req:binding(request_id, Req2),
 	SenderAddr = convert_addr(RawSenderAddr),
-	AfterInit = fun(Args, St) -> process_delivery_status_req(Args,St) end,
+	AfterInit = fun(Args, St) -> process_delivery_status_req(Args, St) end,
 	Args = ReqId,
 	do_init(State#state{
-					sender_addr = SenderAddr,
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds	});
+        req = Req3,
+        sender_addr = SenderAddr,
+		thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req(	'POST',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"subscriptions">>],
-						State = #state{creds = Creds}) ->
+handle_req(<<"POST">>,
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _SenderAddr, <<"subscriptions">>],
+	State = #state{req = Req, creds = Creds}
+) ->
+    {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
 	SenderAddr = convert_addr(RawSenderAddr),
-	AfterInit = fun(Args, St) -> process_sms_delivery_report_subscribe_req(Args,St) end,
+	AfterInit = fun(Args, St) -> process_sms_delivery_report_subscribe_req(Args, St) end,
 	Args = [],
 	do_init(State#state{
-					sender_addr = SenderAddr,
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds	});
+        req = Req2,
+        sender_addr = SenderAddr,
+		thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req(	'DELETE',
-			[_Ver,<<"smsmessaging">>,<<"outbound">>, RawSenderAddr,<<"subscriptions">>, SubId],
-						State = #state{creds = Creds}) ->
+handle_req(<<"DELETE">>,
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _SenderAddr, <<"subscriptions">>, _SubId],
+	State = #state{req = Req, creds = Creds}
+) ->
+    {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
+    {SubId, Req3} = cowboy_req:binding(subscription_id, Req2),
 	SenderAddr = convert_addr(RawSenderAddr),
-	AfterInit = fun(Args, St) -> process_sms_delivery_report_unsubscribe_req(Args,St) end,
+	AfterInit = fun(Args, St) -> process_sms_delivery_report_unsubscribe_req(Args, St) end,
 	Args = SubId,
 	do_init(State#state{
-					sender_addr = SenderAddr,
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds	});
+        req = Req3,
+        sender_addr = SenderAddr,
+		thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req(	'GET',
-			[_Ver,<<"smsmessaging">>,<<"inbound">>, <<"registrations">>, RegId,<<"messages">>],
-			State = #state{creds = Creds}) ->
+handle_req(<<"GET">>,
+    [_Ver, <<"smsmessaging">>, <<"inbound">>, <<"registrations">>, _RegId, <<"messages">>],
+	State = #state{req = Req, creds = Creds}
+) ->
+    {RegId, Req2} = cowboy_req:binding(registration_id, Req),
 	AfterInit = fun(Args, St) -> process_retrieve_sms_req(Args,St) end,
 	Args = convert_addr(RegId),
 	do_init(State#state{
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds	});
+        req = Req2,
+        thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req('POST',
-			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
-			State = #state{creds = Creds}) ->
-	AfterInit = fun(Args, St) -> process_sms_delivery_subscribe_req(Args,St) end,
+handle_req(<<"POST">>,
+    [_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
+	State = #state{creds = Creds}
+) ->
+	AfterInit = fun(Args, St) -> process_sms_delivery_subscribe_req(Args, St) end,
 	Args = [],
 	do_init(State#state{
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds	});
+	    thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req('DELETE',
-			[_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>, SubId],
-			State = #state{creds = Creds}) ->
-	AfterInit = fun(Args, St) -> process_sms_delivery_unsubscribe_req(Args,St) end,
+handle_req(<<"DELETE">>,
+    [_Ver, <<"smsmessaging">>, <<"inbound">>, <<"subscriptions">>, _SubId],
+	State = #state{req = Req, creds = Creds}
+) ->
+    {SubId, Req2} = cowboy_req:binding(subscription_id, Req),
+	AfterInit = fun(Args, St) -> process_sms_delivery_unsubscribe_req(Args, St) end,
 	Args = SubId,
 	do_init(State#state{
-					thendo = AfterInit,
-					thendo_args = Args,
-					creds = Creds	});
+        req = Req2,
+        thendo = AfterInit,
+		thendo_args = Args,
+		creds = Creds
+    });
 
-handle_req(_Method, _Path, State = #state{req = Req}) ->
+handle_req(_Method, _Segments, State = #state{req = Req}) ->
 	eoneapi:code(404, Req, State).
 
 %% ===================================================================
@@ -175,11 +204,12 @@ handle_req(_Method, _Path, State = #state{req = Req}) ->
 %% ===================================================================
 
 do_init(State = #state{
-					thendo = Fun,
-					thendo_args = Args,
-					mod = Mod,
-					req = Req,
-					creds = Creds}) ->
+    thendo = Fun,
+	thendo_args = Args,
+	mod = Mod,
+	req = Req,
+	creds = Creds}
+) ->
 	InitResult = Mod:init(Creds),
 	case InitResult of
 		{ok, MState} ->
@@ -193,19 +223,21 @@ do_init(State = #state{
 %% ===================================================================
 
 process_outbound_sms_req( _, State = #state{
-										mstate = MState,
-										mod = Mod,
-										req = Req,
-										sender_addr = _Addr}) ->
+    mstate = MState,
+	mod = Mod,
+	req = Req,
+	sender_addr = _Addr
+}) ->
 	{ok, ReqPropList} = get_prop_list(Req),
 	SendSmsReq = #outbound_sms{
-					dest_addr = gmv(ReqPropList, <<"address">>),
-					sender_addr = gv(ReqPropList, <<"senderAddress">>),
-					message = gv(ReqPropList, <<"message">>),
-					sender_name = gv(ReqPropList, <<"senderName">>),
-					notify_url = gv(ReqPropList, <<"notifyURL">>),
-					correlator = gv(ReqPropList, <<"clientCorrelator">>),
-					callback = gv(ReqPropList, <<"callbackData">>)},
+        dest_addr   = gmv(ReqPropList, <<"address">>),
+		sender_addr = gv(ReqPropList, <<"senderAddress">>),
+		message     = gv(ReqPropList, <<"message">>),
+		sender_name = gv(ReqPropList, <<"senderName">>),
+		notify_url  = gv(ReqPropList, <<"notifyURL">>),
+		correlator  = gv(ReqPropList, <<"clientCorrelator">>),
+		callback    = gv(ReqPropList, <<"callbackData">>)
+    },
 	case Mod:handle_send_sms_req(SendSmsReq, MState) of
 		{ok, ReqId} ->
 			ContentType = <<"application/json">>,
@@ -215,8 +247,8 @@ process_outbound_sms_req( _, State = #state{
 				{<<"resourceURL">>, Location}
 			]}],
 			JsonBody = jsx:encode(Body),
-			Headers = [{'Content-Type', ContentType}, {'Location', Location}],
-			{ok, Req2} = cowboy_http_req:reply(201, Headers, JsonBody, Req),
+			Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
+			{ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -227,11 +259,12 @@ process_outbound_sms_req( _, State = #state{
 %% ===================================================================
 
 process_delivery_status_req(ReqId, State = #state{
-												mod = Mod,
-												mstate = MState,
-												req = Req,
-												sender_addr = SAddr}) ->
-	Response = Mod:handle_delivery_status_req(SAddr, ReqId, MState),
+    mod = Mod,
+	mstate = MState,
+	req = Req,
+	sender_addr = SenderAddr
+}) ->
+	Response = Mod:handle_delivery_status_req(SenderAddr, ReqId, MState),
 	case Response of
 		{ok, ResponseList} ->
 			Reports =
@@ -245,8 +278,8 @@ process_delivery_status_req(ReqId, State = #state{
 				{<<"resourceURL">>, Resource}
 			]}],
 			JsonBody = jsx:encode(Body),
-			Headers = [{'Content-Type', <<"application/json">>}],
-			{ok, Req2} = cowboy_http_req:reply(200, Headers, JsonBody, Req),
+			Headers = [{<<"content-type">>, <<"application/json">>}],
+			{ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -285,8 +318,8 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 				{<<"resourceURL">>, Location}
 			]}],
 			JsonBody = jsx:encode(Body),
-			Headers = [{'Content-Type', ContentType}, {'Location', Location}],
-			{ok, Req2} = cowboy_http_req:reply(201, Headers, JsonBody, Req),
+			Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
+			{ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -304,7 +337,7 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 	Result = Mod:handle_delivery_notifications_unsubscribe(Addr, SubscribeId, MState),
 	case Result of
 		{ok, deleted} ->
-			{ok, Req2} = cowboy_http_req:reply(204, [], <<>>, Req),
+			{ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -351,8 +384,8 @@ process_retrieve_sms_req(RegId, State = #state{
 				{<<"totalNumberOfPendingMessages">>, PendingSms}
 			]}],
 			JsonBody = jsx:encode(Body),
-			Headers = [{'Content-Type', <<"application/json">>}],
-			{ok, Req2} = cowboy_http_req:reply(200, Headers, JsonBody, Req),
+			Headers = [{<<"content-type">>, <<"application/json">>}],
+			{ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -383,8 +416,8 @@ process_sms_delivery_subscribe_req( _, State = #state{
 				{<<"resourceURL">>, Location}
 			]}],
 			JsonBody = jsx:encode(Body),
-			Headers = [{'Location', Location}, {'Content-Type', ContentType}],
-			{ok, Req2} = cowboy_http_req:reply(201, Headers, JsonBody, Req),
+			Headers = [{<<"location">>, Location}, {<<"content-type">>, ContentType}],
+			{ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -400,7 +433,7 @@ process_sms_delivery_unsubscribe_req(SubId, State = #state{
 														req = Req}) ->
 	case Mod:handle_inbound_unsubscribe(SubId, MState) of
 		{ok, deleted} ->
-			{ok, Req2} = cowboy_http_req:reply(204, [], <<>>, Req),
+			{ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
 			{ok, Req2, State};
 		{error, denied} ->
 			eoneapi:code(401, Req, State)
@@ -411,17 +444,17 @@ process_sms_delivery_unsubscribe_req(SubId, State = #state{
 %% ===================================================================
 
 get_prop_list(Req) ->
-	{Method, _} = cowboy_http_req:method(Req),
+	{Method, Req2} = cowboy_req:method(Req),
 	ReqPropList =
-	case Method of
-		'POST' ->
-			{BodyQs, _} = cowboy_http_req:body_qs(Req),
-			{QsVals, _} = cowboy_http_req:qs_vals(Req),
-			BodyQs ++ QsVals;
-		_Any ->
-			{QsVals, _} = cowboy_http_req:qs_vals(Req),
-			QsVals
-	end,
+    	case Method of
+	    	<<"POST">> ->
+		    	{ok, BodyQs, Req3} = cowboy_req:body_qs(Req2),
+			    {QsVals, _Req4} = cowboy_req:qs_vals(Req3),
+    			BodyQs ++ QsVals;
+	    	_Any ->
+		    	{QsVals, _Req3} = cowboy_req:qs_vals(Req2),
+			    QsVals
+    	end,
 	{ok, ReqPropList}.
 
 convert_addr(<<"tel:+", Bin/binary>>) ->
@@ -454,9 +487,9 @@ gmv(ReqPropList, Key) ->
 build_resource_url(Req) ->
 	build_resource_url(Req, <<>>).
 build_resource_url(Req, ItemId) when is_binary(ItemId) ->
-	{RawHost, _} = cowboy_http_req:raw_host(Req),
-	{RawPath, _} = cowboy_http_req:raw_path(Req),
-	{Port, _} = cowboy_http_req:port(Req),
+	{RawHost, _} = cowboy_req:host(Req),
+	{RawPath, _} = cowboy_req:path(Req),
+	{Port, _} = cowboy_req:port(Req),
 	BitstringPort = list_to_binary(integer_to_list(Port)),
 	Protocol = <<"http://">>,
 	ReqIdBin = case ItemId of <<>> -> <<>>; Any -> << <<"/">>/binary, Any/binary>> end,
@@ -467,7 +500,7 @@ build_resource_url(Req, ItemId) when is_binary(ItemId) ->
 %% ===================================================================
 
 get_credentials(Req) ->
-	{Header, Req} = cowboy_http_req:header('Authorization', Req),
+	{Header, Req} = cowboy_req:header(<<"authorization">>, Req),
 	case application:get_env(?APP, customer_user_delimiter) of
 		{ok, Delimiter} ->
 			parse_credential_header(Header, [Delimiter]);
