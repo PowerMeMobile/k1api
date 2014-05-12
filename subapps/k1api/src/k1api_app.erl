@@ -14,7 +14,7 @@
 
 %% Init
 -export([
-	set_debug_level/0
+    set_debug_level/0
 ]).
 
 %% ===================================================================
@@ -26,17 +26,17 @@ start(_StartType, _StartArgs) ->
     Result = k1api_sup:start_link(),
 
     {ok, Addr} = application:get_env(?APP, http_addr),
-	{ok, Port} = application:get_env(?APP, http_port),
+    {ok, Port} = application:get_env(?APP, http_port),
     {ok, AcceptorsNum} = application:get_env(?APP, http_acceptors_num),
 
-	EOneAPIProps = [
+    EOneAPIProps = [
         {addr, Addr},
-		{port, Port},
+        {port, Port},
         {acceptors_num, AcceptorsNum},
-		{sms_handler, k1api_sms_handler}
-	],
-	eoneapi:start_service(EOneAPIProps),
-	Result.
+        {sms_handler, k1api_sms_handler}
+    ],
+    eoneapi:start_service(EOneAPIProps),
+    Result.
 
 prep_stop(State) ->
     State.
@@ -49,4 +49,4 @@ stop(_State) ->
 %% ===================================================================
 
 set_debug_level() ->
-	 lager:set_loglevel(lager_console_backend, debug).
+    lager:set_loglevel(lager_console_backend, debug).

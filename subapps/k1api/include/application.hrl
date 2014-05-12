@@ -4,15 +4,15 @@
 -define(APP, k1api).
 
 -record(pworker, {
-	id			:: term(),
-	timestamp	:: integer(),
-	from		:: {pid(), term()}
+    id        :: term(),
+    timestamp :: integer(),
+    from      :: {pid(), term()}
 }).
 
 -record(presponse, {
-	id			:: term(),
-	timestamp	:: integer(),
-	response	:: term()
+    id        :: term(),
+    timestamp :: integer(),
+    response  :: term()
 }).
 
 -endif.

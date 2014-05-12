@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-	eoneapi_sup:start_link().
+    eoneapi_sup:start_link().
 
 stop(_State) ->
     ok.

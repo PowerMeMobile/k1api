@@ -1,14 +1,13 @@
-{application, eoneapi,
- [
-  {description, "Erlang OneAPI library on top of cowboy"},
-  {vsn, "0.1.0"},
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib,
-                  inets,
-				  cowboy
-                 ]},
-  {mod, { eoneapi_app, []}},
-  {env, []}
- ]}.
+{application, eoneapi, [
+    {description, "Erlang OneAPI library on top of cowboy"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        inets,
+        cowboy
+    ]},
+    {mod, { eoneapi_app, []}},
+    {env, []}
+]}.

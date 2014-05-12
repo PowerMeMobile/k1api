@@ -4,18 +4,18 @@
 
 %% API
 -export([
-	start_link/0,
-	send/3
+    start_link/0,
+    send/3
 ]).
 
 %% GenServer Callbacks
 -export([
-	init/1,
-	handle_cast/2,
-	handle_call/3,
-	handle_info/2,
-	code_change/3,
-	terminate/2
+    init/1,
+    handle_cast/2,
+    handle_call/3,
+    handle_info/2,
+    code_change/3,
+    terminate/2
 ]).
 
 -include("logging.hrl").
@@ -27,19 +27,19 @@
 -include_lib("billy_client/include/billy_client.hrl").
 
 -define(just_sms_request_param(Name, Param),
-	apply(fun
-		(undefined) ->
-			[];
-		(Str) when is_binary(Str) ; is_list(Str) ->
-			{just_sms_request_param_dto, Name, {string, Str}};
-		(Bool) when Bool =:= true ; Bool =:= false ->
-			{just_sms_request_param_dto, Name, {boolean, Bool}};
-		(Int) when is_integer(Int) ->
-			{just_sms_request_param_dto, Name, {integer, Int}}
-	end, [Param])).
+    apply(fun
+        (undefined) ->
+            [];
+        (Str) when is_binary(Str) ; is_list(Str) ->
+            {just_sms_request_param_dto, Name, {string, Str}};
+        (Bool) when Bool =:= true ; Bool =:= false ->
+            {just_sms_request_param_dto, Name, {boolean, Bool}};
+        (Int) when is_integer(Int) ->
+            {just_sms_request_param_dto, Name, {integer, Int}}
+    end, [Param])).
 
 -record(state, {
-	chan :: pid()
+    chan :: pid()
 }).
 
 %% ===================================================================
@@ -48,41 +48,41 @@
 
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 -spec send(#just_sms_request_dto{}, #k1api_auth_response_dto{}, #credentials{}) -> ok | {error, any()}.
 send(OutboundSms, Response, Credentials) ->
-	?log_debug("Got SendSmsRequest", []),
-	#outbound_sms{
-		dest_addr = RawDestAddresses,
-		message = Message
-	} = OutboundSms,
-	#k1api_auth_response_dto{
+    ?log_debug("Got SendSmsRequest", []),
+    #outbound_sms{
+        dest_addr = RawDestAddresses,
+        message = Message
+    } = OutboundSms,
+    #k1api_auth_response_dto{
         result = {customer, Customer}
-	} = Response,
+    } = Response,
     #k1api_auth_response_customer_dto{
         pay_type = PayType
     } = Customer,
 
-	Destinations = addr_to_dto(RawDestAddresses),
+    Destinations = addr_to_dto(RawDestAddresses),
 
-	{Encoding, Encoded} =
-		case gsm0338:from_utf8(Message) of
-			{valid, Binary} -> {default, Binary};
-			{invalid, Binary} -> {ucs2, Binary}
-		end,
-	NumberOfSymbols = size(Encoded),
+    {Encoding, Encoded} =
+        case gsm0338:from_utf8(Message) of
+            {valid, Binary} -> {default, Binary};
+            {invalid, Binary} -> {ucs2, Binary}
+        end,
+    NumberOfSymbols = size(Encoded),
 
-	{ok, NumberOfParts} = get_message_parts(NumberOfSymbols, Encoding),
-	?log_debug("Encoded message: ~p, Encoding: ~p, Symbols: ~p, Parts: ~p",
-		[Encoded, Encoding, NumberOfSymbols, NumberOfParts]),
+    {ok, NumberOfParts} = get_message_parts(NumberOfSymbols, Encoding),
+    ?log_debug("Encoded message: ~p, Encoding: ~p, Symbols: ~p, Parts: ~p",
+        [Encoded, Encoding, NumberOfSymbols, NumberOfParts]),
 
-	case PayType of
-		prepaid ->
-			bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations);
-		postpaid ->
-			just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations)
-	end.
+    case PayType of
+        prepaid ->
+            bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations);
+        postpaid ->
+            just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations)
+    end.
 
 %% ===================================================================
 %% GenServer Callback Functions Definitions
@@ -90,14 +90,14 @@ send(OutboundSms, Response, Credentials) ->
 
 init([]) ->
     {ok, SmsRequestQueue} = application:get_env(?APP, kelly_sms_request_queue),
-	{ok, Connection} = rmql:connection_start(),
-	{ok, Channel} = rmql:channel_open(Connection),
-	link(Channel),
-	ok = rmql:queue_declare(Channel, SmsRequestQueue, []),
-	{ok, #state{chan = Channel}}.
+    {ok, Connection} = rmql:connection_start(),
+    {ok, Channel} = rmql:channel_open(Connection),
+    link(Channel),
+    ok = rmql:queue_declare(Channel, SmsRequestQueue, []),
+    {ok, #state{chan = Channel}}.
 
 handle_call(get_channel, _From, State = #state{chan = Chan}) ->
-	{reply, {ok, Chan}, State};
+    {reply, {ok, Chan}, State};
 
 handle_call(_Request, _From, State) ->
     {stop, unexpected_call, State}.
@@ -119,95 +119,95 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 
 bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
-	#k1api_auth_response_customer_dto{
-		uuid = CustomerUUID
-	} = Customer,
-	#credentials{
-		user_id = UserID
-	} = Credentials,
+    #k1api_auth_response_customer_dto{
+        uuid = CustomerUUID
+    } = Customer,
+    #credentials{
+        user_id = UserID
+    } = Credentials,
 
-	NumberOfDests = length(Destinations),
-	NumberOfMsgs = NumberOfDests * NumberOfParts,
+    NumberOfDests = length(Destinations),
+    NumberOfMsgs = NumberOfDests * NumberOfParts,
 
-	{ok, SessionID} = k1api_billy_session:get_session_id(),
-	case billy_client:reserve(
-		SessionID, ?CLIENT_TYPE_ONEAPI, CustomerUUID, UserID, ?SERVICE_TYPE_SMS_ON, NumberOfMsgs
-	) of
-		{accepted, TransID} ->
-			?log_debug("Reserve accepted: ~p", [TransID]),
-			case just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) of
-				{ok, RequestIDStr} ->
-					commited = billy_client:commit(TransID),
-					?log_debug("Commited.", []),
-					{ok, RequestIDStr};
-				{error, Reason} ->
-					?log_debug("Send failed with: ~p", [Reason]),
-					rolledback = billy_client:rollback(TransID),
-					?log_debug("Rolledback.", []),
-					{error, Reason}
-			end;
-		{rejected, Reason} ->
-			?log_debug("Reserve rejected with: ~p", [Reason]),
-			{error, Reason}
-	end.
+    {ok, SessionID} = k1api_billy_session:get_session_id(),
+    case billy_client:reserve(
+        SessionID, ?CLIENT_TYPE_ONEAPI, CustomerUUID, UserID, ?SERVICE_TYPE_SMS_ON, NumberOfMsgs
+    ) of
+        {accepted, TransID} ->
+            ?log_debug("Reserve accepted: ~p", [TransID]),
+            case just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) of
+                {ok, RequestIDStr} ->
+                    commited = billy_client:commit(TransID),
+                    ?log_debug("Commited.", []),
+                    {ok, RequestIDStr};
+                {error, Reason} ->
+                    ?log_debug("Send failed with: ~p", [Reason]),
+                    rolledback = billy_client:rollback(TransID),
+                    ?log_debug("Rolledback.", []),
+                    {error, Reason}
+            end;
+        {rejected, Reason} ->
+            ?log_debug("Reserve rejected with: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 just_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Destinations) ->
-	#outbound_sms{
-		sender_addr = RawSenderAddress,
-		message = Message,
-		notify_url = NotifyURL,
-		correlator = Correlator,
-		callback = CallbackData
-	} = OutboundSms,
-	#k1api_auth_response_customer_dto{
-		uuid = CustomerUUID,
-		allowed_sources = AllowedSources,
-		default_validity = DefaultValidity,
-		no_retry = NoRetry
-	} = Customer,
-	#credentials{
-		user_id = UserID
-	} = Credentials,
-	ReqID = uuid:unparse(uuid:generate()),
-	Params = lists:flatten([
-    	?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
-		?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
-		?just_sms_request_param(<<"registered_delivery">>, true),
-		?just_sms_request_param(<<"service_type">>, <<>>),
-		?just_sms_request_param(<<"no_retry">>, NoRetry),
-		?just_sms_request_param(<<"validity_period">>, fmt_validity(DefaultValidity)),
-		?just_sms_request_param(<<"priority_flag">>, 0),
-		?just_sms_request_param(<<"esm_class">>, 3),
-		?just_sms_request_param(<<"protocol_id">>, 0)
-	]),
-	NumberOfDests = length(Destinations),
-	GtwID = get_suitable_gtw(Customer, NumberOfDests),
-	MessageIDs = get_ids(CustomerUUID, NumberOfDests, NumberOfParts),
-	?log_debug("Message IDs: ~p", [MessageIDs]),
-	DTO = #just_sms_request_dto{
-		id = ReqID,
-		gateway_id = GtwID,
-		customer_id = CustomerUUID,
-		user_id = UserID,
-		client_type = oneapi,
-		type = regular,
-		message = Message,
-		encoding = Encoding,
-		params = Params,
-		source_addr = prepare_source_addr(AllowedSources, RawSenderAddress),
-		dest_addrs = {regular, Destinations},
-		message_ids = MessageIDs
-	},
-	?log_debug("Built SmsRequest: ~p", [DTO]),
-	case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
-		ok ->
-			{ok, Bin} = adto:encode(DTO),
-			?log_debug("SmsRequest was sucessfully encoded", []),
-			ok = publish_sms_request(Bin, ReqID, GtwID),
-			{ok, ReqID};
-		{correlator_exist, OrigReqID} ->
-			{ok, OrigReqID}
-	end.
+    #outbound_sms{
+        sender_addr = RawSenderAddress,
+        message = Message,
+        notify_url = NotifyURL,
+        correlator = Correlator,
+        callback = CallbackData
+    } = OutboundSms,
+    #k1api_auth_response_customer_dto{
+        uuid = CustomerUUID,
+        allowed_sources = AllowedSources,
+        default_validity = DefaultValidity,
+        no_retry = NoRetry
+    } = Customer,
+    #credentials{
+        user_id = UserID
+    } = Credentials,
+    ReqID = uuid:unparse(uuid:generate()),
+    Params = lists:flatten([
+        ?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
+        ?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
+        ?just_sms_request_param(<<"registered_delivery">>, true),
+        ?just_sms_request_param(<<"service_type">>, <<>>),
+        ?just_sms_request_param(<<"no_retry">>, NoRetry),
+        ?just_sms_request_param(<<"validity_period">>, fmt_validity(DefaultValidity)),
+        ?just_sms_request_param(<<"priority_flag">>, 0),
+        ?just_sms_request_param(<<"esm_class">>, 3),
+        ?just_sms_request_param(<<"protocol_id">>, 0)
+    ]),
+    NumberOfDests = length(Destinations),
+    GtwID = get_suitable_gtw(Customer, NumberOfDests),
+    MessageIDs = get_ids(CustomerUUID, NumberOfDests, NumberOfParts),
+    ?log_debug("Message IDs: ~p", [MessageIDs]),
+    DTO = #just_sms_request_dto{
+        id = ReqID,
+        gateway_id = GtwID,
+        customer_id = CustomerUUID,
+        user_id = UserID,
+        client_type = oneapi,
+        type = regular,
+        message = Message,
+        encoding = Encoding,
+        params = Params,
+        source_addr = prepare_source_addr(AllowedSources, RawSenderAddress),
+        dest_addrs = {regular, Destinations},
+        message_ids = MessageIDs
+    },
+    ?log_debug("Built SmsRequest: ~p", [DTO]),
+    case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+        ok ->
+            {ok, Bin} = adto:encode(DTO),
+            ?log_debug("SmsRequest was sucessfully encoded", []),
+            ok = publish_sms_request(Bin, ReqID, GtwID),
+            {ok, ReqID};
+        {correlator_exist, OrigReqID} ->
+            {ok, OrigReqID}
+    end.
 
 publish_sms_request(Payload, ReqID, GtwID) ->
     Basic = #'P_basic'{
@@ -220,67 +220,67 @@ publish_sms_request(Payload, ReqID, GtwID) ->
     {ok, GtwQueueFmt} = application:get_env(?APP, just_gateway_queue_fmt),
     GtwQueue = binary:replace(GtwQueueFmt, <<"%id%">>, GtwID),
 
-	{ok, Channel} = gen_server:call(?MODULE, get_channel),
-	?log_debug("Sending message to ~p & ~p through the ~p", [SmsRequestQueue, GtwQueue, Channel]),
+    {ok, Channel} = gen_server:call(?MODULE, get_channel),
+    ?log_debug("Sending message to ~p & ~p through the ~p", [SmsRequestQueue, GtwQueue, Channel]),
     ok = rmql:basic_publish(Channel, SmsRequestQueue, Payload, Basic),
     ok = rmql:basic_publish(Channel, GtwQueue, Payload, Basic).
 
 prepare_source_addr(AllowedSources, RawSenderAddress) ->
-	SenderAddress = k1api_lib:addr_to_dto(RawSenderAddress),
-	IsAddrAllowed = lists:filter(fun(AllowedSource) ->
-		AllowedSource =:= SenderAddress
-		end, AllowedSources),
-	case IsAddrAllowed of
-		[] ->
-			erlang:error(sender_address_not_available);
-		[Addr | _] ->
-			Addr
-	end.
+    SenderAddress = k1api_lib:addr_to_dto(RawSenderAddress),
+    IsAddrAllowed = lists:filter(fun(AllowedSource) ->
+        AllowedSource =:= SenderAddress
+        end, AllowedSources),
+    case IsAddrAllowed of
+        [] ->
+            erlang:error(sender_address_not_available);
+        [Addr | _] ->
+            Addr
+    end.
 
 addr_to_dto(OneAPIAddresses) when is_list(OneAPIAddresses) ->
-	lager:debug("OneAPIAddresses: ~p", [OneAPIAddresses]),
-	[k1api_lib:addr_to_dto(Addr) || Addr <- OneAPIAddresses].
+    lager:debug("OneAPIAddresses: ~p", [OneAPIAddresses]),
+    [k1api_lib:addr_to_dto(Addr) || Addr <- OneAPIAddresses].
 
 get_suitable_gtw(Customer, NumberOfDests) ->
-	#k1api_auth_response_customer_dto{
-		default_provider_id = DefaultProviderID,
-		providers = Providers,
-		networks = Networks
-	} = Customer,
-	get_suitable_gtw(DefaultProviderID, Networks, Providers, NumberOfDests).
+    #k1api_auth_response_customer_dto{
+        default_provider_id = DefaultProviderID,
+        providers = Providers,
+        networks = Networks
+    } = Customer,
+    get_suitable_gtw(DefaultProviderID, Networks, Providers, NumberOfDests).
 get_suitable_gtw(undefined, _Networks, _Providers, _NumberOfDests) ->
-	erlang:error(gtw_choice_not_implemented);
+    erlang:error(gtw_choice_not_implemented);
 get_suitable_gtw(DefaultProviderID, _Networks, Providers, _NumberOfDests) ->
-	[Provider] = lists:filter(fun(Provider) ->
-		Provider#provider_dto.id == DefaultProviderID
-		end, Providers),
-	Provider#provider_dto.gateway_id.
+    [Provider] = lists:filter(fun(Provider) ->
+        Provider#provider_dto.id == DefaultProviderID
+        end, Providers),
+    Provider#provider_dto.gateway_id.
 
 get_ids(CustomerID, NumberOfDests, Parts) ->
-	{ok, IDs} = k1api_db:next_id(CustomerID, NumberOfDests * Parts),
-	StringIDs = [integer_to_list(ID) || ID <- IDs],
-	{GroupStringIDs, []} = lists:foldl(fun(ID, {Acc, Group}) ->
-			case length(Group) + 1 of
-				Parts -> {[string:join(lists:reverse([ID | Group]), ":") | Acc], []};
-				_ -> {Acc, [ID | Group]}
-			end
-		end, {[], []}, StringIDs),
-	lists:map(fun(ID) -> list_to_binary(ID) end, lists:reverse(GroupStringIDs)).
+    {ok, IDs} = k1api_db:next_id(CustomerID, NumberOfDests * Parts),
+    StringIDs = [integer_to_list(ID) || ID <- IDs],
+    {GroupStringIDs, []} = lists:foldl(fun(ID, {Acc, Group}) ->
+            case length(Group) + 1 of
+                Parts -> {[string:join(lists:reverse([ID | Group]), ":") | Acc], []};
+                _ -> {Acc, [ID | Group]}
+            end
+        end, {[], []}, StringIDs),
+    lists:map(fun(ID) -> list_to_binary(ID) end, lists:reverse(GroupStringIDs)).
 
 get_message_parts(Size, default) when Size =< 160 ->
-	{ok, 1};
+    {ok, 1};
 get_message_parts(Size, default) ->
-	case (Size rem 153) == 0 of
-		true -> {ok, trunc(Size/153)};
-		false -> {ok, trunc(Size/153) +1}
-	end;
+    case (Size rem 153) == 0 of
+        true -> {ok, trunc(Size/153)};
+        false -> {ok, trunc(Size/153) +1}
+    end;
 get_message_parts(Size, ucs2) when Size =< 70 ->
-	{ok, 1};
+    {ok, 1};
 get_message_parts(Size, ucs2) ->
-	case (Size rem 67) == 0 of
-		true -> {ok, trunc(Size/67)};
-		false -> {ok, trunc(Size/67) + 1}
-	end.
+    case (Size rem 67) == 0 of
+        true -> {ok, trunc(Size/67)};
+        false -> {ok, trunc(Size/67) + 1}
+    end.
 
 fmt_validity(SecondsTotal) ->
     MinutesTotal = SecondsTotal div 60,
