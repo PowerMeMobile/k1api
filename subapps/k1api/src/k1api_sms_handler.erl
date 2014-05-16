@@ -34,7 +34,7 @@ init(Creds = #credentials{}) ->
     UserId     = Creds#credentials.user_id,
     Password   = Creds#credentials.password,
     {ok, Response = #k1api_auth_response_dto{}} =
-        soap_srv_auth:authenticate(CustomerId, UserId, Password),
+        soap_srv_auth:authenticate(CustomerId, UserId, Password, oneapi),
     ?log_debug("Response: ~p", [Response]),
     {ok, #state{creds = Creds, response = Response}}.
 
