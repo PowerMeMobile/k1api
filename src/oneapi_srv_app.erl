@@ -2,23 +2,23 @@
 
 -behaviour(application).
 
--include("logging.hrl").
--include("application.hrl").
-
-%% Application callbacks
+%% application callbacks
 -export([
     start/2,
     prep_stop/1,
     stop/1
 ]).
 
-%% Init
+%% Init API
 -export([
     set_debug_level/0
 ]).
 
+-include("application.hrl").
+-include_lib("alley_common/include/logging.hrl").
+
 %% ===================================================================
-%% Application callbacks
+%% application callbacks
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->

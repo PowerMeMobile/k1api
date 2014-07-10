@@ -13,7 +13,7 @@
     terminate/2, code_change/3]).
 
 -include("application.hrl").
--include("logging.hrl").
+-include_lib("alley_common/include/logging.hrl").
 
 -define(RECONNECT_TIMEOUT, 10000).
 

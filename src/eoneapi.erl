@@ -1,7 +1,7 @@
 -module(eoneapi).
 
 -include("eoneapi.hrl").
--include("logging.hrl").
+-include_lib("alley_common/include/logging.hrl").
 
 -define(VERSION, "2").
 

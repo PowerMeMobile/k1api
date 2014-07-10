@@ -6,12 +6,9 @@
         kernel,
         stdlib,
         inets,
-        lager,
         cowboy,
-        rmql,
         alley_dto,
-        gsm0338,
-        billy_client
+        alley_services
     ]},
     {mod, {oneapi_srv_app, []}},
     {env, []}

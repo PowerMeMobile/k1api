@@ -18,12 +18,12 @@
     terminate/2
 ]).
 
--include("logging.hrl").
--include("application.hrl").
--include("gen_server_spec.hrl").
 -include("eoneapi.hrl").
--include_lib("amqp_client/include/amqp_client.hrl").
+-include("application.hrl").
 -include_lib("alley_dto/include/adto.hrl").
+-include_lib("alley_common/include/logging.hrl").
+-include_lib("alley_common/include/gen_server_spec.hrl").
+-include_lib("amqp_client/include/amqp_client.hrl").
 -include_lib("billy_client/include/billy_client.hrl").
 
 -define(just_sms_request_param(Name, Param),

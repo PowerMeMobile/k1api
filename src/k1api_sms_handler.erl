@@ -2,10 +2,11 @@
 
 -behaviour(eoa_sms_handler).
 
--include_lib("alley_dto/include/adto.hrl").
--include_lib("eoneapi_sms.hrl").
 -include_lib("eoneapi.hrl").
--include("logging.hrl").
+-include_lib("eoneapi_sms.hrl").
+-include_lib("alley_common/include/logging.hrl").
+-include_lib("alley_dto/include/adto.hrl").
+-include_lib("alley_services/include/alley_services.hrl").
 
 %% Eoneapi sms handler callbacks
 -export([
@@ -34,7 +35,7 @@ init(Creds = #credentials{}) ->
     UserId     = Creds#credentials.user_id,
     Password   = Creds#credentials.password,
     {ok, Response = #k1api_auth_response_dto{}} =
-        soap_srv_auth:authenticate(CustomerId, UserId, Password, oneapi),
+        alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password),
     ?log_debug("Response: ~p", [Response]),
     {ok, #state{creds = Creds, response = Response}}.
 
@@ -58,7 +59,7 @@ handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
         [CustomerUUID, UserID, SenderAddr, SendSmsRequestID]),
     SenderAddr2 = k1api_lib:addr_to_dto(SenderAddr),
     {ok, Response} =
-        mm_srv_kelly_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddr2),
+        alley_services_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddr2),
     Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
     %% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
     DeliveryStatuses = convert_delivery_statuses(Statuses),
@@ -78,7 +79,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
     DestAddr = RegID,
     DestAddr2 = k1api_lib:addr_to_dto(DestAddr),
     {ok, Response} =
-        mm_srv_kelly_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
+        alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
     ?log_debug("Response: ~p", [Response]),
     #k1api_retrieve_sms_response_dto{
         messages = MessagesDTO,
@@ -120,7 +121,7 @@ handle_delivery_notifications_subscribe(Req, #state{
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr = #addr{addr = Sender, ton = 1, npi = 1},
-            {ok, _Response} = mm_srv_kelly_api:subscribe_sms_receipts(
+            {ok, _Response} = alley_services_api:subscribe_sms_receipts(
                 ReqID, CustomerUUID, UserID, Url, DestAddr, Callback),
             {ok, ReqID};
         {correlator_exist, OrigReqID} ->
@@ -135,7 +136,7 @@ handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, #state{
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
     RequestID = uuid:unparse(uuid:generate()),
-    {ok, _Resp} = mm_srv_kelly_api:unsubscribe_sms_receipts(
+    {ok, _Resp} = alley_services_api:unsubscribe_sms_receipts(
         RequestID, CustomerUUID, UserID, SubscriptionID),
     ?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
     {ok, deleted}.
@@ -160,7 +161,7 @@ handle_inbound_subscribe(Req, #state{
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr2 = #addr{addr = DestAddr, ton = 1, npi = 1},
-            {ok, Resp} = mm_srv_kelly_api:subscribe_incoming_sms(
+            {ok, Resp} = alley_services_api:subscribe_incoming_sms(
                 ReqID, CustomerUUID, UserID, DestAddr2,
                 NotifyURL, Criteria, Correlator, CallbackData),
             SubscriptionID = Resp#k1api_subscribe_incoming_sms_response_dto.subscription_id,
@@ -179,7 +180,7 @@ handle_inbound_unsubscribe(SubscribeID, #state{
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
     RequestID = uuid:unparse(uuid:generate()),
-    {ok, _Resp} = mm_srv_kelly_api:unsubscribe_incoming_sms(
+    {ok, _Resp} = alley_services_api:unsubscribe_incoming_sms(
         RequestID, CustomerUUID, UserID, SubscribeID),
     {ok, deleted}.
 
