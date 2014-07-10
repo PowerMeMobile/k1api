@@ -1,8 +1,8 @@
 *.eunit
-k1api.plt
+oneapi_srv.plt
 ebin
 deps
 rel/erl_crash.dump
-rel/k1api/
-subapps/*/priv
+rel/oneapi_srv
+priv
 TAGS

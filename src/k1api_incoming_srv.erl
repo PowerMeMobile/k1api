@@ -19,7 +19,7 @@
 
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
--include_lib("eoneapi/include/eoneapi.hrl").
+-include("eoneapi.hrl").
 -include("gen_server_spec.hrl").
 -include("application.hrl").
 -include("logging.hrl").

@@ -34,4 +34,3 @@ echo "$IFS"
 
 curl -i --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests -d $REQUEST_BODY
 echo
-

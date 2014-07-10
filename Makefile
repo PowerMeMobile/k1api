@@ -1,4 +1,4 @@
-NAME=k1api
+NAME=oneapi_srv
 OTP_PLT=~/.otp.plt
 PRJ_PLT=$(NAME).plt
 

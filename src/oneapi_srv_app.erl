@@ -1,4 +1,4 @@
--module(k1api_app).
+-module(oneapi_srv_app).
 
 -behaviour(application).
 
@@ -23,7 +23,7 @@
 
 start(_StartType, _StartArgs) ->
     ?log_info("k1api initializing...", []),
-    Result = k1api_sup:start_link(),
+    Result = oneapi_srv_sup:start_link(),
 
     {ok, Addr} = application:get_env(?APP, http_addr),
     {ok, Port} = application:get_env(?APP, http_port),

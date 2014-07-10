@@ -1,4 +1,4 @@
--module(k1api_sup).
+-module(oneapi_srv_sup).
 
 -behaviour(supervisor).
 

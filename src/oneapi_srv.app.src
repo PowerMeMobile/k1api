@@ -1,17 +1,18 @@
-{application, k1api, [
-    {description, "OneAPI server for OpenAlley"},
-    {vsn, "0.0.1"},
+{application, oneapi_srv, [
+    {description, "OneAPI Server from Power Alley Gateway Suite"},
+    {vsn, git},
     {registered, []},
     {applications, [
         kernel,
         stdlib,
+        inets,
         lager,
-        eoneapi,
+        cowboy,
         rmql,
         alley_dto,
         gsm0338,
         billy_client
     ]},
-    {mod, {k1api_app, []}},
+    {mod, {oneapi_srv_app, []}},
     {env, []}
 ]}.

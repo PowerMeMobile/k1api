@@ -13,7 +13,7 @@
     terminate/2, code_change/3]).
 
 -include("application.hrl").
--include_lib("billy_common/include/logging.hrl").
+-include("logging.hrl").
 
 -define(RECONNECT_TIMEOUT, 10000).
 

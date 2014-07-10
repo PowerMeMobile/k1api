@@ -156,7 +156,7 @@ case "$1" in
             console_clean)  BOOTFILE=start_clean ;;
             develop)
                 BOOTFILE=develop
-                DEV_HOOK="-run k1api_app set_debug_level" ;;
+                DEV_HOOK="-run oneapi_srv_app set_debug_level" ;;
         esac
         # Setup beam-required vars
         ROOTDIR=$RUNNER_BASE_DIR

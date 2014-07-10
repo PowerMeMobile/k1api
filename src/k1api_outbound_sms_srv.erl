@@ -21,8 +21,8 @@
 -include("logging.hrl").
 -include("application.hrl").
 -include("gen_server_spec.hrl").
+-include("eoneapi.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
--include_lib("eoneapi/include/eoneapi.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("billy_client/include/billy_client.hrl").
 
@@ -131,7 +131,7 @@ bill_and_send(OutboundSms, Customer, Credentials, Encoding, NumberOfParts, Desti
 
     {ok, SessionID} = k1api_billy_session:get_session_id(),
     case billy_client:reserve(
-        SessionID, ?CLIENT_TYPE_ONEAPI, CustomerUUID, UserID, ?SERVICE_TYPE_SMS_ON, NumberOfMsgs
+        SessionID, ?CLIENT_TYPE_ONEAPI, CustomerUUID, UserID, [{?SERVICE_TYPE_SMS_ON, NumberOfMsgs}]
     ) of
         {accepted, TransID} ->
             ?log_debug("Reserve accepted: ~p", [TransID]),

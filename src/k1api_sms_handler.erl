@@ -2,9 +2,9 @@
 
 -behaviour(eoa_sms_handler).
 
--include_lib("eoneapi/include/eoneapi_sms.hrl").
--include_lib("eoneapi/include/eoneapi.hrl").
 -include_lib("alley_dto/include/adto.hrl").
+-include_lib("eoneapi_sms.hrl").
+-include_lib("eoneapi.hrl").
 -include("logging.hrl").
 
 %% Eoneapi sms handler callbacks
