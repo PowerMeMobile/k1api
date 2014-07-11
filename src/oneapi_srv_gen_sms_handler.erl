@@ -220,10 +220,10 @@ do_init(State = #state{
     end.
 
 %% ===================================================================
-%%     Outbound sms request
+%% Outbound sms request
 %% ===================================================================
 
-process_outbound_sms_req( _, State = #state{
+process_outbound_sms_req(_, State = #state{
     mstate = MState,
     mod = Mod,
     req = Req,
