@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/PowerMeMobile/oneapi_srv.svg?branch=master)](https://travis-ci.org/PowerMeMobile/oneapi_srv)
+
 It is a [OneAPI] interface to send and receive sms messages
 through the [OpenAlley] smpp gateway.
 
@@ -5,8 +7,8 @@ through the [OpenAlley] smpp gateway.
 
 Install, configure and run the next apps using this [guide]:
 
-1. Erlang r15b01
-2. RabbitMQ
+1. Erlang R16B03-1
+2. RabbitMQ 3.x.x
 3. MongoDB >= 2.4
 4. [Kelly] OpenAlley SMPP middleware
 5. [Just] SMPP gateway
@@ -15,8 +17,8 @@ Install, configure and run the next apps using this [guide]:
 ## Installation and launching ##
 
 <pre>
-git clone https://github.com/PowerMeMobile/k1api.git
-cd ./k1api
+git clone https://github.com/PowerMeMobile/oneapi_srv.git
+cd oneapi_srv
 make && make console
 </pre>
 
@@ -35,7 +37,7 @@ receipts or/and incoming messages, retrieve incoming messages
 in the following files and directories:
 
 - ./tests/*
-- ./subapps/k1api/test/k1api_common_test.erl
+- ./tests/k1api_common_test.erl
 
 ## Support and help ##
 
