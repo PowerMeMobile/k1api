@@ -235,11 +235,13 @@ service_exception_body(MessageID, Text, Variables) ->
     exception_body(<<"serviceException">>, MessageID, Text, Variables).
 
 exception_body(ExceptionType, MessageID, Text, Variables) ->
-    Body = jsx:encode([{<<"requestError">>, [
-        {ExceptionType, [
-            {<<"messageId">>, MessageID},
-            {<<"text">>, Text},
-            {<<"variables">>, Variables}
+    Body = jsx:encode([
+        {<<"requestError">>, [
+            {ExceptionType, [
+                {<<"messageId">>, MessageID},
+                {<<"text">>, Text},
+                {<<"variables">>, Variables}
+            ]}
         ]}
-    ]}]),
+    ]),
     {ok, Body}.

@@ -73,14 +73,15 @@ deliver_sms_status(#delivery_receipt{
     DestAddr = << <<"tel:+">>/binary, RawDestAddr/binary>>,
     ContentType = "application/json",
     StatusBin = Status,
-    Body =
-    [{<<"deliveryInfoNotification">>, [
-        {<<"callbackData">>, CallbackData},
-        {<<"deliveryInfo">>, [
-            {<<"address">>, DestAddr},
-            {<<"deliveryStatus">>, StatusBin}
+    Body = [
+        {<<"deliveryInfoNotification">>, [
+            {<<"callbackData">>, CallbackData},
+            {<<"deliveryInfo">>, [
+                {<<"address">>, DestAddr},
+                {<<"deliveryStatus">>, StatusBin}
+            ]}
         ]}
-    ]}],
+    ],
     JsonBody = jsx:encode(Body),
     httpc:request(post,
         {binary_to_list(NotifyURL), [], ContentType, JsonBody},
@@ -97,17 +98,18 @@ deliver_sms(#inbound_sms{
     callback_data = CallBackData
 }) ->
     DateTimeBin = ac_datetime:datetime_to_iso8601(DateTime),
-    Body =
-    [{<<"inboundSMSMessageNotification">>, [
-        {<<"callbackData">>, CallBackData},
-        {<<"inboundSMSMessage">>, [
-            {<<"dateTime">>, DateTimeBin},
-            {<<"destinationAddress">>, DestAddr},
-            {<<"messageId">>, MessageId},
-            {<<"message">>, Message},
-            {<<"senderAddress">>, SenderAddr}
+    Body = [
+        {<<"inboundSMSMessageNotification">>, [
+            {<<"callbackData">>, CallBackData},
+            {<<"inboundSMSMessage">>, [
+                {<<"dateTime">>, DateTimeBin},
+                {<<"destinationAddress">>, DestAddr},
+                {<<"messageId">>, MessageId},
+                {<<"message">>, Message},
+                {<<"senderAddress">>, SenderAddr}
+            ]}
         ]}
-    ]}],
+    ],
     JsonBody = jsx:encode(Body),
     ContentType = "application/json",
     httpc:request(post,
