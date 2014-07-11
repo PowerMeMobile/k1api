@@ -5,6 +5,7 @@
 -include_lib("eoneapi.hrl").
 -include_lib("eoneapi_sms.hrl").
 -include_lib("alley_common/include/logging.hrl").
+-include_lib("alley_common/include/utils.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("alley_services/include/alley_services.hrl").
 
@@ -30,22 +31,38 @@
 %% ===================================================================
 
 init(Creds = #credentials{}) ->
-    ?log_debug("Credentials: ~p", [Creds]),
+    {ok, #state{creds = Creds}}.
+
+handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
+    ?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
+
     CustomerId = Creds#credentials.customer_id,
     UserId     = Creds#credentials.user_id,
     Password   = Creds#credentials.password,
-    {ok, Response = #k1api_auth_response_dto{}} =
-        alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password),
-    ?log_debug("Response: ~p", [Response]),
-    {ok, #state{creds = Creds, response = Response}}.
 
-handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
-    creds = Creds,
-    response = Response
-}) ->
-    ?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
-    {ok, RequestID} = k1api_outbound_sms_srv:send(OutboundSms, Response, Creds),
-    ?log_debug("Message sucessfully sent [id: ~p]", [RequestID]),
+    Recipients = reformat_addrs(OutboundSms#outbound_sms.dest_addr),
+    Originator = reformat_addr(OutboundSms#outbound_sms.sender_addr),
+    Message = OutboundSms#outbound_sms.message,
+
+        %% ?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
+        %% ?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
+
+    SendReq = #send_req{
+        action = send_sms,
+        customer_id = CustomerId,
+        user_name = UserId,
+        client_type = oneapi,
+        password = Password,
+        recipients = Recipients,
+        originator = Originator,
+        text = Message,
+        flash = false
+    },
+    {ok, Result} = alley_services_mt:send(SendReq),
+    ?log_debug("Got submit result: ~p", [Result]),
+
+    %%Status = ?gv(result, Result, <<"OK">>),
+    RequestID = ?gv(id, Result, <<"">>),
     {ok, RequestID}.
 
 handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
@@ -223,3 +240,13 @@ translate_status_name(<<"rejected">>) ->
     <<"Rejected">>;
 translate_status_name(<<"unrecognized">>) ->
     <<"Unrecognized">>.
+
+reformat_addr(<<"tel:+", Addr/binary>>) ->
+    reformat_addr(Addr);
+reformat_addr(<<"tel:", Addr/binary>>) ->
+    reformat_addr(Addr);
+reformat_addr(Addr) ->
+    alley_services_utils:addr_to_dto(Addr).
+
+reformat_addrs(Addrs) ->
+    [reformat_addr(Addr) || Addr <- Addrs].

@@ -242,10 +242,11 @@ process_outbound_sms_req( _, State = #state{
         {ok, ReqId} ->
             ContentType = <<"application/json">>,
             Location = build_resource_url(Req, ReqId),
-            Body =
-            [{<<"resourceReference">>, [
-                {<<"resourceURL">>, Location}
-            ]}],
+            Body = [
+                {<<"resourceReference">>, [
+                    {<<"resourceURL">>, Location}
+                ]}
+            ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),

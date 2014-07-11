@@ -23,10 +23,6 @@ init([]) ->
     {ok, {{one_for_one, 5, 10}, [
         {k1api_db, {k1api_db, start_link, []},
             permanent, 5000, worker, [k1api_db]},
-        {k1api_outbound_sms_srv, {k1api_outbound_sms_srv, start_link, []},
-            permanent, 5000, worker, [k1api_outbound_sms_srv]},
         {k1api_incoming_srv, {k1api_incoming_srv, start_link, []},
-            permanent, 5000, worker, [k1api_incoming_srv]},
-        {k1api_billy_session, {k1api_billy_session, start_link, []},
-            transient, 5000, worker, [k1api_billy_session]}
+            permanent, 5000, worker, [k1api_incoming_srv]}
     ]}}.
