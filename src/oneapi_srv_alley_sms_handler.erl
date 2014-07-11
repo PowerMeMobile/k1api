@@ -31,7 +31,12 @@
 %% ===================================================================
 
 init(Creds = #credentials{}) ->
-    {ok, #state{creds = Creds}}.
+    CustomerId = Creds#credentials.customer_id,
+    UserId = Creds#credentials.user_id,
+    Password = Creds#credentials.password,
+    {ok, Response = #k1api_auth_response_dto{}} =
+        alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password),
+    {ok, #state{creds = Creds, response = Response}}.
 
 handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
     ?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
