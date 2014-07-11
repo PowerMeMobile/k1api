@@ -66,7 +66,7 @@ build_sms_handle_spec(SmsHandler) -> [
 -spec deliver_sms_status(delivery_receipt()) -> {ok, term()} | {error, term()}.
 deliver_sms_status(#delivery_receipt{
     notify_url = NotifyURL,
-    callback = CallbackData,
+    callback_data = CallbackData,
     dest_addr = RawDestAddr,
     status = Status
 }) ->
@@ -91,19 +91,19 @@ deliver_sms(#inbound_sms{
     notify_url = NotifyURL,
     date_time = DateTime,
     dest_addr = DestAddr,
-    message_id = MessId,
+    message_id = MessageId,
     message = Message,
     sender_addr = SenderAddr,
-    callback = CallBack
+    callback_data = CallBackData
 }) ->
     DateTimeBin = ac_datetime:datetime_to_iso8601(DateTime),
     Body =
     [{<<"inboundSMSMessageNotification">>, [
-        {<<"callbackData">>, CallBack},
+        {<<"callbackData">>, CallBackData},
         {<<"inboundSMSMessage">>, [
             {<<"dateTime">>, DateTimeBin},
             {<<"destinationAddress">>, DestAddr},
-            {<<"messageId">>, MessId},
+            {<<"messageId">>, MessageId},
             {<<"message">>, Message},
             {<<"senderAddress">>, SenderAddr}
         ]}

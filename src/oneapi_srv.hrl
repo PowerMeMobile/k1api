@@ -27,7 +27,7 @@
     sender_name         :: undefined | binary(),
     notify_url          :: undefined | binary(),
     correlator          :: undefined | binary(),
-    callback            :: undefined | binary()
+    callback_data       :: undefined | binary()
 }).
 -type outbound_sms()    :: #outbound_sms{}.
 
@@ -35,7 +35,7 @@
 
 -record(delivery_receipt, {
     notify_url          :: binary(),
-    callback            :: undefined | binary(),
+    callback_data       :: undefined | binary(),
     dest_addr           :: binary(),
     status              :: delivery_status()
 }).
@@ -46,7 +46,7 @@
     notify_url          :: binary(),
     correlator          :: undefined | binary(),
     criteria            :: undefined | binary(),
-    callback            :: undefined | binary()
+    callback_data       :: undefined | binary()
 }).
 -type delivery_receipt_subscribe() :: #delivery_receipt_subscribe{}.
 -type subscription_id() :: uuid().
@@ -64,7 +64,7 @@
     message_id          :: binary(),
     message             :: binary(),
     sender_addr         :: binary(),
-    callback            :: undefined | binary()
+    callback_data       :: undefined | binary()
 }).
 -type inbound_sms() :: #inbound_sms{}.
 -type pending_sms() :: integer().
@@ -73,7 +73,7 @@
     dest_addr           :: binary(),
     notify_url          :: binary(),
     criteria            :: undefined | binary(),
-    callback            :: undefined | binary(),
+    callback_data       :: undefined | binary(),
     correlator          :: undefined | binary()
 }).
 -type subscribe_inbound() :: #subscribe_inbound{}.

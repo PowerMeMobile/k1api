@@ -105,7 +105,7 @@ decode_dto(Bin, <<"ReceiptBatch">>) ->
 process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
     ?log_debug("Got InboundSms: ~p", [DTO]),
     #k1api_sms_notification_request_dto{
-        callback_data = Callback,
+        callback_data = CallbackData,
         datetime = {MegaSecs, Secs, _MicroSecs},
         dest_addr = DestAddr,
         message_id = MessageID,
@@ -121,7 +121,7 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
         message_id = MessageID,
         message = Message,
         sender_addr = SenderAddr#addr.addr,
-        callback = Callback
+        callback_data = CallbackData
     },
     case oneapi_srv_protocol:deliver_sms(InboundSms) of
         {ok, _} -> {ok, MessageID};
@@ -138,7 +138,7 @@ process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
     } = DTO,
     Receipt = #delivery_receipt{
         notify_url = NotifyURL,
-        callback = CallbackData,
+        callback_data = CallbackData,
         dest_addr = DestAddr#addr.addr,
         status = MessageState
     },

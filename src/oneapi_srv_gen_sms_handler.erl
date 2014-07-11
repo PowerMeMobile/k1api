@@ -231,13 +231,13 @@ process_outbound_sms_req(_, State = #state{
 }) ->
     {ok, ReqPropList} = get_prop_list(Req),
     SendSmsReq = #outbound_sms{
-        dest_addr   = gmv(ReqPropList, <<"address">>),
-        sender_addr = gv(ReqPropList, <<"senderAddress">>),
-        message     = gv(ReqPropList, <<"message">>),
-        sender_name = gv(ReqPropList, <<"senderName">>),
-        notify_url  = gv(ReqPropList, <<"notifyURL">>),
-        correlator  = gv(ReqPropList, <<"clientCorrelator">>),
-        callback    = gv(ReqPropList, <<"callbackData">>)
+        dest_addr     = gmv(ReqPropList, <<"address">>),
+        sender_addr   = gv(ReqPropList, <<"senderAddress">>),
+        message       = gv(ReqPropList, <<"message">>),
+        sender_name   = gv(ReqPropList, <<"senderName">>),
+        notify_url    = gv(ReqPropList, <<"notifyURL">>),
+        correlator    = gv(ReqPropList, <<"clientCorrelator">>),
+        callback_data = gv(ReqPropList, <<"callbackData">>)
     },
     case Mod:handle_send_sms_req(SendSmsReq, MState) of
         {ok, ReqId} ->
@@ -303,11 +303,11 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 }) ->
     {ok, ReqPropList} = get_prop_list(Req),
     Request = #delivery_receipt_subscribe{
-        sender_addr = Addr,
-        notify_url = gv(ReqPropList, <<"notifyURL">>),
-        correlator = gv(ReqPropList, <<"clientCorrelator">>),
-        criteria = gv(ReqPropList, <<"criteria">>),
-        callback = gv(ReqPropList, <<"callbackData">>)
+        sender_addr   = Addr,
+        notify_url    = gv(ReqPropList, <<"notifyURL">>),
+        correlator    = gv(ReqPropList, <<"clientCorrelator">>),
+        criteria      = gv(ReqPropList, <<"criteria">>),
+        callback_data = gv(ReqPropList, <<"callbackData">>)
     },
     case Mod:handle_delivery_notifications_subscribe(Request, MState) of
         {ok, SubscribeId} ->
@@ -420,11 +420,11 @@ process_sms_delivery_subscribe_req( _, State = #state{
 }) ->
     {ok, ReqPropList} = get_prop_list(Req),
     SubscribeInbound = #subscribe_inbound{
-        dest_addr = convert_addr(gv(ReqPropList, <<"destinationAddress">>)),
-        notify_url = gv(ReqPropList, <<"notifyURL">>),
-        criteria = gv(ReqPropList, <<"criteria">>),
-        callback = gv(ReqPropList, <<"callbackData">>),
-        correlator = gv(ReqPropList, <<"clientCorrelator">>)
+        dest_addr     = convert_addr(gv(ReqPropList, <<"destinationAddress">>)),
+        notify_url    = gv(ReqPropList, <<"notifyURL">>),
+        criteria      = gv(ReqPropList, <<"criteria">>),
+        callback_data = gv(ReqPropList, <<"callbackData">>),
+        correlator    = gv(ReqPropList, <<"clientCorrelator">>)
     },
     case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
         {ok, SubId} ->

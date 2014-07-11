@@ -137,7 +137,7 @@ handle_delivery_notifications_subscribe(Req, #state{
         notify_url = Url,
         correlator = Correlator,
         criteria = _Criteria,
-        callback = Callback
+        callback_data = CallbackData
     } = Req,
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
@@ -147,7 +147,7 @@ handle_delivery_notifications_subscribe(Req, #state{
             ?log_debug("Correlator saved", []),
             DestAddr = #addr{addr = Sender, ton = 1, npi = 1},
             {ok, _Response} = alley_services_api:subscribe_sms_receipts(
-                ReqID, CustomerUUID, UserID, Url, DestAddr, Callback),
+                ReqID, CustomerUUID, UserID, Url, DestAddr, CallbackData),
             {ok, ReqID};
         {correlator_exist, OrigReqID} ->
             ?log_debug("Correlator exist: ~p", [OrigReqID]),
@@ -177,7 +177,7 @@ handle_inbound_subscribe(Req, #state{
         dest_addr = DestAddr,
         notify_url = NotifyURL,
         criteria = Criteria,
-        callback = CallbackData,
+        callback_data = CallbackData,
         correlator = Correlator
     } = Req,
     ReqID = uuid:unparse(uuid:generate()),
