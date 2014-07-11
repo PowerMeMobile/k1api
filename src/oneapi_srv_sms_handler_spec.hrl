@@ -1,6 +1,6 @@
--ifndef(eoneapi_sms_hrl).
--define(eoneapi_sms_hrl, included).
--include("eoneapi.hrl").
+-ifndef(oneapi_srv_sms_handler_spec_hrl).
+-define(oneapi_srv_sms_handler_spec_hrl, included).
+-include("oneapi_srv.hrl").
 
 -spec init(credentials()) ->
     {ok, state()} |
@@ -41,4 +41,4 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--endif. % eoneapi_sms_hrl
+-endif. % oneapi_srv_sms_handler_spec_hrl

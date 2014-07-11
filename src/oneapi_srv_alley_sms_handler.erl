@@ -1,15 +1,15 @@
--module(k1api_sms_handler).
+-module(oneapi_srv_alley_sms_handler).
 
--behaviour(eoa_sms_handler).
+-behaviour(oneapi_srv_gen_sms_handler).
 
--include_lib("eoneapi.hrl").
--include_lib("eoneapi_sms.hrl").
+-include("oneapi_srv.hrl").
+-include("oneapi_srv_sms_handler_spec.hrl").
 -include_lib("alley_common/include/logging.hrl").
 -include_lib("alley_common/include/utils.hrl").
 -include_lib("alley_dto/include/adto.hrl").
 -include_lib("alley_services/include/alley_services.hrl").
 
-%% Eoneapi sms handler callbacks
+%% oneapi_srv_gen_sms_handler callbacks
 -export([
     init/1,
     handle_send_sms_req/2,
@@ -27,7 +27,7 @@
 }).
 
 %% ===================================================================
-%% eoneapi sms handler callbacks
+%% oneapi_srv_gen_sms_handler callbacks
 %% ===================================================================
 
 init(Creds = #credentials{}) ->
@@ -74,7 +74,7 @@ handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
     ?log_debug("Got delivery status request "
         "[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
         [CustomerUUID, UserID, SenderAddr, SendSmsRequestID]),
-    SenderAddr2 = k1api_lib:addr_to_dto(SenderAddr),
+    SenderAddr2 = alley_services_utils:addr_to_dto(SenderAddr),
     {ok, Response} =
         alley_services_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddr2),
     Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
@@ -94,7 +94,7 @@ handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
     UserID = Creds#credentials.user_id,
     ?log_debug("Sending retrieve sms request", []),
     DestAddr = RegID,
-    DestAddr2 = k1api_lib:addr_to_dto(DestAddr),
+    DestAddr2 = alley_services_utils:addr_to_dto(DestAddr),
     {ok, Response} =
         alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
     ?log_debug("Response: ~p", [Response]),
@@ -134,7 +134,7 @@ handle_delivery_notifications_subscribe(Req, #state{
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
     ReqID = uuid:unparse(uuid:generate()),
-    case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+    case oneapi_srv_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr = #addr{addr = Sender, ton = 1, npi = 1},
@@ -174,7 +174,7 @@ handle_inbound_subscribe(Req, #state{
     } = Req,
     ReqID = uuid:unparse(uuid:generate()),
     ?log_debug("Got correlator: ~p", [Correlator]),
-    case k1api_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+    case oneapi_srv_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr2 = #addr{addr = DestAddr, ton = 1, npi = 1},

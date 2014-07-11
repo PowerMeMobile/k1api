@@ -1,15 +1,16 @@
--module(k1api_db).
+-module(oneapi_srv_db).
 
 -behaviour(gen_server).
 
 %% API
 -export([
     start_link/0,
-    next_id/1, next_id/2,
+    next_id/1,
+    next_id/2,
     check_correlator/4
 ]).
 
-%% GenServer Callbacks
+%% gen_server callbacks
 -export([
     init/1,
     handle_cast/2,
@@ -20,31 +21,30 @@
 ]).
 
 -include_lib("alley_common/include/logging.hrl").
+-include_lib("alley_common/include/gen_server_spec.hrl").
 
--type customer_id()     :: binary().
--type user_id()         :: binary().
--type correlator_id()   :: binary().
--type request_id()      :: binary().
+-type customer_id()   :: binary().
+-type user_id()       :: binary().
+-type correlator_id() :: binary().
+-type request_id()    :: binary().
 
 %% Customer Last MessageID Storage
 -record(customer_next_message_id, {
-    customer_id         :: customer_id(),
-    next_id             :: integer()
+    customer_id :: customer_id(),
+    next_id     :: integer()
 }).
 
 %% Customer Request Correlator Storage
--type correlator_key()         :: {customer_id(), user_id(), correlator_id()}.
--type correlator_value()     :: request_id().
+-type correlator_key()   :: {customer_id(), user_id(), correlator_id()}.
+-type correlator_value() :: request_id().
 
 -record(correlator, {
-    key         :: correlator_key(),
-    value         :: correlator_value(),
-    created_at     :: integer()
+    key        :: correlator_key(),
+    value      :: correlator_value(),
+    created_at :: integer()
 }).
 
-%% State
--record(st, {
-}).
+-record(st, {}).
 
 -define(PurgeRate, 10000). %% milliseconds
 -define(CorrelatorLifetime, 60). %% seconds
@@ -56,7 +56,6 @@
 -spec start_link() -> {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
 
 -spec next_id(customer_id()) -> {ok, [integer()]}.
 next_id(CustomerID) ->
@@ -74,9 +73,9 @@ next_id(CustomerID, NumberOfIDs) ->
     end),
     {ok, IDs}.
 
--spec check_correlator    (customer_id(), user_id(), undefined, request_id()) -> ok
-                    ;    (customer_id(), user_id(), correlator_id(), request_id()) ->
-                        ok | {correlator_exist, request_id()}.
+-spec check_correlator(
+    customer_id(), user_id(), undefined | correlator_id(), request_id()
+) -> ok | {correlator_exist, request_id()}.
 check_correlator(_, _, undefined, _) -> ok;
 check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
     {atomic, Result} = mnesia:transaction(fun() ->
@@ -84,9 +83,11 @@ check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
         case mnesia:read(correlator, Key, write) of
             [] ->
                 CreatedAt = ac_datetime:utc_unixepoch(),
-                mnesia:write(#correlator{    key = Key,
-                                            value = NewRequestID,
-                                            created_at = CreatedAt}),
+                mnesia:write(#correlator{
+                    key = Key,
+                    value = NewRequestID,
+                    created_at = CreatedAt
+                }),
                 ok;
             [#correlator{value = RequestID}] ->
                 {correlator_exist, RequestID}
@@ -95,7 +96,7 @@ check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
     Result.
 
 %% ===================================================================
-%% GenServer Callbacks
+%% gen_server callbacks
 %% ===================================================================
 
 init([]) ->
@@ -128,7 +129,7 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% ===================================================================
-%% Local Functions
+%% Internal
 %% ===================================================================
 
 update_counter(NextID, NumberOfIDs, CustomerID) ->
@@ -139,7 +140,10 @@ update_counter(NextID, NumberOfIDs, CustomerID) ->
         false -> {NextID, NextID + NumberOfIDs - 1, NextID + NumberOfIDs}
     end,
     IDs = lists:seq(From, To),
-    mnesia:write(#customer_next_message_id{customer_id = CustomerID, next_id = NewNextID}),
+    mnesia:write(#customer_next_message_id{
+        customer_id = CustomerID,
+        next_id = NewNextID
+    }),
     IDs.
 
 init_mnesia() ->
@@ -166,21 +170,20 @@ init_mnesia() ->
     end,
     ok = mnesia:start(),
 
-    ok = ensure_table(
-        customer_next_message_id,
+    ok = ensure_table(customer_next_message_id,
         record_info(fields, customer_next_message_id)),
 
-    ok = ensure_table(
-        correlator,
+    ok = ensure_table(correlator,
         record_info(fields, correlator)).
 
 ensure_table(TableName, RecordInfo) ->
-    ok = case mnesia:create_table(TableName, [
-                    {disc_copies, [node()]},
-                    {attributes, RecordInfo}]) of
+    ok =
+        case mnesia:create_table(TableName, [
+                {disc_copies, [node()]},
+                {attributes, RecordInfo}]) of
             {atomic, ok} ->
                 ok;
             {aborted, {already_exists, TableName}} ->
                 ok
-         end,
+        end,
     ok = mnesia:wait_for_tables([TableName], infinity).

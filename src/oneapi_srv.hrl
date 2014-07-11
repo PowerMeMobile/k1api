@@ -1,5 +1,5 @@
--ifndef(eoneapi_hrl).
--define(eoneapi_hrl, included).
+-ifndef(oneapi_srv_hrl).
+-define(oneapi_srv_hrl, included).
 
 -type uuid()            :: binary().
 -type state()           :: term().
@@ -78,4 +78,4 @@
 }).
 -type subscribe_inbound() :: #subscribe_inbound{}.
 
--endif. % eoneapi_hrl
+-endif. % oneapi_srv_hrl

@@ -23,7 +23,6 @@ exception_body_and_code('svc0283', Variables) ->
     {ok, Body} = service_exception_body(MessageID, Text, Variables),
     {ok, Body, 400};
 
-
 %% ===================================================================
 %% Common Service Exceptions
 %% http://oneapi.gsmworld.com/common-service-exceptions/
@@ -236,9 +235,11 @@ service_exception_body(MessageID, Text, Variables) ->
     exception_body(<<"serviceException">>, MessageID, Text, Variables).
 
 exception_body(ExceptionType, MessageID, Text, Variables) ->
-    Body = jsx:encode([{<<"requestError">>, [{ ExceptionType, [
-                                                    {<<"messageId">>, MessageID},
-                                                    {<<"text">>, Text},
-                                                    {<<"variables">>, Variables}
-                                                    ] }] }]),
+    Body = jsx:encode([{<<"requestError">>, [
+        {ExceptionType, [
+            {<<"messageId">>, MessageID},
+            {<<"text">>, Text},
+            {<<"variables">>, Variables}
+        ]}
+    ]}]),
     {ok, Body}.

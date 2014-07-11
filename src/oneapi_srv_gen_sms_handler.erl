@@ -1,15 +1,16 @@
--module(eoa_sms_handler).
+-module(oneapi_srv_gen_sms_handler).
 
 -behaviour(cowboy_http_handler).
 
+%% cowboy_http_handler callbacks
 -export([
     init/3,
     handle/2,
     terminate/3
 ]).
 
--include("eoneapi.hrl").
 -include("application.hrl").
+-include("oneapi_srv.hrl").
 
 -record(state, {
     req         :: term(),
@@ -65,7 +66,7 @@
     {exception, exception(), excep_params()}.
 
 %% ===================================================================
-%% API
+%% cowboy_http_hander callbacks
 %% ===================================================================
 
 init({_Any, http}, Req, [Module]) ->
@@ -80,7 +81,7 @@ handle(Req, State = #state{}) ->
             [<<>> | Segments] = binary:split(Path, <<"/">>, [global]),
             handle_req(Method, Segments, State#state{creds = Creds});
         {error, unauthorized} ->
-            eoneapi:code(401, Req, [])
+            oneapi_srv_protocol:code(401, Req, [])
     end.
 
 terminate(_Reason, _Req, _State) ->
@@ -197,7 +198,7 @@ handle_req(<<"DELETE">>,
     });
 
 handle_req(_Method, _Segments, State = #state{req = Req}) ->
-    eoneapi:code(404, Req, State).
+    oneapi_srv_protocol:code(404, Req, State).
 
 %% ===================================================================
 %% Handler initialization
@@ -215,7 +216,7 @@ do_init(State = #state{
         {ok, MState} ->
             Fun(Args, State#state{mstate = MState});
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -252,7 +253,7 @@ process_outbound_sms_req( _, State = #state{
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -283,7 +284,7 @@ process_delivery_status_req(ReqId, State = #state{
             {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -291,17 +292,19 @@ process_delivery_status_req(ReqId, State = #state{
 %% ===================================================================
 
 process_sms_delivery_report_subscribe_req(_, State = #state{
-                                                            req = Req,
-                                                            mod = Mod,
-                                                            mstate = MState,
-                                                            sender_addr = Addr}) ->
+    req = Req,
+    mod = Mod,
+    mstate = MState,
+    sender_addr = Addr
+}) ->
     {ok, ReqPropList} = get_prop_list(Req),
     Request = #delivery_receipt_subscribe{
-                    sender_addr = Addr,
-                    notify_url = gv(ReqPropList, <<"notifyURL">>),
-                    correlator = gv(ReqPropList, <<"clientCorrelator">>),
-                    criteria = gv(ReqPropList, <<"criteria">>),
-                    callback = gv(ReqPropList, <<"callbackData">>)},
+        sender_addr = Addr,
+        notify_url = gv(ReqPropList, <<"notifyURL">>),
+        correlator = gv(ReqPropList, <<"clientCorrelator">>),
+        criteria = gv(ReqPropList, <<"criteria">>),
+        callback = gv(ReqPropList, <<"callbackData">>)
+    },
     case Mod:handle_delivery_notifications_subscribe(Request, MState) of
         {ok, SubscribeId} ->
             CallBackData = gv(ReqPropList, <<"callbackData">>),
@@ -309,21 +312,22 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
             Location = build_resource_url(Req, SubscribeId),
             ContentType = <<"application/json">>,
             Criteria = gv(ReqPropList, <<"criteria">>),
-            Body =
-            [{<<"deliveryReceiptSubscription">>, [
-                {<<"callbackReference">>, [
-                    {<<"callbackData">>, CallBackData},
-                    {<<"notifyURL">>, NotifyURL},
-                    {<<"criteria">>, Criteria}
-                ]},
-                {<<"resourceURL">>, Location}
-            ]}],
+            Body = [
+                {<<"deliveryReceiptSubscription">>, [
+                    {<<"callbackReference">>, [
+                        {<<"callbackData">>, CallBackData},
+                        {<<"notifyURL">>, NotifyURL},
+                        {<<"criteria">>, Criteria}
+                    ]},
+                    {<<"resourceURL">>, Location}
+                ]}
+            ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -331,17 +335,18 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
 %% ===================================================================
 
 process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
-                                                                req = Req,
-                                                                mod = Mod,
-                                                                mstate = MState,
-                                                                sender_addr = Addr}) ->
+    req = Req,
+    mod = Mod,
+    mstate = MState,
+    sender_addr = Addr
+}) ->
     Result = Mod:handle_delivery_notifications_unsubscribe(Addr, SubscribeId, MState),
     case Result of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -349,14 +354,15 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
 %% ===================================================================
 
 process_retrieve_sms_req(RegId, State = #state{
-                                            mod = Mod,
-                                            mstate = MState,
-                                            req = Req}) ->
+    mod = Mod,
+    mstate = MState,
+    req = Req
+}) ->
     {ok, ReqPropList} = get_prop_list(Req),
     RetrieveSmsReq = #retrieve_sms_req{
-                        reg_id = RegId,
-                        batch_size = giv(ReqPropList, <<"maxBatchSize">>)
-                        },
+        reg_id = RegId,
+        batch_size = giv(ReqPropList, <<"maxBatchSize">>)
+    },
     Result = Mod:handle_retrieve_req(RetrieveSmsReq, MState),
     case Result of
         {ok, ListOfInboundSms, PendingSms} ->
@@ -377,19 +383,20 @@ process_retrieve_sms_req(RegId, State = #state{
                 end, ListOfInboundSms),
             ThisBatchSize = length(ListOfInboundSms),
             ResourceURL = build_resource_url(Req),
-            Body =
-            [{<<"inboundSMSMessageList">>, [
-                {<<"inboundSMSMessage">>, Messages},
-                {<<"numberOfMessagesInThisBatch">>, ThisBatchSize},
-                {<<"resourceURL">>, ResourceURL},
-                {<<"totalNumberOfPendingMessages">>, PendingSms}
-            ]}],
+            Body = [
+                {<<"inboundSMSMessageList">>, [
+                    {<<"inboundSMSMessage">>, Messages},
+                    {<<"numberOfMessagesInThisBatch">>, ThisBatchSize},
+                    {<<"resourceURL">>, ResourceURL},
+                    {<<"totalNumberOfPendingMessages">>, PendingSms}
+                ]}
+            ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, <<"application/json">>}],
             {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -397,31 +404,33 @@ process_retrieve_sms_req(RegId, State = #state{
 %% ===================================================================
 
 process_sms_delivery_subscribe_req( _, State = #state{
-                                                req = Req,
-                                                mod = Mod,
-                                                mstate = MState}) ->
-
+    req = Req,
+    mod = Mod,
+    mstate = MState
+}) ->
     {ok, ReqPropList} = get_prop_list(Req),
     SubscribeInbound = #subscribe_inbound{
-                            dest_addr = convert_addr(gv(ReqPropList, <<"destinationAddress">>)),
-                            notify_url = gv(ReqPropList, <<"notifyURL">>),
-                            criteria = gv(ReqPropList, <<"criteria">>),
-                            callback = gv(ReqPropList, <<"callbackData">>),
-                            correlator = gv(ReqPropList, <<"clientCorrelator">>)},
+        dest_addr = convert_addr(gv(ReqPropList, <<"destinationAddress">>)),
+        notify_url = gv(ReqPropList, <<"notifyURL">>),
+        criteria = gv(ReqPropList, <<"criteria">>),
+        callback = gv(ReqPropList, <<"callbackData">>),
+        correlator = gv(ReqPropList, <<"clientCorrelator">>)
+    },
     case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
         {ok, SubId} ->
             Location = build_resource_url(Req, SubId),
             ContentType = <<"application/json">>,
-            Body =
-            [{<<"resourceReference">>, [
-                {<<"resourceURL">>, Location}
-            ]}],
+            Body = [
+                {<<"resourceReference">>, [
+                    {<<"resourceURL">>, Location}
+                ]}
+            ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"location">>, Location}, {<<"content-type">>, ContentType}],
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================
@@ -429,15 +438,16 @@ process_sms_delivery_subscribe_req( _, State = #state{
 %% ===================================================================
 
 process_sms_delivery_unsubscribe_req(SubId, State = #state{
-                                                        mod = Mod,
-                                                        mstate = MState,
-                                                        req = Req}) ->
+    mod = Mod,
+    mstate = MState,
+    req = Req
+}) ->
     case Mod:handle_inbound_unsubscribe(SubId, MState) of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
         {error, denied} ->
-            eoneapi:code(401, Req, State)
+            oneapi_srv_protocol:code(401, Req, State)
     end.
 
 %% ===================================================================

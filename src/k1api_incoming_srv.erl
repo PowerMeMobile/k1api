@@ -17,8 +17,8 @@
     terminate/2
 ]).
 
--include("eoneapi.hrl").
 -include("application.hrl").
+-include("oneapi_srv.hrl").
 -include_lib("alley_common/include/logging.hrl").
 -include_lib("alley_common/include/gen_server_spec.hrl").
 -include_lib("alley_dto/include/adto.hrl").
@@ -123,7 +123,7 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
         sender_addr = SenderAddr#addr.addr,
         callback = Callback
     },
-    case eoneapi:deliver_sms(InboundSms) of
+    case oneapi_srv_protocol:deliver_sms(InboundSms) of
         {ok, _} -> {ok, MessageID};
         {error, _Error} -> noreply
     end;
@@ -142,7 +142,7 @@ process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
         dest_addr = DestAddr#addr.addr,
         status = MessageState
     },
-    case eoneapi:deliver_sms_status(Receipt) of
+    case oneapi_srv_protocol:deliver_sms_status(Receipt) of
         {ok, _} -> {ok, ItemID};
         {error, _Error} -> noreply
     end.

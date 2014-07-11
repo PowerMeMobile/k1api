@@ -1,13 +1,14 @@
--module(eoneapi).
+-module(oneapi_srv_protocol).
 
--include("eoneapi.hrl").
+-include("application.hrl").
+-include("oneapi_srv.hrl").
 -include_lib("alley_common/include/logging.hrl").
 
 -define(VERSION, "2").
 
-%% API Exports
+%% API
 -export([
-    start_service/1,
+    init/0,
     build_sms_handle_spec/1,
     deliver_sms_status/1,
     deliver_sms/1,
@@ -16,60 +17,58 @@
 ]).
 
 %% ===================================================================
-%% API Functions
+%% API
 %% ===================================================================
 
--spec start_service([{term(), term()}]) -> ignore.
-start_service(EOneAPIProps) ->
-    Addr = proplists:get_value(addr, EOneAPIProps, {0,0,0,0}),
-    Port = proplists:get_value(port, EOneAPIProps, 8080),
-    AcceptorsNum = proplists:get_value(acceptors_num, EOneAPIProps, 1),
-    SmsHandlerSpec = build_sms_handle_spec(EOneAPIProps),
+-spec init() -> ok.
+init() ->
+    {ok, Addr} = application:get_env(?APP, http_addr),
+    {ok, Port} = application:get_env(?APP, http_port),
+    {ok, AcceptorsNum} = application:get_env(?APP, http_acceptors_num),
 
-    TransportOpts = [{ip, Addr}, {port, Port}],
+    SmsHandlerSpec = build_sms_handle_spec(oneapi_srv_alley_sms_handler),
+
+    TransOpts = [{ip, Addr}, {port, Port}],
     Dispatch = cowboy_router:compile([
         {'_', SmsHandlerSpec ++
-            [{'_', eoa_error_handler, []}]
+            [{'_', oneapi_srv_error_handler, []}]
         }
     ]),
-    ProtocolOpts = [
+    ProtoOpts = [
         {env, [{dispatch, Dispatch}]}
     ],
 
     {ok, _Pid} = cowboy:start_http(
-        my_http_listener, AcceptorsNum, TransportOpts, ProtocolOpts
+        my_http_listener, AcceptorsNum, TransOpts, ProtoOpts
     ),
     ?log_info("http server is listening to ~p:~p", [Addr, Port]),
     ok.
 
--spec build_sms_handle_spec([{any(), any()}]) -> any().
-build_sms_handle_spec(EOneAPIProps) ->
-    case proplists:get_value(sms_handler, EOneAPIProps, undefined) of
-        undefined ->
-            [];
-        SmsHandler -> [
-            {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/requests",
-                eoa_sms_handler, [SmsHandler]},
-            {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/requests/:request_id/deliveryInfos",
-                eoa_sms_handler, [SmsHandler]},
-            {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions",
-                eoa_sms_handler, [SmsHandler]},
-            {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions/:subscription_id",
-                eoa_sms_handler, [SmsHandler]},
-            {"/" ++ ?VERSION ++ "/smsmessaging/inbound/registrations/:registration_id/messages",
-                eoa_sms_handler, [SmsHandler]},
-            {"/" ++ ?VERSION ++ "/smsmessaging/inbound/subscriptions",
-                eoa_sms_handler, [SmsHandler]},
-            {"/" ++ ?VERSION ++ "/smsmessaging/inbound/subscriptions/:subscription_id",
-                eoa_sms_handler, [SmsHandler]}
-        ]
-    end.
+-spec build_sms_handle_spec(atom()) -> [term()].
+build_sms_handle_spec(SmsHandler) -> [
+    {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/requests",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/requests/:request_id/deliveryInfos",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions/:subscription_id",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/inbound/registrations/:registration_id/messages",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/inbound/subscriptions",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/inbound/subscriptions/:subscription_id",
+        oneapi_srv_gen_sms_handler, [SmsHandler]}
+].
 
 -spec deliver_sms_status(delivery_receipt()) -> {ok, term()} | {error, term()}.
-deliver_sms_status(#delivery_receipt{    notify_url = NotifyURL,
-                                        callback = CallbackData,
-                                        dest_addr = RawDestAddr,
-                                        status = Status }) ->
+deliver_sms_status(#delivery_receipt{
+    notify_url = NotifyURL,
+    callback = CallbackData,
+    dest_addr = RawDestAddr,
+    status = Status
+}) ->
     DestAddr = << <<"tel:+">>/binary, RawDestAddr/binary>>,
     ContentType = "application/json",
     StatusBin = Status,
@@ -82,20 +81,20 @@ deliver_sms_status(#delivery_receipt{    notify_url = NotifyURL,
         ]}
     ]}],
     JsonBody = jsx:encode(Body),
-    httpc:request(    post,
-                    {binary_to_list(NotifyURL),    [],    ContentType, JsonBody},
-                    [{timeout, 5000}],
-                    [{body_format, binary}]    ).
+    httpc:request(post,
+        {binary_to_list(NotifyURL), [], ContentType, JsonBody},
+        [{timeout, 5000}], [{body_format, binary}]).
 
 -spec deliver_sms(inbound_sms()) -> {ok, term()} | {error, term()}.
 deliver_sms(#inbound_sms{
-                            notify_url = NotifyURL,
-                            date_time = DateTime,
-                            dest_addr = DestAddr,
-                            message_id = MessId,
-                            message = Message,
-                            sender_addr = SenderAddr,
-                            callback = CallBack        }) ->
+    notify_url = NotifyURL,
+    date_time = DateTime,
+    dest_addr = DestAddr,
+    message_id = MessId,
+    message = Message,
+    sender_addr = SenderAddr,
+    callback = CallBack
+}) ->
     DateTimeBin = ac_datetime:datetime_to_iso8601(DateTime),
     Body =
     [{<<"inboundSMSMessageNotification">>, [
@@ -110,10 +109,9 @@ deliver_sms(#inbound_sms{
     ]}],
     JsonBody = jsx:encode(Body),
     ContentType = "application/json",
-    httpc:request(    post,
-                    {binary_to_list(NotifyURL), [], ContentType, JsonBody},
-                    [{timeout, 5000}],
-                    [{body_format, binary}]).
+    httpc:request(post,
+        {binary_to_list(NotifyURL), [], ContentType, JsonBody},
+        [{timeout, 5000}], [{body_format, binary}]).
 
 %% ===================================================================
 %% HTTP Response Codes
@@ -148,7 +146,3 @@ exception(ExceptionTag, Variables, Req, State) ->
     Headers = [{'Content-Type', <<"application/json">>}],
     {ok, Req2} = cowboy_req:reply(Code, Headers, Body, Req),
     {ok, Req2, State}.
-
-%% ===================================================================
-%% Internal Functions
-%% ===================================================================
