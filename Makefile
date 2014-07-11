@@ -49,22 +49,22 @@ xref:
 	@./rebar skip_deps=true xref
 
 api-test:
-	@./rebar skip_deps=true eunit suites=k1api_common_test
+	@./rebar skip_deps=true eunit suites=oneapi_srv_common_test
 
 mt-postpaid-test:
-	@./rebar skip_deps=true eunit suites=k1api_common_test tests=outbound_sms_postpaid_test_
+	@./rebar skip_deps=true eunit suites=oneapi_srv_common_test tests=outbound_sms_postpaid_test_
 
 mt-prepaid-test:
-	@./rebar skip_deps=true eunit suites=k1api_common_test tests=mt_prepaid_sms_test_
+	@./rebar skip_deps=true eunit suites=oneapi_srv_common_test tests=mt_prepaid_sms_test_
 
 mo-test:
-	@./rebar skip_deps=true eunit suites=k1api_common_test tests=incoming_sms_sub_test_
+	@./rebar skip_deps=true eunit suites=oneapi_srv_common_test tests=incoming_sms_sub_test_
 
 retrieve-msgs-test:
-	@./rebar skip_deps=true eunit suites=k1api_common_test tests=retrieve_sms_test
+	@./rebar skip_deps=true eunit suites=oneapi_srv_common_test tests=retrieve_sms_test
 
 sms_receipts_sub_test:
-	@./rebar skip_deps=true eunit suites=k1api_common_test tests=sms_receipts_sub_test
+	@./rebar skip_deps=true eunit suites=oneapi_srv_common_test tests=sms_receipts_sub_test
 
 tags:
 	@find . -name "*.[e,h]rl" -print | etags -

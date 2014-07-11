@@ -1,11 +1,11 @@
--module(k1api_common_test).
+-module(oneapi_srv_common_test).
 -compile(export_all).
 
 %% @TODO Implement test for criteria, correlator, exceptions & also
 %% check all json keys for presents & and its' values
 
--include_lib ("etest_http/include/etest_http.hrl").
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("etest_http/include/etest_http.hrl").
 
 -define(join(Args), lists:concat(Args)).
 -define(url_encode(Args),
@@ -56,7 +56,7 @@ pass() -> "password".
 delimiter() -> "@".
 sender_addr() -> "tel%3A%2B375296660003".
 prepaid_sender_addr() -> "tel%3A%2B375296660004".
-k1api_client_msisdn() -> "tel%3A%2B375296660003".
+client_msisdn() -> "tel%3A%2B375296660003".
 message() -> "Hello World!".
 ver() -> "2".
 creds() ->
@@ -75,14 +75,12 @@ sms_notify_url() ->
 receipts_notify_url() ->
     ?join(["http://127.0.0.1:", notify_port(), "/receipts"]).
 
-
-
 %% ===================================================================
 %% Tests
 %% ===================================================================
 
 setup() ->
-    case oneapi_incoming_srv:start() of
+    case oneapi_srv_incoming_srv:start() of
         {ok, _Pid} ->
             ok;
         {error, {already_started, _Pid}} ->
@@ -101,14 +99,16 @@ outbound_sms_prepaid() ->
     %%
     Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
     NotifyURL = receipts_notify_url(),
-    Body = ?url_encode([{"address", "tel%3A%2B375291234567"},
-                        {"address", "tel%3A%2B375291234568"},
-                        {"senderAddress", prepaid_sender_addr()},
-                        {"message", message()},
-                        {"clientCorrelator", correlator()},
-                        {"notifyURL", NotifyURL},
-                        {"callbackData", "some-data-useful-to-the-requester"},
-                        {"senderName", "ACME%20Inc."}]),
+    Body = ?url_encode([
+        {"address", "tel%3A%2B375291234567"},
+        {"address", "tel%3A%2B375291234568"},
+        {"senderAddress", prepaid_sender_addr()},
+        {"message", message()},
+        {"clientCorrelator", correlator()},
+        {"notifyURL", NotifyURL},
+        {"callbackData", "some-data-useful-to-the-requester"},
+        {"senderName", "ACME%20Inc."}
+    ]),
     Headers = [{"Authorization", prepaid_creds()}],
     Response = ?perform_post(Url, Headers, Body),
     ?assert_status(201, Response),
@@ -144,14 +144,16 @@ outbound_sms_postpaid() ->
     %%
     Url = ?join([addr_preffix(), "/smsmessaging/outbound/", sender_addr(), "/requests"]),
     NotifyURL = receipts_notify_url(),
-    Body = ?url_encode([{"address", "tel%3A%2B375251234567"},
-                        {"address", "tel%3A%2B375251234568"},
-                        {"senderAddress", sender_addr()},
-                        {"message", message()},
-                        {"clientCorrelator", correlator()},
-                        {"notifyURL", NotifyURL},
-                        {"callbackData", "some-data-useful-to-the-requester"},
-                        {"senderName", "ACME%20Inc."}]),
+    Body = ?url_encode([
+        {"address", "tel%3A%2B375251234567"},
+        {"address", "tel%3A%2B375251234568"},
+        {"senderAddress", sender_addr()},
+        {"message", message()},
+        {"clientCorrelator", correlator()},
+        {"notifyURL", NotifyURL},
+        {"callbackData", "some-data-useful-to-the-requester"},
+        {"senderName", "ACME%20Inc."}
+    ]),
     Headers = [{"Authorization", creds()}],
     Response = ?perform_post(Url, Headers, Body),
     ?assert_status(201, Response),
@@ -199,13 +201,13 @@ incoming_sms_sub() ->
     CallbackData = "doSomething()",
     Url = ?join([addr_preffix(), "/smsmessaging/inbound/subscriptions"]),
     Body = ?url_encode([
-                        {"destinationAddress", k1api_client_msisdn()},
-                        {"notifyURL", sms_notify_url()},
-                        %% {"criteria", "TAG"},
-                        {"notificationFormat", "JSON"},
-                        {"callbackData", CallbackData},
-                        {"clientCorrelator", correlator()}
-                        ]),
+        {"destinationAddress", client_msisdn()},
+        {"notifyURL", sms_notify_url()},
+        %% {"criteria", "TAG"},
+        {"notificationFormat", "JSON"},
+        {"callbackData", CallbackData},
+        {"clientCorrelator", correlator()}
+    ]),
     Headers = [{"Authorization", creds()}],
     Response = ?perform_post(Url, Headers, Body),
     ?assert_status(201, Response),
@@ -215,13 +217,15 @@ incoming_sms_sub() ->
     %%
     SendInSmsUrl = "http://localhost:8071/inject_mo",
     TestIncomingSmsText = "TestOneApiIncomingSms",
-    Queries = [{"short_message", TestIncomingSmsText},
-                {"source_addr", "375441254746"},
-                {"destination_addr", "375296660003"},
-                {"source_addr_ton", "1"},
-                {"source_addr_npi", "0"},
-                {"dest_addr_ton", "1"},
-                {"dest_addr_npi", "1"}],
+    Queries = [
+        {"short_message", TestIncomingSmsText},
+        {"source_addr", "375441254746"},
+        {"destination_addr", "375296660003"},
+        {"source_addr_ton", "1"},
+        {"source_addr_npi", "0"},
+        {"dest_addr_ton", "1"},
+        {"dest_addr_npi", "1"}
+    ],
     SendInSmsResponse = ?perform_get(SendInSmsUrl, [], Queries),
     ?assert_status(200, SendInSmsResponse),
 
@@ -234,20 +238,13 @@ incoming_sms_sub() ->
     [IncomingSMS] = IncomingSMSes,
     DebugCallbackData = ?json_value([<<"inboundSMSMessageNotification">>, <<"callbackData">>], IncomingSMS),
     ?assertEqual(DebugCallbackData, list_to_binary(CallbackData)),
-    DebugMessageText = ?json_value([<<"inboundSMSMessageNotification">>, <<"inboundSMSMessage">>, <<"message">>], IncomingSMS),
+    DebugMessageText = ?json_value(
+        [<<"inboundSMSMessageNotification">>, <<"inboundSMSMessage">>, <<"message">>], IncomingSMS),
     ?assertEqual(DebugMessageText, list_to_binary(TestIncomingSmsText)),
-    ?json_value([<<"inboundSMSMessageNotification">>,
-                <<"inboundSMSMessage">>,
-                <<"dateTime">>], IncomingSMS),
-    ?json_value([<<"inboundSMSMessageNotification">>,
-                <<"inboundSMSMessage">>,
-                <<"destinationAddress">>], IncomingSMS),
-    ?json_value([<<"inboundSMSMessageNotification">>,
-                <<"inboundSMSMessage">>,
-                <<"messageId">>], IncomingSMS),
-    ?json_value([<<"inboundSMSMessageNotification">>,
-                <<"inboundSMSMessage">>,
-                <<"senderAddress">>], IncomingSMS),
+    ?json_value([<<"inboundSMSMessageNotification">>, <<"inboundSMSMessage">>, <<"dateTime">>], IncomingSMS),
+    ?json_value([<<"inboundSMSMessageNotification">>, <<"inboundSMSMessage">>, <<"destinationAddress">> ], IncomingSMS),
+    ?json_value([<<"inboundSMSMessageNotification">>, <<"inboundSMSMessage">>, <<"messageId">>], IncomingSMS),
+    ?json_value([<<"inboundSMSMessageNotification">>, <<"inboundSMSMessage">>, <<"senderAddress">>], IncomingSMS),
 
     %%
     %% Unsubscribe
@@ -262,17 +259,17 @@ sms_receipts_sub_test() ->
     %%
     %% Subscribe
     %%
-    Url = ?join([addr_preffix(), "/smsmessaging/outbound/", k1api_client_msisdn(), "/subscriptions"]),
+    Url = ?join([addr_preffix(), "/smsmessaging/outbound/", client_msisdn(), "/subscriptions"]),
     NotifyURL = receipts_notify_url(),
     Criteria = "Tag",
     CallbackData = "doSomething()",
     Correlator = correlator(),
     Body = ?url_encode([
-                        {"clientCorrelator", Correlator},
-                        {"notifyURL", NotifyURL},
-                        {"criteria", Criteria},
-                        {"callbackData", CallbackData}
-                        ]),
+        {"clientCorrelator", Correlator},
+        {"notifyURL", NotifyURL},
+        {"criteria", Criteria},
+        {"callbackData", CallbackData}
+    ]),
     Headers = [{"Authorization", creds()}],
     Response = ?perform_post(Url, Headers, Body),
     ?assert_status(201, Response),
@@ -288,6 +285,6 @@ sms_receipts_sub_test() ->
     %%
     ResourceUrl = ?json_value([<<"deliveryReceiptSubscription">>, <<"resourceURL">>], Response),
     ResourceID = binary_to_list(filename:basename(ResourceUrl)),
-    DelSubUrl = ?join([addr_preffix(), "/smsmessaging/outbound/", k1api_client_msisdn(), "/subscriptions/", ResourceID]),
+    DelSubUrl = ?join([addr_preffix(), "/smsmessaging/outbound/", client_msisdn(), "/subscriptions/", ResourceID]),
     DelResponse = ?perform_delete(DelSubUrl, Headers),
     ?assert_status(204, DelResponse).

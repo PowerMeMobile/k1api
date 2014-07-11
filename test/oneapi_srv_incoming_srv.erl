@@ -1,4 +1,4 @@
--module(oneapi_incoming_srv).
+-module(oneapi_srv_incoming_srv).
 
 -behaviour(gen_server).
 -behaviour(cowboy_http_handler).

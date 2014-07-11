@@ -36,8 +36,8 @@ You can find examples about how to send messages, subscribe/unsubscribe
 receipts or/and incoming messages, retrieve incoming messages
 in the following files and directories:
 
-- ./tests/*
-- ./tests/k1api_common_test.erl
+- test/*
+- test/k1api_common_test.erl
 
 ## Support and help ##
 
