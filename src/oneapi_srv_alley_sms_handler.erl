@@ -66,9 +66,12 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
     {ok, Result} = alley_services_mt:send(SendReq),
     ?log_debug("Got submit result: ~p", [Result]),
 
-    %%Status = ?gv(result, Result, <<"OK">>),
-    RequestID = ?gv(id, Result, <<"">>),
-    {ok, RequestID}.
+    case ?gv(id, Result) of
+        undefined ->
+            {exception, 'svc0004', [<<"address">>]};
+        RequestID ->
+            {ok, RequestID}
+    end.
 
 handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
     creds = Creds,

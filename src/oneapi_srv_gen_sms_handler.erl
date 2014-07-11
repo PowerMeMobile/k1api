@@ -252,8 +252,10 @@ process_outbound_sms_req( _, State = #state{
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
@@ -283,8 +285,10 @@ process_delivery_status_req(ReqId, State = #state{
             Headers = [{<<"content-type">>, <<"application/json">>}],
             {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
@@ -326,8 +330,10 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
@@ -345,8 +351,10 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
@@ -395,8 +403,10 @@ process_retrieve_sms_req(RegId, State = #state{
             Headers = [{<<"content-type">>, <<"application/json">>}],
             {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
@@ -429,8 +439,10 @@ process_sms_delivery_subscribe_req( _, State = #state{
             Headers = [{<<"location">>, Location}, {<<"content-type">>, ContentType}],
             {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
@@ -446,8 +458,10 @@ process_sms_delivery_unsubscribe_req(SubId, State = #state{
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {exception, Exception} ->
+            oneapi_srv_protocol:exception(Exception, Req, State);
+        {exception, Exception, Vars} ->
+            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
     end.
 
 %% ===================================================================
