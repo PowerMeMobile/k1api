@@ -124,7 +124,7 @@ code(500, Req, State) ->
     {ok, Req2, State};
 
 code(401, Req, State) ->
-    Headers = [{'Www-Authenticate', <<"Basic">>}],
+    Headers = [{<<"www-authenticate">>, <<"Basic">>}],
     Body = <<"Authentication failure, check your authentication details">>,
     {ok, Req2} = cowboy_req:reply(401, Headers, Body, Req),
     {ok, Req2, State};
@@ -143,6 +143,6 @@ code(404, Req, State) ->
 exception(ExceptionTag, Variables, Req, State) ->
     {ok, Body, Code} =
         oneapi_srv_exception:exception_body_and_code(ExceptionTag, Variables),
-    Headers = [{'Content-Type', <<"application/json">>}],
+    Headers = [{<<"content-type">>, <<"application/json">>}],
     {ok, Req2} = cowboy_req:reply(Code, Headers, Body, Req),
     {ok, Req2, State}.
