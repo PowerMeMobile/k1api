@@ -11,4 +11,5 @@ REQ_BODY="clientCorrelator=$CORRELATOR&notifyURL=http://www.yourURL.here&criteri
 
 echo request body: $REQ_BODY
 
-echo -n $REQ_BODY | lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'POST' $HOST:$PORT/2/smsmessaging/outbound/$DEST_ADDR/subscriptions; echo
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X $HOST:$PORT/2/smsmessaging/outbound/$DEST_ADDR/subscriptions -d $REQ_BODY
+echo

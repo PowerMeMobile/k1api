@@ -7,4 +7,5 @@ USER=user
 PASSWORD=password
 SENDER_ADDR=tel%3A%2B375296660003
 
-lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'GET' $HOST:$PORT/2/smsmessaging/inbound/registrations/$SENDER_ADDR/messages?maxBatchSize=2; echo
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X GET $HOST:$PORT/2/smsmessaging/inbound/registrations/$SENDER_ADDR/messages?maxBatchSize=2
+echo

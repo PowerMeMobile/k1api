@@ -6,4 +6,5 @@ CUSTOMER=oneapi-postpaid
 USER=user
 PASSWORD=password
 
-lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'DELETE' $HOST:$PORT/2/smsmessaging/inbound/subscriptions/$1; echo
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/2/smsmessaging/inbound/subscriptions/$1
+echo

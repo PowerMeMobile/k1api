@@ -24,10 +24,11 @@ MESSAGE_BODY=Hello%20Worldприветdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbk
 
 CORRELATOR=$RANDOM
 #CORRELATOR=25024
-REQUEST_BODY="address=tel%3A%2B13500000991&address=tel%3A%2B13500000992&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://application.example.com/notifications/DeliveryInfoNotification&callbackData=some-data-useful-to-the-requester&senderName=ACME%20Inc.";
+REQUEST_BODY="address=tel%3A%2B375296543210&address=tel%3A%2B375296543211&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://application.example.com/notifications/DeliveryInfoNotification&callbackData=some-data-useful-to-the-requester&senderName=ACME%20Inc.";
 
 echo "Correlator: $CORRELATOR";
 echo "Request body: $REQUEST_BODY";
 echo "==========================="
-echo "$IFS"
-echo -n $REQUEST_BODY | lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'POST' $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests; echo
+
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests -d $REQUEST_BODY
+echo

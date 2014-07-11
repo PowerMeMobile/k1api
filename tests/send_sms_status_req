@@ -8,4 +8,5 @@ USER=user
 PASSWORD=password
 SENDER_ADDR=tel%3A%2B375296660003
 
-lwp-request -C $CUSTOMER@$USER:$PASSWORD -UsSe -m 'GET' $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests/$REQ_ID/deliveryInfos; echo
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X GET $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests/$REQ_ID/deliveryInfos
+echo
