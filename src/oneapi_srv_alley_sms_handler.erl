@@ -48,9 +48,8 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
     Recipients = reformat_addrs(OutboundSms#outbound_sms.dest_addr),
     Originator = reformat_addr(OutboundSms#outbound_sms.sender_addr),
     Message = OutboundSms#outbound_sms.message,
-
-        %% ?just_sms_request_param(<<"oneapi_notify_url">>, NotifyURL),
-        %% ?just_sms_request_param(<<"oneapi_callback_data">>, CallbackData),
+    NotifyURL = OutboundSms#outbound_sms.notify_url,
+    CallbackData = OutboundSms#outbound_sms.callback_data,
 
     SendReq = #send_req{
         action = send_sms,
@@ -61,7 +60,11 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
         recipients = Recipients,
         originator = Originator,
         text = Message,
-        flash = false
+        flash = false,
+        smpp_params = [
+            {<<"oneapi_notify_url">>, NotifyURL},
+            {<<"oneapi_callback_data">>, CallbackData}
+        ]
     },
     {ok, Result} = alley_services_mt:send(SendReq),
     ?log_debug("Got submit result: ~p", [Result]),
