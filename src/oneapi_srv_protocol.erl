@@ -9,7 +9,6 @@
 %% API
 -export([
     init/0,
-    build_sms_handle_spec/1,
     deliver_sms_status/1,
     deliver_sms/1,
     exception/3,
@@ -36,11 +35,13 @@ init() ->
         }
     ]),
     ProtoOpts = [
-        {env, [{dispatch, Dispatch}]}
+        {env, [{dispatch, Dispatch}]},
+        {onrequest, fun oneapi_srv_gen_sms_handler:onrequest_hook/1},
+        {onresponse, fun oneapi_srv_gen_sms_handler:onresponse_hook/4}
     ],
 
     {ok, _Pid} = cowboy:start_http(
-        my_http_listener, AcceptorsNum, TransOpts, ProtoOpts
+        ?MODULE, AcceptorsNum, TransOpts, ProtoOpts
     ),
     ?log_info("http server is listening to ~p:~p", [Addr, Port]),
     ok.

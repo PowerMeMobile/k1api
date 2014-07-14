@@ -9,6 +9,12 @@
     terminate/3
 ]).
 
+%% cowboy hooks
+-export([
+    onrequest_hook/1,
+    onresponse_hook/4
+]).
+
 -include("application.hrl").
 -include("oneapi_srv.hrl").
 
@@ -85,7 +91,9 @@ handle(Req, State = #state{}) ->
     end.
 
 terminate(_Reason, _Req, _State) ->
-    ok.
+    clean_body(),       %% Need to cleanup body record in proc dict
+    ok.                 %% since cowboy uses one process per several
+                        %% requests in keepalive mode
 
 %% ===================================================================
 %% Parsing http requests
@@ -465,6 +473,47 @@ process_sms_delivery_unsubscribe_req(SubId, State = #state{
     end.
 
 %% ===================================================================
+%% Cowboy hooks
+%% ===================================================================
+
+%% Since app uses cowboy onresponse hook for logging purposes
+%% and also need http request body in debug mode,
+%% to overcome cowboy restriction about request body
+%% (read http://ninenines.eu/docs/en/cowboy/HEAD/guide/req)
+%% that the request body can only be done once, as it is
+%% read directly from the socket, app uses following
+%% strategy:
+%% 1. Save request body to proc dictionary with onrequest hook
+%% 2. Uses get_body() function to get body from dictionary
+%% 3. Cleanup req_body with clean_body() function on terminate since
+%% the same process can be used to process next request in kepepalive
+%% mode (read http://ninenines.eu/docs/en/cowboy/HEAD/guide/internals
+%% 'One process for many requests' section)
+
+-spec onrequest_hook(cowboy_req:req()) -> cowboy_req:req().
+onrequest_hook(Req) ->
+    %% 2k recipients = 28k body for HTTP POST x-www-form-urlencoded
+    {ok, Body, Req2} = cowboy_req:body(800000, Req),
+    put(req_body, Body),
+    Req2.
+
+-spec onresponse_hook(non_neg_integer(),
+    list(), binary(), cowboy_req:req()) -> cowboy_req:req().
+onresponse_hook(RespCode, RespHeaders, RespBody, Req) ->
+    ReqBody = get_body(),
+    alley_services_http_in_logger:log(
+        RespCode, RespHeaders, RespBody, Req, ReqBody),
+    {ok, Req2} =
+        cowboy_req:reply(RespCode, RespHeaders, RespBody, Req),
+    Req2.
+
+get_body() ->
+    get(req_body).
+
+clean_body() ->
+    put(req_body, undefined).
+
+%% ===================================================================
 %% Internal
 %% ===================================================================
 
@@ -473,9 +522,7 @@ get_prop_list(Req) ->
     ReqPropList =
         case Method of
             <<"POST">> ->
-                {ok, BodyQs, Req3} = cowboy_req:body_qs(Req2),
-                {QsVals, _Req4} = cowboy_req:qs_vals(Req3),
-                BodyQs ++ QsVals;
+                cow_qs:parse_qs(get_body()),
             _Any ->
                 {QsVals, _Req3} = cowboy_req:qs_vals(Req2),
                 QsVals
