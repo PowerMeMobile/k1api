@@ -237,20 +237,20 @@ process_outbound_sms_req(_, State = #state{
     req = Req,
     sender_addr = _Addr
 }) ->
-    {ok, ReqPropList} = get_prop_list(Req),
+    {QsVals, Req2} = get_qs_vals(Req),
     SendSmsReq = #outbound_sms{
-        dest_addr     = gmv(ReqPropList, <<"address">>),
-        sender_addr   = gv(ReqPropList, <<"senderAddress">>),
-        message       = gv(ReqPropList, <<"message">>),
-        sender_name   = gv(ReqPropList, <<"senderName">>),
-        notify_url    = gv(ReqPropList, <<"notifyURL">>),
-        correlator    = gv(ReqPropList, <<"clientCorrelator">>),
-        callback_data = gv(ReqPropList, <<"callbackData">>)
+        dest_addr     = gmv(QsVals, <<"address">>),
+        sender_addr   = gv(QsVals, <<"senderAddress">>),
+        message       = gv(QsVals, <<"message">>),
+        sender_name   = gv(QsVals, <<"senderName">>),
+        notify_url    = gv(QsVals, <<"notifyURL">>),
+        correlator    = gv(QsVals, <<"clientCorrelator">>),
+        callback_data = gv(QsVals, <<"callbackData">>)
     },
     case Mod:handle_send_sms_req(SendSmsReq, MState) of
         {ok, ReqId} ->
             ContentType = <<"application/json">>,
-            Location = build_resource_url(Req, ReqId),
+            Location = build_resource_url(Req2, ReqId),
             Body = [
                 {<<"resourceReference">>, [
                     {<<"resourceURL">>, Location}
@@ -258,12 +258,12 @@ process_outbound_sms_req(_, State = #state{
             ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
-            {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
-            {ok, Req2, State};
+            {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
+            {ok, Req3, State#state{req = Req3}};
         {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
+            oneapi_srv_protocol:exception(Exception, Req2, State);
         {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+            oneapi_srv_protocol:exception(Exception, Vars, Req2, State)
     end.
 
 %% ===================================================================
@@ -309,21 +309,21 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
     mstate = MState,
     sender_addr = Addr
 }) ->
-    {ok, ReqPropList} = get_prop_list(Req),
+    {QsVals, Req2} = get_qs_vals(Req),
     Request = #delivery_receipt_subscribe{
         sender_addr   = Addr,
-        notify_url    = gv(ReqPropList, <<"notifyURL">>),
-        correlator    = gv(ReqPropList, <<"clientCorrelator">>),
-        criteria      = gv(ReqPropList, <<"criteria">>),
-        callback_data = gv(ReqPropList, <<"callbackData">>)
+        notify_url    = gv(QsVals, <<"notifyURL">>),
+        correlator    = gv(QsVals, <<"clientCorrelator">>),
+        criteria      = gv(QsVals, <<"criteria">>),
+        callback_data = gv(QsVals, <<"callbackData">>)
     },
     case Mod:handle_delivery_notifications_subscribe(Request, MState) of
         {ok, SubscribeId} ->
-            CallBackData = gv(ReqPropList, <<"callbackData">>),
-            NotifyURL = gv(ReqPropList, <<"notifyURL">>),
+            CallBackData = gv(QsVals, <<"callbackData">>),
+            NotifyURL = gv(QsVals, <<"notifyURL">>),
             Location = build_resource_url(Req, SubscribeId),
             ContentType = <<"application/json">>,
-            Criteria = gv(ReqPropList, <<"criteria">>),
+            Criteria = gv(QsVals, <<"criteria">>),
             Body = [
                 {<<"deliveryReceiptSubscription">>, [
                     {<<"callbackReference">>, [
@@ -336,12 +336,12 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
             ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
-            {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
-            {ok, Req2, State};
+            {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
+            {ok, Req3, State#state{req = Req3}};
         {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
+            oneapi_srv_protocol:exception(Exception, Req2, State);
         {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+            oneapi_srv_protocol:exception(Exception, Vars, Req2, State)
     end.
 
 %% ===================================================================
@@ -374,10 +374,10 @@ process_retrieve_sms_req(RegId, State = #state{
     mstate = MState,
     req = Req
 }) ->
-    {ok, ReqPropList} = get_prop_list(Req),
+    {QsVals, Req2} = get_qs_vals(Req),
     RetrieveSmsReq = #retrieve_sms_req{
         reg_id = RegId,
-        batch_size = giv(ReqPropList, <<"maxBatchSize">>)
+        batch_size = giv(QsVals, <<"maxBatchSize">>)
     },
     Result = Mod:handle_retrieve_req(RetrieveSmsReq, MState),
     case Result of
@@ -409,12 +409,12 @@ process_retrieve_sms_req(RegId, State = #state{
             ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, <<"application/json">>}],
-            {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
-            {ok, Req2, State};
+            {ok, Req3} = cowboy_req:reply(200, Headers, JsonBody, Req2),
+            {ok, Req3, State#state{req = Req3}};
         {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
+            oneapi_srv_protocol:exception(Exception, Req2, State);
         {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+            oneapi_srv_protocol:exception(Exception, Vars, Req2, State)
     end.
 
 %% ===================================================================
@@ -426,13 +426,13 @@ process_sms_delivery_subscribe_req( _, State = #state{
     mod = Mod,
     mstate = MState
 }) ->
-    {ok, ReqPropList} = get_prop_list(Req),
+    {QsVals, Req2} = get_qs_vals(Req),
     SubscribeInbound = #subscribe_inbound{
-        dest_addr     = convert_addr(gv(ReqPropList, <<"destinationAddress">>)),
-        notify_url    = gv(ReqPropList, <<"notifyURL">>),
-        criteria      = gv(ReqPropList, <<"criteria">>),
-        callback_data = gv(ReqPropList, <<"callbackData">>),
-        correlator    = gv(ReqPropList, <<"clientCorrelator">>)
+        dest_addr     = convert_addr(gv(QsVals, <<"destinationAddress">>)),
+        notify_url    = gv(QsVals, <<"notifyURL">>),
+        criteria      = gv(QsVals, <<"criteria">>),
+        callback_data = gv(QsVals, <<"callbackData">>),
+        correlator    = gv(QsVals, <<"clientCorrelator">>)
     },
     case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
         {ok, SubId} ->
@@ -445,8 +445,8 @@ process_sms_delivery_subscribe_req( _, State = #state{
             ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"location">>, Location}, {<<"content-type">>, ContentType}],
-            {ok, Req2} = cowboy_req:reply(201, Headers, JsonBody, Req),
-            {ok, Req2, State};
+            {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
+            {ok, Req3, State#state{req = Req3}};
         {exception, Exception} ->
             oneapi_srv_protocol:exception(Exception, Req, State);
         {exception, Exception, Vars} ->
@@ -517,17 +517,18 @@ clean_body() ->
 %% Internal
 %% ===================================================================
 
-get_prop_list(Req) ->
+get_qs_vals(Req) ->
     {Method, Req2} = cowboy_req:method(Req),
-    ReqPropList =
+    {QsVals2, Req4} =
         case Method of
             <<"POST">> ->
-                cow_qs:parse_qs(get_body()),
+                BodyQs = cow_qs:parse_qs(get_body()),
+                {BodyQs, Req2};
             _Any ->
-                {QsVals, _Req3} = cowboy_req:qs_vals(Req2),
-                QsVals
+                {QsVals, Req3} = cowboy_req:qs_vals(Req2),
+                {QsVals, Req3}
         end,
-    {ok, ReqPropList}.
+    {QsVals2, Req4}.
 
 convert_addr(<<"tel:+", Bin/binary>>) ->
     Bin;
@@ -535,26 +536,26 @@ convert_addr(Bin) when is_binary(Bin) ->
     Bin.
 
 %% Return integer value from proplist of request
-giv(ReqPropList, Key) ->
-    case gv(ReqPropList, Key) of
+giv(QsVals, Key) ->
+    case gv(QsVals, Key) of
         undefined -> undefined;
         Value -> list_to_integer(binary_to_list(Value))
     end.
 
-gv(ReqPropList, Key) ->
-    case lists:keytake(Key, 1, ReqPropList) of
+gv(QsVals, Key) ->
+    case lists:keytake(Key, 1, QsVals) of
         {value, {_, Value}, _TupleList2} -> Value;
         _ -> undefined
     end.
 
-gmv(ReqPropList, Key) ->
+gmv(QsVals, Key) ->
     lists:flatten(
         lists:map(fun({K, V})->
             case K of
                 Key -> V;
                 _ -> []
             end
-        end, ReqPropList)).
+        end, QsVals)).
 
 build_resource_url(Req) ->
     build_resource_url(Req, <<>>).
