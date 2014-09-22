@@ -7,5 +7,5 @@ USER=user
 PASSWORD=password
 DEST_ADDR=tel%3A%2B375296660003
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/2/smsmessaging/outbound/$DEST_ADDR/subscriptions/$1
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/1/smsmessaging/outbound/$DEST_ADDR/subscriptions/$1
 echo

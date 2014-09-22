@@ -11,5 +11,5 @@ REQ_BODY="clientCorrelator=$CORRELATOR&notifyURL=http://www.yourURL.here&criteri
 
 echo request body: $REQ_BODY
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X $HOST:$PORT/2/smsmessaging/outbound/$DEST_ADDR/subscriptions -d $REQ_BODY
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$DEST_ADDR/subscriptions -d $REQ_BODY
 echo

@@ -13,7 +13,5 @@ BODY="destinationAddress=$DEST_ADDR&notifyURL=$NOTIFY_URL&criteria=$CRITERIA\
 &notificationFormat=JSON&callbackData=$CALLBACK&clientCorrelator=$CORRELATOR"
 
 echo Request body: $BODY
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/2/smsmessaging/inbound/subscriptions -d $BODY
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/inbound/subscriptions -d $BODY
 echo
-
-

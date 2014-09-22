@@ -4,7 +4,7 @@
 -include("oneapi_srv.hrl").
 -include_lib("alley_common/include/logging.hrl").
 
--define(VERSION, "2").
+-define(VERSION, "1").
 
 %% API
 -export([

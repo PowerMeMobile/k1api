@@ -6,5 +6,5 @@ CUSTOMER=oneapi-postpaid
 USER=user
 PASSWORD=password
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/2/smsmessaging/inbound/subscriptions/$1
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/1/smsmessaging/inbound/subscriptions/$1
 echo

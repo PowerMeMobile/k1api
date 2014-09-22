@@ -8,5 +8,5 @@ USER=user
 PASSWORD=password
 SENDER_ADDR=tel%3A%2B375296660003
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X GET $HOST:$PORT/2/smsmessaging/outbound/$SENDER_ADDR/requests/$REQ_ID/deliveryInfos
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X GET $HOST:$PORT/1/smsmessaging/outbound/$SENDER_ADDR/requests/$REQ_ID/deliveryInfos
 echo

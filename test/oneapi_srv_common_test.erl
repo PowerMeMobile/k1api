@@ -58,7 +58,7 @@ sender_addr() -> "tel%3A%2B375296660003".
 prepaid_sender_addr() -> "tel%3A%2B375296660004".
 client_msisdn() -> "tel%3A%2B375296660003".
 message() -> "Hello World!".
-ver() -> "2".
+ver() -> "1".
 creds() ->
     Creds = ?join([postpaid_customer(), delimiter(), user(), ":", pass()]),
     base64:encode_to_string(Creds).
