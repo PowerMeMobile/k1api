@@ -38,12 +38,15 @@ init(Creds = #credentials{}) ->
         alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password),
     {ok, #state{creds = Creds, response = Response}}.
 
-handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
+handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
     ?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
 
-    CustomerId = Creds#credentials.customer_id,
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    %%CustomerId = Creds#credentials.customer_id,
     UserId     = Creds#credentials.user_id,
-    Password   = Creds#credentials.password,
 
     Recipients = reformat_addrs(OutboundSms#outbound_sms.dest_addr),
     Originator = reformat_addr(OutboundSms#outbound_sms.sender_addr),
@@ -54,9 +57,9 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
     SendReq = #send_req{
         action = send_sms,
         customer_id = CustomerId,
-        user_name = UserId,
+        user_id = UserId,
         client_type = oneapi,
-        password = Password,
+        customer = Customer,
         recipients = Recipients,
         originator = Originator,
         text = Message,
@@ -69,11 +72,12 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{creds = Creds}) ->
     {ok, Result} = alley_services_mt:send(SendReq),
     ?log_debug("Got submit result: ~p", [Result]),
 
-    case ?gv(id, Result) of
-        undefined ->
-            {exception, 'svc0004', [<<"address">>]};
-        RequestID ->
-            {ok, RequestID}
+    case Result#send_result.result of
+        ok ->
+            {ok, Result#send_result.req_id};
+        _Error ->
+            %% TODO handle errors
+            {exception, 'svc0004', [<<"address">>]}
     end.
 
 handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
