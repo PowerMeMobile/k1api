@@ -42,17 +42,28 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
-    ?log_debug("Got outbound sms request:  ~p", [OutboundSms]),
+    ?log_debug("Got outbound sms request: ~p", [OutboundSms]),
 
     CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
-    %%CustomerId = Creds#credentials.customer_id,
     UserId     = Creds#credentials.user_id,
 
-    Recipients = reformat_addrs(OutboundSms#outbound_sms.dest_addr),
-    Originator = reformat_addr(OutboundSms#outbound_sms.sender_addr),
+    Recipients = reformat_addrs(OutboundSms#outbound_sms.address),
+    Originator = reformat_addr(OutboundSms#outbound_sms.sender_address),
     Message = OutboundSms#outbound_sms.message,
-    NotifyURL = OutboundSms#outbound_sms.notify_url,
-    CallbackData = OutboundSms#outbound_sms.callback_data,
+
+    Params =
+        case OutboundSms#outbound_sms.notify_url of
+            undefined ->
+                [];
+            NotifyUrl ->
+                case OutboundSms#outbound_sms.callback_data of
+                    undefined ->
+                        [{<<"oneapi_notify_url">>, NotifyUrl}];
+                    CallbackData ->
+                        [{<<"oneapi_notify_url">>, NotifyUrl},
+                         {<<"oneapi_callback_data">>, CallbackData}]
+                end
+        end,
 
     SendReq = #send_req{
         action = send_sms,
@@ -64,10 +75,7 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
         originator = Originator,
         text = Message,
         flash = false,
-        smpp_params = [
-            {<<"oneapi_notify_url">>, NotifyURL},
-            {<<"oneapi_callback_data">>, CallbackData}
-        ]
+        smpp_params = Params
     },
     {ok, Result} = alley_services_mt:send(SendReq),
     ?log_debug("Got submit result: ~p", [Result]),

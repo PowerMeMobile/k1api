@@ -239,13 +239,15 @@ process_outbound_sms_req(_, State = #state{
 }) ->
     {QsVals, Req2} = get_qs_vals(Req),
     SendSmsReq = #outbound_sms{
-        dest_addr     = gmv(QsVals, <<"address">>),
-        sender_addr   = gv(QsVals, <<"senderAddress">>),
-        message       = gv(QsVals, <<"message">>),
-        sender_name   = gv(QsVals, <<"senderName">>),
-        notify_url    = gv(QsVals, <<"notifyURL">>),
-        correlator    = gv(QsVals, <<"clientCorrelator">>),
-        callback_data = gv(QsVals, <<"callbackData">>)
+        %% mandatory
+        address        = gmv(QsVals, <<"address">>),
+        message        = gv(QsVals, <<"message">>),
+        sender_address = gv(QsVals, <<"senderAddress">>),
+        %% optional
+        client_correlator = gv(QsVals, <<"clientCorrelator">>),
+        sender_name       = gv(QsVals, <<"senderName">>),
+        notify_url        = gv(QsVals, <<"notifyURL">>),
+        callback_data     = gv(QsVals, <<"callbackData">>)
     },
     case Mod:handle_send_sms_req(SendSmsReq, MState) of
         {ok, ReqId} ->
@@ -531,6 +533,8 @@ get_qs_vals(Req) ->
     {QsVals2, Req4}.
 
 convert_addr(<<"tel:+", Bin/binary>>) ->
+    Bin;
+convert_addr(<<"tel:", Bin/binary>>) ->
     Bin;
 convert_addr(Bin) when is_binary(Bin) ->
     Bin.

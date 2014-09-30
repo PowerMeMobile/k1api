@@ -21,12 +21,12 @@
 -type credentials() :: #credentials{}.
 
 -record(outbound_sms, {
-    dest_addr           :: [address()],
-    sender_addr         :: address(),
+    address             :: [address()],
+    sender_address      :: address(),
     message             :: binary(),
     sender_name         :: undefined | binary(),
     notify_url          :: undefined | binary(),
-    correlator          :: undefined | binary(),
+    client_correlator   :: undefined | binary(),
     callback_data       :: undefined | binary()
 }).
 -type outbound_sms()    :: #outbound_sms{}.
