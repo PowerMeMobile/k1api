@@ -47,23 +47,13 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
     CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
     UserId     = Creds#credentials.user_id,
 
+    %% mandatory
     Recipients = reformat_addrs(OutboundSms#outbound_sms.address),
     Originator = reformat_addr(OutboundSms#outbound_sms.sender_address),
-    Message = OutboundSms#outbound_sms.message,
+    Message    = OutboundSms#outbound_sms.message,
 
-    Params =
-        case OutboundSms#outbound_sms.notify_url of
-            undefined ->
-                [];
-            NotifyUrl ->
-                case OutboundSms#outbound_sms.callback_data of
-                    undefined ->
-                        [{<<"oneapi_notify_url">>, NotifyUrl}];
-                    CallbackData ->
-                        [{<<"oneapi_notify_url">>, NotifyUrl},
-                         {<<"oneapi_callback_data">>, CallbackData}]
-                end
-        end,
+    %% optional
+    Params = outbound_sms_optional_params(OutboundSms),
 
     SendReq = #send_req{
         action = send_sms,
@@ -148,8 +138,8 @@ handle_delivery_notifications_subscribe(Req, #state{
 }) ->
     ?log_debug("Got delivery notifications subscribe request: ~p", [Req]),
     #delivery_receipt_subscribe{
-        sender_addr = Sender,
-        notify_url = Url,
+        sender_addr = SenderAddr,
+        notify_url = NotifyUrl,
         correlator = Correlator,
         criteria = _Criteria,
         callback_data = CallbackData
@@ -160,9 +150,9 @@ handle_delivery_notifications_subscribe(Req, #state{
     case oneapi_srv_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
         ok ->
             ?log_debug("Correlator saved", []),
-            DestAddr = #addr{addr = Sender, ton = 1, npi = 1},
+            SourceAddr = #addr{addr = SenderAddr, ton = 1, npi = 1},
             {ok, _Response} = alley_services_api:subscribe_sms_receipts(
-                ReqID, CustomerUUID, UserID, Url, DestAddr, CallbackData),
+                ReqID, CustomerUUID, UserID, NotifyUrl, SourceAddr, CallbackData),
             {ok, ReqID};
         {correlator_exist, OrigReqID} ->
             ?log_debug("Correlator exist: ~p", [OrigReqID]),
@@ -227,6 +217,21 @@ handle_inbound_unsubscribe(SubscribeID, #state{
 %% ===================================================================
 %% Internal
 %% ===================================================================
+
+outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
+    Fun =
+        fun({Name, Index}, Acc) ->
+            case element(Index, OutboundSms) of
+                undefined ->
+                    Acc;
+                Value ->
+                    [{Name, Value} | Acc]
+            end
+        end,
+    Params = [{<<"oneapi_client_correlator">>, #outbound_sms.client_correlator},
+              {<<"oneapi_notify_url">>, #outbound_sms.notify_url},
+              {<<"oneapi_callback_data">>, #outbound_sms.callback_data}],
+    lists:foldl(Fun, [], Params).
 
 convert_delivery_statuses(Status = #k1api_sms_status_dto{}) ->
     #k1api_sms_status_dto{

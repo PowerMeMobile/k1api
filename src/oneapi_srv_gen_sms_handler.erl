@@ -309,11 +309,11 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState,
-    sender_addr = Addr
+    sender_addr = SenderAddr
 }) ->
     {QsVals, Req2} = get_qs_vals(Req),
     Request = #delivery_receipt_subscribe{
-        sender_addr   = Addr,
+        sender_addr   = SenderAddr,
         notify_url    = gv(QsVals, <<"notifyURL">>),
         correlator    = gv(QsVals, <<"clientCorrelator">>),
         criteria      = gv(QsVals, <<"criteria">>),
