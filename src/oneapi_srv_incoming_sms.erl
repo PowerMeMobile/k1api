@@ -1,4 +1,4 @@
--module(k1api_incoming_srv).
+-module(oneapi_srv_incoming_sms).
 
 -behaviour(gen_server).
 
@@ -65,7 +65,6 @@ handle_info({#'basic.deliver'{},
         content_type = ContentType
     } = Props,
     {ok, DTO} = decode_dto(Payload, ContentType),
-    ?log_debug("Got DTO: ~p", [DTO]),
     case process_dto(DTO) of
         {ok, ID} ->
             respond_and_ack(ID, MsgID, ReplyTo, Chan);
@@ -89,7 +88,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
     DTO = #funnel_ack_dto{id = ID},
-    {ok, Encoded} =    adto:encode(DTO),
+    {ok, Encoded} = adto:encode(DTO),
     RespProps = #'P_basic'{
         content_type   = <<"BatchAck">>,
         correlation_id = MsgId,
