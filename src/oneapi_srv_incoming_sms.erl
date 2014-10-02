@@ -7,7 +7,7 @@
     start_link/0
 ]).
 
-%% GenServer Callback Exports
+%% gen_server callbacks
 -export([
     init/1,
     handle_cast/2,
@@ -29,7 +29,7 @@
 }).
 
 %% ===================================================================
-%% API Functions
+%% API
 %% ===================================================================
 
 -spec start_link() -> {ok, pid()}.
@@ -37,7 +37,7 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% ===================================================================
-%% GenServer Callback Functions
+%% gen_server callbacks
 %% ===================================================================
 
 init([]) ->
@@ -123,25 +123,29 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
         callback_data = CallbackData
     },
     case oneapi_srv_protocol:deliver_sms(InboundSms) of
-        {ok, _} -> {ok, MessageID};
-        {error, _Error} -> noreply
+        {ok, _} ->
+            {ok, MessageID};
+        {error, _Error} ->
+            noreply
     end;
 process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
     ?log_debug("Got Receipt: ~p", [DTO]),
     #k1api_sms_delivery_receipt_notification_dto{
         id = ItemID,
-        dest_addr = DestAddr,
-        status = MessageState,
+        url = NotifyURL,
         callback_data = CallbackData,
-        url = NotifyURL
+        dest_addr = DestAddr,
+        status = Status
     } = DTO,
     Receipt = #delivery_receipt{
         notify_url = NotifyURL,
         callback_data = CallbackData,
         dest_addr = DestAddr#addr.addr,
-        status = MessageState
+        status = oneapi_srv_utils:translate_status_name(Status)
     },
     case oneapi_srv_protocol:deliver_sms_status(Receipt) of
-        {ok, _} -> {ok, ItemID};
-        {error, _Error} -> noreply
+        {ok, _} ->
+            {ok, ItemID};
+        {error, _Error} ->
+            noreply
     end.

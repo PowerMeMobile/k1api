@@ -71,15 +71,14 @@ deliver_sms_status(#delivery_receipt{
     dest_addr = RawDestAddr,
     status = Status
 }) ->
-    DestAddr = << <<"tel:+">>/binary, RawDestAddr/binary>>,
+    DestAddr = << <<"tel:">>/binary, RawDestAddr/binary>>,
     ContentType = "application/json",
-    StatusBin = Status,
     Body = [
         {<<"deliveryInfoNotification">>, [
             {<<"callbackData">>, CallbackData},
             {<<"deliveryInfo">>, [
                 {<<"address">>, DestAddr},
-                {<<"deliveryStatus">>, StatusBin}
+                {<<"deliveryStatus">>, Status}
             ]}
         ]}
     ],

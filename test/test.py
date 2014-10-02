@@ -36,7 +36,7 @@ def test_send_without_notify_url():
     req_fmt = "url"
     result = client.send_sms(sms, {"accept":"json"}, req_fmt)
     assert result.is_success() == True
-    time.sleep(2)
+    time.sleep(5)
     delivery_info_list = client.query_delivery_status(result.client_correlator, result.sender)
     print(delivery_info_list)
     assert delivery_info_list.is_success() == True
@@ -62,7 +62,7 @@ def test_send_with_notify_url():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(NOTIFY_URL_PORT)
-    server.start_wait_and_shutdown(2)
+    server.start_wait_and_shutdown(5)
 
     requests = server.get_requests()
     assert requests

@@ -48,8 +48,8 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
     UserId     = Creds#credentials.user_id,
 
     %% mandatory
-    Recipients = reformat_addrs(OutboundSms#outbound_sms.address),
-    Originator = reformat_addr(OutboundSms#outbound_sms.sender_address),
+    Recipients = oneapi_srv_utils:reformat_addrs(OutboundSms#outbound_sms.address),
+    Originator = oneapi_srv_utils:reformat_addr(OutboundSms#outbound_sms.sender_address),
     Message    = OutboundSms#outbound_sms.message,
 
     %% optional
@@ -233,48 +233,9 @@ outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
               {<<"oneapi_callback_data">>, #outbound_sms.callback_data}],
     lists:foldl(Fun, [], Params).
 
-convert_delivery_statuses(Status = #k1api_sms_status_dto{}) ->
-    #k1api_sms_status_dto{
-        address = AddrDTO,
-        status = StatusNameDTO
-    } = Status,
-    {AddrDTO#addr.addr, translate_status_name(StatusNameDTO)};
+convert_delivery_statuses(#k1api_sms_status_dto{
+    address = Addr, status = Status
+}) ->
+    {Addr#addr.addr, oneapi_srv_utils:translate_status_name(Status)};
 convert_delivery_statuses(Statuses) ->
     [convert_delivery_statuses(Status) || Status <- Statuses].
-
-translate_status_name(<<"submitted">>) ->
-    <<"MessageWaiting">>;
-translate_status_name(<<"success_waiting_delivery">>) ->
-    <<"MessageWaiting">>;
-translate_status_name(<<"success_no_delivery">>) ->
-    <<"DeliveryImpossible">>;
-translate_status_name(<<"failure">>) ->
-    <<"DeliveryUncertain">>;
-translate_status_name(<<"enroute">>) ->
-    <<"Enroute">>;
-translate_status_name(<<"delivered">>) ->
-    <<"DeliveredToTerminal">>;
-translate_status_name(<<"expired">>) ->
-    <<"DeliveryImpossible">>;
-translate_status_name(<<"deleted">>) ->
-    <<"Deleted">>;
-translate_status_name(<<"undeliverable">>) ->
-    <<"DeliveryImpossible">>;
-translate_status_name(<<"accepted">>) ->
-    <<"DeliveredToNetwork">>;
-translate_status_name(<<"unknown">>) ->
-    <<"DeliveryUncertain">>;
-translate_status_name(<<"rejected">>) ->
-    <<"Rejected">>;
-translate_status_name(<<"unrecognized">>) ->
-    <<"Unrecognized">>.
-
-reformat_addr(<<"tel:+", Addr/binary>>) ->
-    reformat_addr(Addr);
-reformat_addr(<<"tel:", Addr/binary>>) ->
-    reformat_addr(Addr);
-reformat_addr(Addr) ->
-    alley_services_utils:addr_to_dto(Addr).
-
-reformat_addrs(Addrs) ->
-    [reformat_addr(Addr) || Addr <- Addrs].
