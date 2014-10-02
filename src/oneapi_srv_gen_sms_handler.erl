@@ -82,8 +82,12 @@ handle(Req, State = #state{}) ->
     {Path, Req} = cowboy_req:path(Req),
     {Method, Req} = cowboy_req:method(Req),
     case get_credentials(Req) of
-        {ok, {CustId, UserId, Pass}} ->
-            Creds = #credentials{customer_id = CustId, user_id = UserId, password = Pass},
+        {ok, {CustomerId, UserId, Password}} ->
+            Creds = #credentials{
+                customer_id = CustomerId,
+                user_id = UserId,
+                password = Password
+            },
             [<<>> | Segments] = binary:split(Path, <<"/">>, [global]),
             handle_req(Method, Segments, State#state{creds = Creds});
         {error, unauthorized} ->
@@ -116,7 +120,7 @@ handle_req(<<"POST">>,
     });
 
 handle_req(<<"GET">>,
-    [_Ver, <<"smsmessaging">>, <<"outbound">>, _ServerAddr, <<"requests">>, _ReqId, <<"deliveryInfos">>],
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _RawSenderAddr, <<"requests">>, _ReqId, <<"deliveryInfos">>],
     State = #state{req = Req, creds = Creds}
 ) ->
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
@@ -133,7 +137,7 @@ handle_req(<<"GET">>,
     });
 
 handle_req(<<"POST">>,
-    [_Ver, <<"smsmessaging">>, <<"outbound">>, _SenderAddr, <<"subscriptions">>],
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _RawSenderAddr, <<"subscriptions">>],
     State = #state{req = Req, creds = Creds}
 ) ->
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
@@ -149,7 +153,7 @@ handle_req(<<"POST">>,
     });
 
 handle_req(<<"DELETE">>,
-    [_Ver, <<"smsmessaging">>, <<"outbound">>, _SenderAddr, <<"subscriptions">>, _SubId],
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, _RawSenderAddr, <<"subscriptions">>, _SubId],
     State = #state{req = Req, creds = Creds}
 ) ->
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
@@ -219,8 +223,7 @@ do_init(State = #state{
     req = Req,
     creds = Creds}
 ) ->
-    InitResult = Mod:init(Creds),
-    case InitResult of
+    case Mod:init(Creds) of
         {ok, MState} ->
             Fun(Args, State#state{mstate = MState});
         {error, denied} ->
@@ -278,8 +281,7 @@ process_delivery_status_req(ReqId, State = #state{
     req = Req,
     sender_addr = SenderAddr
 }) ->
-    Response = Mod:handle_delivery_status_req(SenderAddr, ReqId, MState),
-    case Response of
+    case Mod:handle_delivery_status_req(SenderAddr, ReqId, MState) of
         {ok, ResponseList} ->
             Reports =
                 lists:map(fun({Address, DeliveryStatus})->
@@ -356,8 +358,7 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
     mstate = MState,
     sender_addr = Addr
 }) ->
-    Result = Mod:handle_delivery_notifications_unsubscribe(Addr, SubscribeId, MState),
-    case Result of
+    case Mod:handle_delivery_notifications_unsubscribe(Addr, SubscribeId, MState) of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
@@ -381,8 +382,7 @@ process_retrieve_sms_req(RegId, State = #state{
         reg_id = RegId,
         batch_size = giv(QsVals, <<"maxBatchSize">>)
     },
-    Result = Mod:handle_retrieve_req(RetrieveSmsReq, MState),
-    case Result of
+    case Mod:handle_retrieve_req(RetrieveSmsReq, MState) of
         {ok, ListOfInboundSms, PendingSms} ->
             Messages =
                 lists:map(fun(#inbound_sms{
@@ -542,35 +542,38 @@ convert_addr(Bin) when is_binary(Bin) ->
 %% Return integer value from proplist of request
 giv(QsVals, Key) ->
     case gv(QsVals, Key) of
-        undefined -> undefined;
-        Value -> list_to_integer(binary_to_list(Value))
+        undefined ->
+            undefined;
+        Value ->
+            binary_to_integer(Value)
     end.
 
 gv(QsVals, Key) ->
     case lists:keytake(Key, 1, QsVals) of
-        {value, {_, Value}, _TupleList2} -> Value;
-        _ -> undefined
+        {value, {_, Value}, _TupleList2} ->
+            Value;
+        _ ->
+            undefined
     end.
 
 gmv(QsVals, Key) ->
-    lists:flatten(
-        lists:map(fun({K, V})->
-            case K of
-                Key -> V;
-                _ -> []
-            end
-        end, QsVals)).
+    [V || {K, V} <- QsVals, K =:= Key].
 
 build_resource_url(Req) ->
     build_resource_url(Req, <<>>).
 build_resource_url(Req, ItemId) when is_binary(ItemId) ->
-    {RawHost, _} = cowboy_req:host(Req),
-    {RawPath, _} = cowboy_req:path(Req),
-    {Port, _} = cowboy_req:port(Req),
-    BitstringPort = list_to_binary(integer_to_list(Port)),
+    {Host, _} = cowboy_req:host(Req),
+    {Path, _} = cowboy_req:path(Req),
+    {PortI, _} = cowboy_req:port(Req),
+    Port = integer_to_binary(PortI),
     Protocol = <<"http://">>,
-    ReqIdBin = case ItemId of <<>> -> <<>>; Any -> << <<"/">>/binary, Any/binary>> end,
-    <<Protocol/binary, RawHost/binary, <<":">>/binary, BitstringPort/binary, RawPath/binary, ReqIdBin/binary>>.
+    ReqId = case ItemId of
+                <<>> -> <<>>;
+                Any  -> << <<"/">>/binary, Any/binary>>
+            end,
+    <<Protocol/binary,
+      Host/binary, <<":">>/binary, Port/binary,
+      Path/binary, ReqId/binary>>.
 
 %% ===================================================================
 %% Credentials
@@ -588,8 +591,9 @@ get_credentials(Req) ->
 parse_credential_header(undefined, _Delimiter) ->
     {error, unauthorized};
 parse_credential_header(Header, Delimiter) ->
-    RawList = binary:split(Header, [<<"Basic">>, <<" ">>],[global]),
-    [Base64Bin] = lists:filter(fun(Elem) -> Elem =/= <<>> end, RawList),
-    CredsBin = base64:decode(Base64Bin),
-    [CustIdBin, UserBin, PassBin] = binary:split(CredsBin, [<<":">>] ++ Delimiter, [global]),
-    {ok, {CustIdBin, UserBin, PassBin}}.
+    List = binary:split(Header, [<<"Basic">>, <<" ">>], [global]),
+    [Base64] = [Item || Item <- List, Item =/= <<>>],
+    Creds = base64:decode(Base64),
+    [CustomerId, UserId, Password] =
+        binary:split(Creds, [<<":">>] ++ Delimiter, [global]),
+    {ok, {CustomerId, UserId, Password}}.
