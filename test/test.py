@@ -219,3 +219,12 @@ def test_sub_send_with_notify_url_wait_specific_push_unsub_delivery_notification
     result = sms_client.delete_delivery_status_subscription(resource_url)
     print(result)
     assert result == (True, '')
+
+def test_retrieve_inbound():
+    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
+    result = sms_client.retrieve_inbound_messages(ORIGINATOR)
+    print(result)
+    assert result.exception == None
+    assert result.number_of_messages_in_this_batch >= 0
+    assert result.total_number_of_pending_messages >= 0
+    assert result.inbound_sms_message != []

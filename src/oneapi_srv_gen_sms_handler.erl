@@ -173,8 +173,10 @@ handle_req(<<"GET">>,
     [_Ver, <<"smsmessaging">>, <<"inbound">>, <<"registrations">>, _RegId, <<"messages">>],
     State = #state{req = Req, creds = Creds}
 ) ->
+    %% !!! registrationID agreed with the OneAPI operator !!!
+    %% !!! We use Sender Address for this !!!
     {RegId, Req2} = cowboy_req:binding(registration_id, Req),
-    AfterInit = fun(Args, St) -> process_retrieve_outbound(Args,St) end,
+    AfterInit = fun(Args, St) -> process_retrieve_inbound(Args,St) end,
     Args = convert_addr(RegId),
     do_init(State#state{
         req = Req2,
@@ -376,7 +378,7 @@ process_unsubscribe_delivery_notifications(SubscribeId, State = #state{
 %% Retrieve outbound
 %% ===================================================================
 
-process_retrieve_outbound(RegId, State = #state{
+process_retrieve_inbound(RegId, State = #state{
     mod = Mod,
     mstate = MState,
     req = Req
@@ -386,22 +388,23 @@ process_retrieve_outbound(RegId, State = #state{
         reg_id = RegId,
         batch_size = giv(QsVals, <<"maxBatchSize">>)
     },
-    case Mod:handle_retrieve_req(RetrieveSmsReq, MState) of
+    case Mod:handle_retrieve_inbound(RetrieveSmsReq, MState) of
         {ok, ListOfInboundSms, PendingSms} ->
-            Messages =
-                lists:map(fun(#inbound_sms{
-                                date_time = DateTime,
-                                message_id = MessIdBin,
-                                message = MessageTextBin,
-                                sender_addr = SenderAddrBin})->
-                    DateTimeBin = ac_datetime:datetime_to_iso8601(DateTime),
-                    LocationUrl = build_resource_url(Req, MessIdBin),
-                    [{<<"dateTime">>, DateTimeBin},
-                    {<<"destinationAddress">>, RegId},
-                    {<<"messageId">>, MessIdBin},
-                    {<<"message">>, MessageTextBin},
-                    {<<"resourceURL">>, LocationUrl},
-                    {<<"senderAddress">>, SenderAddrBin}]
+            Messages = lists:map(
+                fun(#inbound_sms{
+                        date_time = DateTime,
+                        message_id = MessId,
+                        message = Message,
+                        sender_addr = SenderAddr
+                    })->
+                        ISO8601 = ac_datetime:datetime_to_iso8601(DateTime),
+                        LocationUrl = build_resource_url(Req, MessId),
+                        [{<<"dateTime">>, ISO8601},
+                         {<<"destinationAddress">>, RegId},
+                         {<<"messageId">>, MessId},
+                         {<<"message">>, Message},
+                         {<<"resourceURL">>, LocationUrl},
+                         {<<"senderAddress">>, SenderAddr}]
                 end, ListOfInboundSms),
             ThisBatchSize = length(ListOfInboundSms),
             ResourceURL = build_resource_url(Req),

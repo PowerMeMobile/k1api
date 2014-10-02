@@ -143,34 +143,34 @@ handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
     } = Request,
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
-    ?log_debug("Sending retrieve sms request", []),
 
-    %% !!!! WHAT'S THIS???
-    DestAddr = RegID,
-    DestAddr2 = alley_services_utils:addr_to_dto(DestAddr),
+    %% !!! registrationID agreed with the OneAPI operator !!!
+    %% !!! We use Sender Address for this !!!
+    DestAddr = alley_services_utils:addr_to_dto(RegID),
 
     {ok, Response} =
-        alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
-    ?log_debug("Response: ~p", [Response]),
+        alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr, BatchSize),
     #k1api_retrieve_sms_response_dto{
         messages = MessagesDTO,
         total = Total
     } = Response,
-    Messages = lists:map(fun(MessageDTO) ->
-        #k1api_retrieved_sms_dto{
-            datetime = {MegaSecs, Secs, _MicroSecs},
-            sender_addr = SenderAddr,
-            message_id = MessageID,
-            message = MessageText
-        } = MessageDTO,
-        UnixEpochDateTime = MegaSecs * 1000000 + Secs,
-        #inbound_sms{
-            date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
-            message_id = MessageID,
-            message = MessageText,
-            sender_addr = SenderAddr#addr.addr}
-    end, MessagesDTO),
-    ?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
+    Messages = lists:map(
+        fun(MessageDTO) ->
+            #k1api_retrieved_sms_dto{
+                datetime = {MegaSecs, Secs, _MicroSecs},
+                sender_addr = SenderAddr,
+                message_id = MessageID,
+                message = Message
+            } = MessageDTO,
+            UnixEpochDateTime = MegaSecs * 1000000 + Secs,
+            #inbound_sms{
+                date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
+                message_id = MessageID,
+                message = Message,
+                sender_addr = SenderAddr#addr.addr
+            }
+         end, MessagesDTO),
+    ?log_debug("Retrieved messages: ~p", [Messages]),
     {ok, Messages, Total}.
 
 handle_subscribe_inbound_notifications(Req, #state{

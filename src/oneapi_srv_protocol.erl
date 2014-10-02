@@ -97,12 +97,12 @@ deliver_sms(#inbound_sms{
     sender_addr = SenderAddr,
     callback_data = CallBackData
 }) ->
-    DateTimeBin = ac_datetime:datetime_to_iso8601(DateTime),
+    ISO8601 = ac_datetime:datetime_to_iso8601(DateTime),
     Body = [
         {<<"inboundSMSMessageNotification">>, [
             {<<"callbackData">>, CallBackData},
             {<<"inboundSMSMessage">>, [
-                {<<"dateTime">>, DateTimeBin},
+                {<<"dateTime">>, ISO8601},
                 {<<"destinationAddress">>, DestAddr},
                 {<<"messageId">>, MessageId},
                 {<<"message">>, Message},
