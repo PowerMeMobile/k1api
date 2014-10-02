@@ -12,13 +12,13 @@
 %% oneapi_srv_gen_sms_handler callbacks
 -export([
     init/1,
-    handle_send_sms_req/2,
-    handle_delivery_status_req/3,
-    handle_delivery_notifications_subscribe/2,
-    handle_delivery_notifications_unsubscribe/3,
-    handle_retrieve_req/2,
-    handle_inbound_subscribe/2,
-    handle_inbound_unsubscribe/2
+    handle_send_outbound/2,
+    handle_query_delivery_status/3,
+    handle_subscribe_delivery_notifications/2,
+    handle_unsubscribe_delivery_notifications/3,
+    handle_retrieve_inbound/2,
+    handle_subscribe_inbound_notifications/2,
+    handle_unsubscribe_inbound_notifications/2
 ]).
 
 -record(state, {
@@ -38,11 +38,11 @@ init(Creds = #credentials{}) ->
         alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password),
     {ok, #state{creds = Creds, response = Response}}.
 
-handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
+handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
-    ?log_debug("Got outbound sms request: ~p", [OutboundSms]),
+    ?log_debug("Got send outbound request: ~p", [OutboundSms]),
 
     CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
     UserId     = Creds#credentials.user_id,
@@ -78,13 +78,13 @@ handle_send_sms_req(OutboundSms = #outbound_sms{}, #state{
             {exception, 'svc0004', [<<"address">>]}
     end.
 
-handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
+handle_query_delivery_status(SenderAddr, SendSmsRequestID, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
-    ?log_debug("Got delivery status request "
+    ?log_debug("Got query delivery status "
         "[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
         [CustomerUUID, UserID, SenderAddr, SendSmsRequestID]),
     SenderAddr2 = alley_services_utils:addr_to_dto(SenderAddr),
@@ -95,44 +95,7 @@ handle_delivery_status_req(SenderAddr, SendSmsRequestID, #state{
     DeliveryStatuses = convert_delivery_statuses(Statuses),
     {ok, DeliveryStatuses}.
 
-handle_retrieve_req(Request = #retrieve_sms_req{}, #state{
-    creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
-}) ->
-    #retrieve_sms_req{
-        reg_id = RegID,
-        batch_size = BatchSize
-    } = Request,
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
-    ?log_debug("Sending retrieve sms request", []),
-    DestAddr = RegID,
-    DestAddr2 = alley_services_utils:addr_to_dto(DestAddr),
-    {ok, Response} =
-        alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
-    ?log_debug("Response: ~p", [Response]),
-    #k1api_retrieve_sms_response_dto{
-        messages = MessagesDTO,
-        total = Total
-    } = Response,
-    Messages = lists:map(fun(MessageDTO) ->
-        #k1api_retrieved_sms_dto{
-            datetime = {MegaSecs, Secs, _MicroSecs},
-            sender_addr = SenderAddr,
-            message_id = MessageID,
-            message = MessageText
-        } = MessageDTO,
-        UnixEpochDateTime = MegaSecs * 1000000 + Secs,
-        #inbound_sms{
-            date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
-            message_id = MessageID,
-            message = MessageText,
-            sender_addr = SenderAddr#addr.addr}
-    end, MessagesDTO),
-    ?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
-    {ok, Messages, Total}.
-
-handle_delivery_notifications_subscribe(Req, #state{
+handle_subscribe_delivery_notifications(Req, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
@@ -159,7 +122,7 @@ handle_delivery_notifications_subscribe(Req, #state{
             {ok, OrigReqID}
     end.
 
-handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, #state{
+handle_unsubscribe_delivery_notifications(_SenderAdress, SubscriptionID, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
@@ -171,7 +134,47 @@ handle_delivery_notifications_unsubscribe(_SenderAdress, SubscriptionID, #state{
     ?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
     {ok, deleted}.
 
-handle_inbound_subscribe(Req, #state{
+handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
+    creds = Creds,
+    response = #k1api_auth_response_dto{result = {customer, Customer}}
+}) ->
+    #retrieve_sms_req{
+        reg_id = RegID,
+        batch_size = BatchSize
+    } = Request,
+    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
+    UserID = Creds#credentials.user_id,
+    ?log_debug("Sending retrieve sms request", []),
+
+    %% !!!! WHAT'S THIS???
+    DestAddr = RegID,
+    DestAddr2 = alley_services_utils:addr_to_dto(DestAddr),
+
+    {ok, Response} =
+        alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr2, BatchSize),
+    ?log_debug("Response: ~p", [Response]),
+    #k1api_retrieve_sms_response_dto{
+        messages = MessagesDTO,
+        total = Total
+    } = Response,
+    Messages = lists:map(fun(MessageDTO) ->
+        #k1api_retrieved_sms_dto{
+            datetime = {MegaSecs, Secs, _MicroSecs},
+            sender_addr = SenderAddr,
+            message_id = MessageID,
+            message = MessageText
+        } = MessageDTO,
+        UnixEpochDateTime = MegaSecs * 1000000 + Secs,
+        #inbound_sms{
+            date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
+            message_id = MessageID,
+            message = MessageText,
+            sender_addr = SenderAddr#addr.addr}
+    end, MessagesDTO),
+    ?log_debug("Retrieved messages in EOneAPI format: ~p", [Messages]),
+    {ok, Messages, Total}.
+
+handle_subscribe_inbound_notifications(Req, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
@@ -202,7 +205,7 @@ handle_inbound_subscribe(Req, #state{
             {ok, OrigReqID}
     end.
 
-handle_inbound_unsubscribe(SubscribeID, #state{
+handle_unsubscribe_inbound_notifications(SubscribeID, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->

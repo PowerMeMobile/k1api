@@ -36,37 +36,37 @@
     {ok, state()} |
     {error, denied}.
 
--callback handle_send_sms_req(outbound_sms(), state()) ->
+-callback handle_send_outbound(outbound_sms(), state()) ->
     {ok, request_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_delivery_status_req(sender_address(), request_id(), state()) ->
+-callback handle_query_delivery_status(sender_address(), request_id(), state()) ->
     {ok, sms_delivery_statuses()}  |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_delivery_notifications_subscribe(delivery_receipt_subscribe(), state()) ->
+-callback handle_subscribe_delivery_notifications(delivery_receipt_subscribe(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_delivery_notifications_unsubscribe(sender_address(), subscription_id(), state()) ->
+-callback handle_unsubscribe_delivery_notifications(sender_address(), subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_retrieve_req(retrieve_sms_req(), state()) ->
+-callback handle_retrieve_inbound(retrieve_sms_req(), state()) ->
     {ok, [inbound_sms()], pending_sms()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_inbound_subscribe(subscribe_inbound(), state()) ->
+-callback handle_subscribe_inbound_notifications(subscribe_inbound(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_inbound_unsubscribe(subscription_id(), state()) ->
+-callback handle_unsubscribe_inbound_notifications(subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
@@ -109,7 +109,7 @@ handle_req(<<"POST">>,
 ) ->
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
     SenderAddr = convert_addr(RawSenderAddr),
-    AfterInit = fun(Args, St) -> process_outbound_sms_req(Args, St) end,
+    AfterInit = fun(Args, St) -> process_send_outbound(Args, St) end,
     Args = [],
     do_init(State#state{
         req = Req2,
@@ -126,7 +126,7 @@ handle_req(<<"GET">>,
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
     {ReqId, Req3} = cowboy_req:binding(request_id, Req2),
     SenderAddr = convert_addr(RawSenderAddr),
-    AfterInit = fun(Args, St) -> process_delivery_status_req(Args, St) end,
+    AfterInit = fun(Args, St) -> process_query_delivery_status(Args, St) end,
     Args = ReqId,
     do_init(State#state{
         req = Req3,
@@ -142,7 +142,7 @@ handle_req(<<"POST">>,
 ) ->
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
     SenderAddr = convert_addr(RawSenderAddr),
-    AfterInit = fun(Args, St) -> process_sms_delivery_report_subscribe_req(Args, St) end,
+    AfterInit = fun(Args, St) -> process_subscribe_delivery_notifications(Args, St) end,
     Args = [],
     do_init(State#state{
         req = Req2,
@@ -159,7 +159,7 @@ handle_req(<<"DELETE">>,
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
     {SubId, Req3} = cowboy_req:binding(subscription_id, Req2),
     SenderAddr = convert_addr(RawSenderAddr),
-    AfterInit = fun(Args, St) -> process_sms_delivery_report_unsubscribe_req(Args, St) end,
+    AfterInit = fun(Args, St) -> process_unsubscribe_delivery_notifications(Args, St) end,
     Args = SubId,
     do_init(State#state{
         req = Req3,
@@ -174,7 +174,7 @@ handle_req(<<"GET">>,
     State = #state{req = Req, creds = Creds}
 ) ->
     {RegId, Req2} = cowboy_req:binding(registration_id, Req),
-    AfterInit = fun(Args, St) -> process_retrieve_sms_req(Args,St) end,
+    AfterInit = fun(Args, St) -> process_retrieve_outbound(Args,St) end,
     Args = convert_addr(RegId),
     do_init(State#state{
         req = Req2,
@@ -187,7 +187,7 @@ handle_req(<<"POST">>,
     [_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
     State = #state{creds = Creds}
 ) ->
-    AfterInit = fun(Args, St) -> process_sms_delivery_subscribe_req(Args, St) end,
+    AfterInit = fun(Args, St) -> process_subscribe_inbound_notifications(Args, St) end,
     Args = [],
     do_init(State#state{
         thendo = AfterInit,
@@ -200,7 +200,7 @@ handle_req(<<"DELETE">>,
     State = #state{req = Req, creds = Creds}
 ) ->
     {SubId, Req2} = cowboy_req:binding(subscription_id, Req),
-    AfterInit = fun(Args, St) -> process_sms_delivery_unsubscribe_req(Args, St) end,
+    AfterInit = fun(Args, St) -> process_unsubscribe_inbound_notifications(Args, St) end,
     Args = SubId,
     do_init(State#state{
         req = Req2,
@@ -231,10 +231,10 @@ do_init(State = #state{
     end.
 
 %% ===================================================================
-%% Outbound sms request
+%% Send outbound
 %% ===================================================================
 
-process_outbound_sms_req(_, State = #state{
+process_send_outbound(_, State = #state{
     mstate = MState,
     mod = Mod,
     req = Req,
@@ -252,7 +252,7 @@ process_outbound_sms_req(_, State = #state{
         notify_url        = gv(QsVals, <<"notifyURL">>),
         callback_data     = gv(QsVals, <<"callbackData">>)
     },
-    case Mod:handle_send_sms_req(SendSmsReq, MState) of
+    case Mod:handle_send_outbound(SendSmsReq, MState) of
         {ok, ReqId} ->
             ContentType = <<"application/json">>,
             Location = build_resource_url(Req2, ReqId),
@@ -272,16 +272,16 @@ process_outbound_sms_req(_, State = #state{
     end.
 
 %% ===================================================================
-%% Delivery Status Request
+%% Query Delivery Status
 %% ===================================================================
 
-process_delivery_status_req(ReqId, State = #state{
+process_query_delivery_status(ReqId, State = #state{
     mod = Mod,
     mstate = MState,
     req = Req,
     sender_addr = SenderAddr
 }) ->
-    case Mod:handle_delivery_status_req(SenderAddr, ReqId, MState) of
+    case Mod:handle_query_delivery_status(SenderAddr, ReqId, MState) of
         {ok, ResponseList} ->
             Reports =
                 lists:map(fun({Address, DeliveryStatus})->
@@ -304,10 +304,10 @@ process_delivery_status_req(ReqId, State = #state{
     end.
 
 %% ===================================================================
-%% Start subscribe to SMS delivery notifications
+%% Subscribe to delivery notifications
 %% ===================================================================
 
-process_sms_delivery_report_subscribe_req(_, State = #state{
+process_subscribe_delivery_notifications(_, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState,
@@ -321,7 +321,7 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
         criteria      = gv(QsVals, <<"criteria">>),
         callback_data = gv(QsVals, <<"callbackData">>)
     },
-    case Mod:handle_delivery_notifications_subscribe(Request, MState) of
+    case Mod:handle_subscribe_delivery_notifications(Request, MState) of
         {ok, SubscribeId} ->
             CallBackData = gv(QsVals, <<"callbackData">>),
             NotifyURL = gv(QsVals, <<"notifyURL">>),
@@ -349,16 +349,16 @@ process_sms_delivery_report_subscribe_req(_, State = #state{
     end.
 
 %% ===================================================================
-%% Stop the subscription to delivery notifications
+%% Unsubscribe delivery notifications
 %% ===================================================================
 
-process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
+process_unsubscribe_delivery_notifications(SubscribeId, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState,
     sender_addr = Addr
 }) ->
-    case Mod:handle_delivery_notifications_unsubscribe(Addr, SubscribeId, MState) of
+    case Mod:handle_unsubscribe_delivery_notifications(Addr, SubscribeId, MState) of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
@@ -369,10 +369,10 @@ process_sms_delivery_report_unsubscribe_req(SubscribeId, State = #state{
     end.
 
 %% ===================================================================
-%% Retrieve messages sent to your Web application
+%% Retrieve outbound
 %% ===================================================================
 
-process_retrieve_sms_req(RegId, State = #state{
+process_retrieve_outbound(RegId, State = #state{
     mod = Mod,
     mstate = MState,
     req = Req
@@ -420,10 +420,10 @@ process_retrieve_sms_req(RegId, State = #state{
     end.
 
 %% ===================================================================
-%% Subscribe to notifications of messages sent to your application
+%% Subscribe inbound notifications
 %% ===================================================================
 
-process_sms_delivery_subscribe_req( _, State = #state{
+process_subscribe_inbound_notifications( _, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState
@@ -436,7 +436,7 @@ process_sms_delivery_subscribe_req( _, State = #state{
         callback_data = gv(QsVals, <<"callbackData">>),
         correlator    = gv(QsVals, <<"clientCorrelator">>)
     },
-    case Mod:handle_inbound_subscribe(SubscribeInbound, MState) of
+    case Mod:handle_subscribe_inbound_notifications(SubscribeInbound, MState) of
         {ok, SubId} ->
             Location = build_resource_url(Req, SubId),
             ContentType = <<"application/json">>,
@@ -456,15 +456,15 @@ process_sms_delivery_subscribe_req( _, State = #state{
     end.
 
 %% ===================================================================
-%% Stop the subscription to message notifications
+%% Unsubscribe inbound notifications
 %% ===================================================================
 
-process_sms_delivery_unsubscribe_req(SubId, State = #state{
+process_unsubscribe_inbound_notifications(SubId, State = #state{
     mod = Mod,
     mstate = MState,
     req = Req
 }) ->
-    case Mod:handle_inbound_unsubscribe(SubId, MState) of
+    case Mod:handle_unsubscribe_inbound_notifications(SubId, MState) of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
