@@ -18,17 +18,17 @@ translate_status_name(<<"submitted">>) ->
 translate_status_name(<<"success_waiting_delivery">>) ->
     <<"MessageWaiting">>;
 translate_status_name(<<"success_no_delivery">>) ->
-    <<"DeliveryImpossible">>;
+    <<"DeliveredToNetwork">>;
 translate_status_name(<<"failure">>) ->
-    <<"DeliveryUncertain">>;
+    <<"DeliveryImpossible">>;
 translate_status_name(<<"enroute">>) ->
-    <<"Enroute">>;
+    <<"DeliveredToNetwork">>;
 translate_status_name(<<"delivered">>) ->
     <<"DeliveredToTerminal">>;
 translate_status_name(<<"expired">>) ->
     <<"DeliveryImpossible">>;
 translate_status_name(<<"deleted">>) ->
-    <<"Deleted">>;
+    <<"DeliveryImpossible">>;
 translate_status_name(<<"undeliverable">>) ->
     <<"DeliveryImpossible">>;
 translate_status_name(<<"accepted">>) ->
@@ -36,9 +36,9 @@ translate_status_name(<<"accepted">>) ->
 translate_status_name(<<"unknown">>) ->
     <<"DeliveryUncertain">>;
 translate_status_name(<<"rejected">>) ->
-    <<"Rejected">>;
+    <<"DeliveryImpossible">>;
 translate_status_name(<<"unrecognized">>) ->
-    <<"Unrecognized">>.
+    <<"DeliveryImpossible">>.
 
 -spec reformat_addr(binary()) -> #addr{}.
 reformat_addr(<<"tel:+", Addr/binary>>) ->
