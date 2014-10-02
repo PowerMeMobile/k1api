@@ -42,7 +42,7 @@ handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
-    ?log_debug("Got send outbound request: ~p", [OutboundSms]),
+    ?log_debug("Got send outbound: ~p", [OutboundSms]),
 
     CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
     UserId     = Creds#credentials.user_id,
@@ -91,7 +91,6 @@ handle_query_delivery_status(SenderAddr, SendSmsRequestID, #state{
     {ok, Response} =
         alley_services_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddr2),
     Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
-    %% convert [#k1api_sms_status_dto{}] to [{"dest_addr", "status"}]
     DeliveryStatuses = convert_delivery_statuses(Statuses),
     {ok, DeliveryStatuses}.
 
@@ -99,18 +98,18 @@ handle_subscribe_delivery_notifications(Req, #state{
     creds = Creds,
     response = #k1api_auth_response_dto{result = {customer, Customer}}
 }) ->
-    ?log_debug("Got delivery notifications subscribe request: ~p", [Req]),
-    #delivery_receipt_subscribe{
-        sender_addr = SenderAddr,
+    ?log_debug("Got subscribe delivery notifications: ~p", [Req]),
+    #subscribe_delivery_notifications{
         notify_url = NotifyUrl,
-        correlator = Correlator,
+        client_correlator = ClientCorrelator,
         criteria = _Criteria,
-        callback_data = CallbackData
+        callback_data = CallbackData,
+        sender_addr = SenderAddr
     } = Req,
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
     ReqID = uuid:unparse(uuid:generate()),
-    case oneapi_srv_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+    case oneapi_srv_db:check_correlator(CustomerUUID, UserID, ClientCorrelator, ReqID) of
         ok ->
             ?log_debug("Correlator saved", []),
             SourceAddr = #addr{addr = SenderAddr, ton = 1, npi = 1},

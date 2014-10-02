@@ -41,14 +41,14 @@
 }).
 -type delivery_receipt() :: #delivery_receipt{}.
 
--record(delivery_receipt_subscribe, {
-    sender_addr         :: address(),
+-record(subscribe_delivery_notifications, {
     notify_url          :: binary(),
-    correlator          :: undefined | binary(),
+    client_correlator   :: undefined | binary(),
     criteria            :: undefined | binary(),
-    callback_data       :: undefined | binary()
+    callback_data       :: undefined | binary(),
+    sender_addr         :: address()
 }).
--type delivery_receipt_subscribe() :: #delivery_receipt_subscribe{}.
+-type subscribe_delivery_notifications() :: #subscribe_delivery_notifications{}.
 -type subscription_id() :: uuid().
 
 -record(retrieve_sms_req, {

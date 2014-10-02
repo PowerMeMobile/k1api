@@ -16,7 +16,7 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--spec handle_subscribe_delivery_notifications(delivery_receipt_subscribe(), state()) ->
+-spec handle_subscribe_delivery_notifications(subscribe_delivery_notifications(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.

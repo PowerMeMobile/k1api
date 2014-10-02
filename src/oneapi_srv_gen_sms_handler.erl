@@ -46,7 +46,7 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_subscribe_delivery_notifications(delivery_receipt_subscribe(), state()) ->
+-callback handle_subscribe_delivery_notifications(subscribe_delivery_notifications(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
@@ -283,16 +283,17 @@ process_query_delivery_status(ReqId, State = #state{
 }) ->
     case Mod:handle_query_delivery_status(SenderAddr, ReqId, MState) of
         {ok, ResponseList} ->
-            Reports =
-                lists:map(fun({Address, DeliveryStatus})->
-                [{<<"address">>, Address}, {<<"deliveryStatus">>, DeliveryStatus}]
+            Reports = lists:map(
+                fun({Address, Status})->
+                    [{<<"address">>, Address}, {<<"deliveryStatus">>, Status}]
                 end, ResponseList),
             Resource = build_resource_url(Req),
-            Body =
-            [{<<"deliveryInfoList">>, [
-                {<<"deliveryInfo">>, Reports},
-                {<<"resourceURL">>, Resource}
-            ]}],
+            Body = [
+                {<<"deliveryInfoList">>, [
+                    {<<"deliveryInfo">>, Reports},
+                    {<<"resourceURL">>, Resource}
+                ]}
+            ],
             JsonBody = jsx:encode(Body),
             Headers = [{<<"content-type">>, <<"application/json">>}],
             {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
@@ -314,12 +315,15 @@ process_subscribe_delivery_notifications(_, State = #state{
     sender_addr = SenderAddr
 }) ->
     {QsVals, Req2} = get_qs_vals(Req),
-    Request = #delivery_receipt_subscribe{
-        sender_addr   = SenderAddr,
-        notify_url    = gv(QsVals, <<"notifyURL">>),
-        correlator    = gv(QsVals, <<"clientCorrelator">>),
-        criteria      = gv(QsVals, <<"criteria">>),
-        callback_data = gv(QsVals, <<"callbackData">>)
+    Request = #subscribe_delivery_notifications{
+        %% mandatory
+        notify_url = gv(QsVals, <<"notifyURL">>),
+        %% optional
+        client_correlator = gv(QsVals, <<"clientCorrelator">>),
+        criteria          = gv(QsVals, <<"criteria">>),
+        callback_data     = gv(QsVals, <<"callbackData">>),
+        %% other
+        sender_addr   = SenderAddr
     },
     case Mod:handle_subscribe_delivery_notifications(Request, MState) of
         {ok, SubscribeId} ->
