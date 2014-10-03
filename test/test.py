@@ -32,7 +32,7 @@ PORT7=50007
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
-def test_send_without_notify_url():
+def test_send_outbound_wo_notify_url():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -52,7 +52,7 @@ def test_send_without_notify_url():
     assert delivery_info_list.exception == None
     assert delivery_info_list.delivery_info[0].delivery_status == 'DeliveredToTerminal'
 
-def test_send_with_notify_url():
+def test_send_outbound_w_notify_url():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -87,7 +87,7 @@ def test_send_with_notify_url():
         assert delivery_info_notification.delivery_info.exception == None
         assert delivery_info_notification.delivery_info.delivery_status == 'DeliveredToTerminal'
 
-def test_sub_unsub_delivery_notifications():
+def test_sub_unsub_outbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -112,7 +112,7 @@ def test_sub_unsub_delivery_notifications():
     print(result)
     assert result == (True, '')
 
-def test_sub_send_without_notify_url_wait_push_unsub_delivery_notifications():
+def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -164,7 +164,7 @@ def test_sub_send_without_notify_url_wait_push_unsub_delivery_notifications():
     print(result)
     assert result == (True, '')
 
-def test_sub_send_with_notify_url_wait_specific_push_unsub_delivery_notifications():
+def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -227,4 +227,69 @@ def test_retrieve_inbound():
     assert result.exception == None
     assert result.number_of_messages_in_this_batch >= 0
     assert result.total_number_of_pending_messages >= 0
-    assert result.inbound_sms_message != []
+    assert result.inbound_sms_message == []
+
+def test_sub_unsub_inbound_notifications():
+    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
+    sms = models.SMSRequest()
+    sms.address = ORIGINATOR
+    notify_url = 'http://{0}:{1}'.format('localhost', PORT5)
+    sms.notify_url = notify_url
+    callback_data = id_generator()
+    sms.callback_data = callback_data
+    sms.filter_criteria = ""
+
+    req_fmt = 'url'
+    result = sms_client.subscribe_messages_sent_notification(sms, {'accept':'json'}, req_fmt)
+    print(result)
+    assert result.is_success()
+    assert result.exception == None
+    assert result.resource_url != None
+
+    resource_url = result.resource_url
+
+    time.sleep(5)
+
+    result = sms_client.delete_messages_sent_subscription(resource_url)
+    print(result)
+    assert result == (True, '')
+
+def test_sub_wait_push_unsub_inbound_notifications():
+    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
+    sms = models.SMSRequest()
+    sms.address = ORIGINATOR
+    notify_url = 'http://{0}:{1}'.format('localhost', PORT5)
+    sms.notify_url = notify_url
+    callback_data = id_generator()
+    sms.callback_data = callback_data
+    sms.filter_criteria = ""
+
+    req_fmt = 'url'
+    result = sms_client.subscribe_messages_sent_notification(sms, {'accept':'json'}, req_fmt)
+    print(result)
+    assert result.is_success()
+    assert result.exception == None
+    assert result.resource_url != None
+
+    resource_url = result.resource_url
+
+    # wait for push-es
+    server = dummyserver.DummyWebServer(PORT5)
+    server.start_wait_and_shutdown(10)
+
+    requests = server.get_requests()
+    print(requests)
+    #assert requests
+
+    server = None
+    for method, path, http_body in requests:
+        inbound_message = oneapi.SmsClient.unserialize_inbound_messages(http_body)
+        print(inbound_message)
+        #assert delivery_info_notification.is_success() == True
+        #assert delivery_info_notification.callback_data == callback_data
+        #assert delivery_info_notification.delivery_info.exception == None
+        #assert delivery_info_notification.delivery_info.delivery_status == 'DeliveredToTerminal'
+
+    result = sms_client.delete_messages_sent_subscription(resource_url)
+    print(result)
+    assert result == (True, '')
