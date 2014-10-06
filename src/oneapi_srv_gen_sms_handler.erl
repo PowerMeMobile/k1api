@@ -34,7 +34,7 @@
 
 -callback init(credentials()) ->
     {ok, state()} |
-    {error, denied}.
+    {error, term()}.
 
 -callback handle_send_outbound(outbound_sms(), state()) ->
     {ok, request_id()} |
@@ -228,8 +228,10 @@ do_init(State = #state{
     case Mod:init(Creds) of
         {ok, MState} ->
             Fun(Args, State#state{mstate = MState});
-        {error, denied} ->
-            oneapi_srv_protocol:code(401, Req, State)
+        {error, authentication} ->
+            oneapi_srv_protocol:code(401, Req, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
 
 %% ===================================================================
@@ -267,10 +269,12 @@ process_send_outbound(_, State = #state{
             Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
             {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req2, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req2, State)
+        {error, originator_not_found} ->
+            oneapi_srv_protocol:exception('svc0004', [<<"senderAddress">>], Req2, State);
+        {error, no_recipients} ->
+            oneapi_srv_protocol:exception('svc0004', [<<"address">>], Req2, State);
+        {error, no_dest_addrs} ->
+            oneapi_srv_protocol:exception('svc0004', [<<"address">>], Req2, State)
     end.
 
 %% ===================================================================

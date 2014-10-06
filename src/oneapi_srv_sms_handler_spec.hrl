@@ -4,7 +4,7 @@
 
 -spec init(credentials()) ->
     {ok, state()} |
-    {error, denied}.
+    {error, term()}.
 
 -spec handle_send_outbound(outbound_sms(), state()) ->
     {ok, request_id()} |

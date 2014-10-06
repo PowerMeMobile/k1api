@@ -1,5 +1,8 @@
 import pytest
 
+import requests
+from requests.auth import HTTPBasicAuth
+
 import time as time
 import random
 import string
@@ -15,6 +18,7 @@ PASSWORD = 'password'
 BAD_PASSWORD = 'intentionally wrong password'
 
 ORIGINATOR = '375296660003'
+BAD_ORIGINATOR = '999999999999'
 RECIPIENT = '375296543210'
 BAD_RECIPIENT = '999999999999'
 
@@ -32,7 +36,7 @@ PORT7=50107
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
-def test_send_outbound_wo_notify_url():
+def test_send_outbound_wo_notify_url_and_query_status():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -293,3 +297,58 @@ def test_sub_wait_push_unsub_inbound_notifications():
     result = sms_client.delete_messages_sent_subscription(resource_url)
     print(result)
     assert result == (True, '')
+
+#
+# Raw
+#
+
+def test_send_raw_outbound_bad_credentials():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, BAD_PASSWORD)
+    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 401
+
+def test_send_raw_outbound_bad_senderAddress():
+    url = SERVER + '1/smsmessaging/outbound/' + BAD_ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+BAD_ORIGINATOR, 'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0004'
+    assert data['requestError']['serviceException']['variables'] == ['senderAddress']
+
+def test_send_raw_outbound_no_recipients():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0004'
+    assert data['requestError']['serviceException']['variables'] == ['address']
+
+def test_send_raw_outbound_bad_recipient():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':'tel:'+BAD_RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0004'
+    assert data['requestError']['serviceException']['variables'] == ['address']
+
+def test_send_raw_outbound():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 201
+    data = req.json()
+    assert data['resourceReference']['resourceURL']

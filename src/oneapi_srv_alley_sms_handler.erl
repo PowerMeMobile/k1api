@@ -23,7 +23,7 @@
 
 -record(state, {
     creds :: term(),
-    response :: term()
+    customer :: term()
 }).
 
 %% ===================================================================
@@ -34,13 +34,20 @@ init(Creds = #credentials{}) ->
     CustomerId = Creds#credentials.customer_id,
     UserId = Creds#credentials.user_id,
     Password = Creds#credentials.password,
-    {ok, Response = #k1api_auth_response_dto{}} =
-        alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password),
-    {ok, #state{creds = Creds, response = Response}}.
+    case alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password) of
+        {ok, #k1api_auth_response_dto{result = {customer, Customer}}} ->
+            {ok, #state{creds = Creds, customer = Customer}};
+        {ok, #k1api_auth_response_dto{result = {error, Error}}} ->
+            ?log_error("Authenticate response error: ~p", [Error]),
+            {error, authentication};
+        {error, Error} ->
+            ?log_error("Authenticate failed with: ~p", [Error]),
+            {error, Error}
+    end.
 
 handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     ?log_debug("Got send outbound: ~p", [OutboundSms]),
 
@@ -73,14 +80,13 @@ handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
     case Result#send_result.result of
         ok ->
             {ok, Result#send_result.req_id};
-        _Error ->
-            %% TODO handle errors
-            {exception, 'svc0004', [<<"address">>]}
+        Error ->
+            {error, Error}
     end.
 
 handle_query_delivery_status(SenderAddr, SendSmsRequestID, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
@@ -96,7 +102,7 @@ handle_query_delivery_status(SenderAddr, SendSmsRequestID, #state{
 
 handle_subscribe_delivery_notifications(Req, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     ?log_debug("Got subscribe delivery notifications: ~p", [Req]),
     #subscribe_delivery_notifications{
@@ -123,7 +129,7 @@ handle_subscribe_delivery_notifications(Req, #state{
 
 handle_unsubscribe_delivery_notifications(_SenderAdress, SubscriptionID, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
     UserID = Creds#credentials.user_id,
@@ -135,7 +141,7 @@ handle_unsubscribe_delivery_notifications(_SenderAdress, SubscriptionID, #state{
 
 handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     #retrieve_sms_req{
         reg_id = RegID,
@@ -175,7 +181,7 @@ handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
 
 handle_subscribe_inbound_notifications(Req, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     ?log_debug("Got inbound subscribe event: ~p", [Req]),
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
@@ -206,7 +212,7 @@ handle_subscribe_inbound_notifications(Req, #state{
 
 handle_unsubscribe_inbound_notifications(SubscribeID, #state{
     creds = Creds,
-    response = #k1api_auth_response_dto{result = {customer, Customer}}
+    customer = Customer
 }) ->
     ?log_debug("Got inbound unsubscribe event: ~p", [SubscribeID]),
     CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
