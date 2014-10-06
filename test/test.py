@@ -23,8 +23,8 @@ BAD_ORIGINATOR = '999999999999'
 RECIPIENT = '375296543210'
 BAD_RECIPIENT = '999999999999'
 
-TRANSACTION_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
-BAD_TRANSACTION_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+REQUEST_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
+BAD_REQUEST_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
 PORT1=50101
 PORT2=50102
@@ -366,12 +366,21 @@ def test_raw_send_outbound():
 # Raw query delivery status
 #
 
-def test_raw_query_delivery_status():
-    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+def test_raw_query_delivery_status_bad_request_id():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + BAD_REQUEST_ID + '/deliveryInfos'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
-    req = requests.post(url, data=params, auth=auth)
+    req = requests.get(url, auth=auth)
     print(req.text)
-    assert req.status_code == 201
+    assert req.status_code == 400
     data = req.json()
-    assert data['resourceReference']['resourceURL']
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    assert data['requestError']['serviceException']['variables'] == ['requestId']
+
+def test_raw_query_delivery_status():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + REQUEST_ID + '/deliveryInfos'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    req = requests.get(url, auth=auth)
+    print(req.text)
+    assert req.status_code == 200
+    data = req.json()
+    assert data['deliveryInfoList']['deliveryInfo'][0]['deliveryStatus'] == 'DeliveredToTerminal'

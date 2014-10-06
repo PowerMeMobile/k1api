@@ -316,10 +316,14 @@ process_query_delivery_status(ReqId, State = #state{
             Headers = [{<<"content-type">>, <<"application/json">>}],
             {ok, Req2} = cowboy_req:reply(200, Headers, JsonBody, Req),
             {ok, Req2, State};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+        {error, empty_request_id} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"requestId">>], Req, State);
+        {error, invalid_request_id} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"requestId">>], Req, State);
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
 
 %% ===================================================================

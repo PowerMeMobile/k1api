@@ -84,21 +84,27 @@ handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
             {error, Error}
     end.
 
-handle_query_delivery_status(SenderAddr, SendSmsRequestID, #state{
+handle_query_delivery_status(SenderAddr, RequestId, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    UserId = Creds#credentials.user_id,
+
     ?log_debug("Got query delivery status "
-        "[customer: ~p, user: ~p, sender_address: ~p, send_sms_req_id: ~p]",
-        [CustomerUUID, UserID, SenderAddr, SendSmsRequestID]),
+        "(customer_id: ~p, user_id: ~p, sender_addr: ~p, req_id: ~p)",
+        [CustomerId, UserId, SenderAddr, RequestId]),
+
     SenderAddr2 = alley_services_utils:addr_to_dto(SenderAddr),
-    {ok, Response} =
-        alley_services_api:get_delivery_status(CustomerUUID, UserID, SendSmsRequestID, SenderAddr2),
-    Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
-    DeliveryStatuses = convert_delivery_statuses(Statuses),
-    {ok, DeliveryStatuses}.
+    case alley_services_api:get_delivery_status(
+            CustomerId, UserId, RequestId, SenderAddr2) of
+        {ok, Response} ->
+            Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
+            DeliveryStatuses = convert_delivery_statuses(Statuses),
+            {ok, DeliveryStatuses};
+        {error, Error} ->
+            {error, Error}
+    end.
 
 handle_subscribe_delivery_notifications(Req, #state{
     creds = Creds,
