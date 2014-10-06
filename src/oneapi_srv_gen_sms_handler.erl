@@ -28,6 +28,8 @@
     thendo_args :: term()
 }).
 
+-define(E_CREDIT_LIMIT_EXCEEDED, <<"Customer's postpaid credit limit is exceeded">>).
+
 %% ===================================================================
 %% Behaviour Callbacks
 %% ===================================================================
@@ -230,6 +232,8 @@ do_init(State = #state{
             Fun(Args, State#state{mstate = MState});
         {error, authentication} ->
             oneapi_srv_protocol:code(401, Req, State);
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req, State);
         {error, Error} ->
             oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
@@ -274,7 +278,15 @@ process_send_outbound(_, State = #state{
         {error, no_recipients} ->
             oneapi_srv_protocol:exception('svc0004', [<<"address">>], Req2, State);
         {error, no_dest_addrs} ->
-            oneapi_srv_protocol:exception('svc0004', [<<"address">>], Req2, State)
+            oneapi_srv_protocol:exception('svc0004', [<<"address">>], Req2, State);
+        {error, no_message_body} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"message">>], Req2, State);
+        {error, credit_limit_exceeded} ->
+            oneapi_srv_protocol:exception('svc0001', [?E_CREDIT_LIMIT_EXCEEDED], Req2, State);
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req2, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req2, State)
     end.
 
 %% ===================================================================
