@@ -21,13 +21,13 @@ BAD_RECIPIENT = '999999999999'
 TRANSACTION_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
 BAD_TRANSACTION_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
-PORT1=50001
-PORT2=50002
-PORT3=50003
-PORT4=50004
-PORT5=50005
-PORT6=50006
-PORT7=50007
+PORT1=50101
+PORT2=50102
+PORT3=50103
+PORT4=50104
+PORT5=50105
+PORT6=50106
+PORT7=50107
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
