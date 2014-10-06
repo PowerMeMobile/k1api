@@ -502,7 +502,7 @@ process_unsubscribe_inbound_notifications(SubId, State = #state{
 -spec onrequest_hook(cowboy_req:req()) -> cowboy_req:req().
 onrequest_hook(Req) ->
     %% 2k recipients = 28k body for HTTP POST x-www-form-urlencoded
-    {ok, Body, Req2} = cowboy_req:body(800000, Req),
+    {ok, Body, Req2} = cowboy_req:body(Req, [{length, 800000}]),
     put(req_body, Body),
     Req2.
 
