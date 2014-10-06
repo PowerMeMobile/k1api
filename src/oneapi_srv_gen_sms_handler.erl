@@ -90,7 +90,7 @@ handle(Req, State = #state{}) ->
             },
             [<<>> | Segments] = binary:split(Path, <<"/">>, [global]),
             handle_req(Method, Segments, State#state{creds = Creds});
-        {error, unauthorized} ->
+        {error, authentication} ->
             oneapi_srv_protocol:code(401, Req, [])
     end.
 
@@ -600,11 +600,14 @@ get_credentials(Req) ->
     end.
 
 parse_credential_header(undefined, _Delimiter) ->
-    {error, unauthorized};
+    {error, authentication};
 parse_credential_header(Header, Delimiter) ->
     List = binary:split(Header, [<<"Basic">>, <<" ">>], [global]),
     [Base64] = [Item || Item <- List, Item =/= <<>>],
     Creds = base64:decode(Base64),
-    [CustomerId, UserId, Password] =
-        binary:split(Creds, [<<":">>] ++ Delimiter, [global]),
-    {ok, {CustomerId, UserId, Password}}.
+    case binary:split(Creds, [<<":">>] ++ Delimiter, [global]) of
+        [CustomerId, UserId, Password] ->
+            {ok, {CustomerId, UserId, Password}};
+        _ ->
+            {error, authentication}
+    end.
