@@ -54,7 +54,12 @@ build_sms_handle_spec(SmsHandler) -> [
         oneapi_srv_gen_sms_handler, [SmsHandler]},
     {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions",
         oneapi_srv_gen_sms_handler, [SmsHandler]},
+    %% This handler doesn't conform to OneAPI v2 (http://www.gsma.com/oneapi/sms-restful-api/).
+    %% According to the specification there must not be the Sender Address.
+    %% But OneAPI v3 (http://www.gsma.com/oneapi/sms-restful-netapi/) has the Sender Address.
     {"/" ++ ?VERSION ++ "/smsmessaging/outbound/:sender_addr/subscriptions/:subscription_id",
+        oneapi_srv_gen_sms_handler, [SmsHandler]},
+    {"/" ++ ?VERSION ++ "/smsmessaging/outbound/subscriptions/:subscription_id",
         oneapi_srv_gen_sms_handler, [SmsHandler]},
     {"/" ++ ?VERSION ++ "/smsmessaging/inbound/registrations/:registration_id/messages",
         oneapi_srv_gen_sms_handler, [SmsHandler]},

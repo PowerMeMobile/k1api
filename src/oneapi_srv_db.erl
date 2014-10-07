@@ -7,7 +7,8 @@
     start_link/0,
     next_id/1,
     next_id/2,
-    check_correlator/4
+    write_correlator/4,
+    delete_correlator/3
 ]).
 
 %% gen_server callbacks
@@ -73,11 +74,11 @@ next_id(CustomerID, NumberOfIDs) ->
     end),
     {ok, IDs}.
 
--spec check_correlator(
+-spec write_correlator(
     customer_id(), user_id(), undefined | correlator_id(), request_id()
-) -> ok | {correlator_exist, request_id()}.
-check_correlator(_, _, undefined, _) -> ok;
-check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
+) -> ok | {error, {already_exists, request_id()}}.
+write_correlator(_, _, undefined, _) -> ok;
+write_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
     {atomic, Result} = mnesia:transaction(fun() ->
         Key = {CustomerID, UserID, CorrelatorID},
         case mnesia:read(correlator, Key, write) of
@@ -90,10 +91,18 @@ check_correlator(CustomerID, UserID, CorrelatorID, NewRequestID) ->
                 }),
                 ok;
             [#correlator{value = RequestID}] ->
-                {correlator_exist, RequestID}
+                {error, {already_exists, RequestID}}
         end
     end),
     Result.
+
+-spec delete_correlator(
+    customer_id(), user_id(), undefined | correlator_id()
+) -> ok.
+delete_correlator(_, _, undefined) -> ok;
+delete_correlator(CustomerID, UserID, CorrelatorID) ->
+    Key = {CustomerID, UserID, CorrelatorID},
+    ok = mnesia:dirty_delete(correlator, Key).
 
 %% ===================================================================
 %% gen_server callbacks

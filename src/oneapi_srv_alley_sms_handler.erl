@@ -15,7 +15,7 @@
     handle_send_outbound/2,
     handle_query_delivery_status/3,
     handle_subscribe_to_delivery_notifications/2,
-    handle_unsubscribe_from_delivery_notifications/3,
+    handle_unsubscribe_from_delivery_notifications/2,
     handle_retrieve_inbound/2,
     handle_subscribe_to_inbound_notifications/2,
     handle_unsubscribe_from_inbound_notifications/2
@@ -81,6 +81,7 @@ handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
         ok ->
             {ok, Result#send_result.req_id};
         Error ->
+            ?log_error("Send outbound failed with: ~p", [Error]),
             {error, Error}
     end.
 
@@ -103,6 +104,7 @@ handle_query_delivery_status(SenderAddr, RequestId, #state{
             DeliveryStatuses = convert_delivery_statuses(Statuses),
             {ok, DeliveryStatuses};
         {error, Error} ->
+            ?log_error("Query delivery status failed with: ~p", [Error]),
             {error, Error}
     end.
 
@@ -110,7 +112,7 @@ handle_subscribe_to_delivery_notifications(Req, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    ?log_debug("Got subscribe delivery notifications: ~p", [Req]),
+    ?log_debug("Got subscribe to delivery notifications: ~p", [Req]),
     #subscribe_delivery_notifications{
         notify_url = NotifyUrl,
         client_correlator = ClientCorrelator,
@@ -118,32 +120,46 @@ handle_subscribe_to_delivery_notifications(Req, #state{
         callback_data = CallbackData,
         sender_addr = SenderAddr
     } = Req,
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
-    ReqID = uuid:unparse(uuid:generate()),
-    case oneapi_srv_db:check_correlator(CustomerUUID, UserID, ClientCorrelator, ReqID) of
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    UserId = Creds#credentials.user_id,
+    ReqId = uuid:unparse(uuid:generate()),
+    case oneapi_srv_db:write_correlator(CustomerId, UserId, ClientCorrelator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
             SourceAddr = #addr{addr = SenderAddr, ton = 1, npi = 1},
-            {ok, _Response} = alley_services_api:subscribe_sms_receipts(
-                ReqID, CustomerUUID, UserID, NotifyUrl, SourceAddr, CallbackData),
-            {ok, ReqID};
-        {correlator_exist, OrigReqID} ->
-            ?log_debug("Correlator exist: ~p", [OrigReqID]),
-            {ok, OrigReqID}
+            case alley_services_api:subscribe_sms_receipts(
+                    ReqId, CustomerId, UserId, NotifyUrl, SourceAddr, CallbackData) of
+                {ok, _Response} ->
+                    {ok, ReqId};
+                {error, Error} ->
+                    ?log_error("Subscribe to delivery notifications failed with: ~p", [Error]),
+                    ok = oneapi_srv_db:delete_correlator(CustomerId, UserId, ClientCorrelator),
+                    ?log_debug("Correlator deleted", []),
+                    {error, Error}
+            end;
+        {error, {already_exists, OrigReqId}} ->
+            ?log_debug("Correlator already exists: ~p", [OrigReqId]),
+            {error, already_exists}
     end.
 
-handle_unsubscribe_from_delivery_notifications(_SenderAdress, SubscriptionID, #state{
+handle_unsubscribe_from_delivery_notifications(SubId, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
-    RequestID = uuid:unparse(uuid:generate()),
-    {ok, _Resp} = alley_services_api:unsubscribe_sms_receipts(
-        RequestID, CustomerUUID, UserID, SubscriptionID),
-    ?log_debug("Subscription [id: ~p] was successfully removed", [SubscriptionID]),
-    {ok, deleted}.
+    ?log_debug("Got unsubscribe from delivery notifications: ~p", [SubId]),
+
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    UserId = Creds#credentials.user_id,
+    ReqId = uuid:unparse(uuid:generate()),
+    case alley_services_api:unsubscribe_sms_receipts(
+            ReqId, CustomerId, UserId, SubId) of
+        {ok, _Resp} ->
+            ?log_debug("Subscription (id: ~p) was successfully removed", [SubId]),
+            {ok, deleted};
+        {error, Error} ->
+            ?log_error("Unsubscribe from delivery notifications failed with: ~p", [Error]),
+            {error, Error}
+    end.
 
 handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
     creds = Creds,
@@ -201,7 +217,7 @@ handle_subscribe_to_inbound_notifications(Req, #state{
     } = Req,
     ReqID = uuid:unparse(uuid:generate()),
     ?log_debug("Got correlator: ~p", [Correlator]),
-    case oneapi_srv_db:check_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+    case oneapi_srv_db:write_correlator(CustomerUUID, UserID, Correlator, ReqID) of
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr2 = #addr{addr = DestAddr, ton = 1, npi = 1},
@@ -209,9 +225,12 @@ handle_subscribe_to_inbound_notifications(Req, #state{
                 ReqID, CustomerUUID, UserID, DestAddr2,
                 NotifyURL, Criteria, Correlator, CallbackData),
             SubscriptionID = Resp#k1api_subscribe_incoming_sms_response_dto.subscription_id,
+%                    ok = oneapi_srv_db:delete_correlator(CustomerId, UserId, ClientCorrelator),
+%                    ?log_debug("Correlator deleted", []),
+
             ?log_debug("Got subscriptionID: ~p", [SubscriptionID]),
             {ok, SubscriptionID};
-        {correlator_exist, OrigReqID} ->
+        {error, {already_exists, OrigReqID}} ->
             ?log_debug("Correlator exist: ~p", [OrigReqID]),
             {ok, OrigReqID}
     end.

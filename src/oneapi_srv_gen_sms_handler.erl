@@ -53,7 +53,7 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_unsubscribe_from_delivery_notifications(sender_address(), subscription_id(), state()) ->
+-callback handle_unsubscribe_from_delivery_notifications(subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
@@ -154,18 +154,34 @@ handle_req(<<"POST">>,
         creds = Creds
     });
 
+%% This handler doesn't conform to OneAPI v2 (http://www.gsma.com/oneapi/sms-restful-api/).
+%% According to the specification there must not be the Sender Address.
+%% But OneAPI v3 (http://www.gsma.com/oneapi/sms-restful-netapi/) has the Sender Address.
 handle_req(<<"DELETE">>,
     [_Ver, <<"smsmessaging">>, <<"outbound">>, _RawSenderAddr, <<"subscriptions">>, _SubId],
     State = #state{req = Req, creds = Creds}
 ) ->
-    {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
-    {SubId, Req3} = cowboy_req:binding(subscription_id, Req2),
-    SenderAddr = convert_addr(RawSenderAddr),
+    {SubId, Req2} = cowboy_req:binding(subscription_id, Req),
     AfterInit = fun(Args, St) -> process_unsubscribe_from_delivery_notifications(Args, St) end,
     Args = SubId,
     do_init(State#state{
-        req = Req3,
-        sender_addr = SenderAddr,
+        req = Req2,
+        sender_addr = undefined,
+        thendo = AfterInit,
+        thendo_args = Args,
+        creds = Creds
+    });
+
+handle_req(<<"DELETE">>,
+    [_Ver, <<"smsmessaging">>, <<"outbound">>, <<"subscriptions">>, _SubId],
+    State = #state{req = Req, creds = Creds}
+) ->
+    {SubId, Req2} = cowboy_req:binding(subscription_id, Req),
+    AfterInit = fun(Args, St) -> process_unsubscribe_from_delivery_notifications(Args, St) end,
+    Args = SubId,
+    do_init(State#state{
+        req = Req2,
+        sender_addr = undefined,
         thendo = AfterInit,
         thendo_args = Args,
         creds = Creds
@@ -342,19 +358,18 @@ process_subscribe_to_delivery_notifications(_, State = #state{
     Request = #subscribe_delivery_notifications{
         %% mandatory
         notify_url = gv(QsVals, <<"notifyURL">>),
+        sender_addr = SenderAddr,
         %% optional
         client_correlator = gv(QsVals, <<"clientCorrelator">>),
         criteria          = gv(QsVals, <<"criteria">>),
-        callback_data     = gv(QsVals, <<"callbackData">>),
-        %% other
-        sender_addr   = SenderAddr
+        callback_data     = gv(QsVals, <<"callbackData">>)
     },
     case Mod:handle_subscribe_to_delivery_notifications(Request, MState) of
-        {ok, SubscribeId} ->
-            CallBackData = gv(QsVals, <<"callbackData">>),
-            NotifyURL = gv(QsVals, <<"notifyURL">>),
-            Location = build_resource_url(Req, SubscribeId),
-            Criteria = gv(QsVals, <<"criteria">>),
+        {ok, SubId} ->
+            CallBackData = gv(QsVals, <<"callbackData">>, <<>>),
+            NotifyURL = gv(QsVals, <<"notifyURL">>, <<>>),
+            Criteria = gv(QsVals, <<"criteria">>, <<>>),
+            Location = build_resource_url(Req, SubId),
             Body = [
                 {<<"deliveryReceiptSubscription">>, [
                     {<<"callbackReference">>, [
@@ -372,30 +387,35 @@ process_subscribe_to_delivery_notifications(_, State = #state{
             ],
             {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req2, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req2, State)
+        {error, empty_notify_url} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"notifyURL">>], Req, State);
+        {error, already_exists} ->
+            Correlator = gv(QsVals, <<"clientCorrelator">>, <<>>),
+            oneapi_srv_protocol:exception('svc0005', [Correlator, <<"clientCorrelator">>], Req, State);
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
 
 %% ===================================================================
 %% Unsubscribe from delivery notifications
 %% ===================================================================
 
-process_unsubscribe_from_delivery_notifications(SubscribeId, State = #state{
+process_unsubscribe_from_delivery_notifications(SubId, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState,
-    sender_addr = Addr
+    sender_addr = undefined
 }) ->
-    case Mod:handle_unsubscribe_delivery_notifications(Addr, SubscribeId, MState) of
+    case Mod:handle_unsubscribe_from_delivery_notifications(SubId, MState) of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
 
 %% ===================================================================
@@ -417,15 +437,15 @@ process_retrieve_inbound(RegId, State = #state{
             Messages = lists:map(
                 fun(#inbound_sms{
                         date_time = DateTime,
-                        message_id = MessId,
+                        message_id = MsgId,
                         message = Message,
                         sender_addr = SenderAddr
                     })->
                         ISO8601 = ac_datetime:datetime_to_iso8601(DateTime),
-                        LocationUrl = build_resource_url(Req, MessId),
+                        LocationUrl = build_resource_url(Req, MsgId),
                         [{<<"dateTime">>, ISO8601},
                          {<<"destinationAddress">>, RegId},
-                         {<<"messageId">>, MessId},
+                         {<<"messageId">>, MsgId},
                          {<<"message">>, Message},
                          {<<"resourceURL">>, LocationUrl},
                          {<<"senderAddress">>, SenderAddr}]
@@ -579,6 +599,14 @@ giv(QsVals, Key) ->
             undefined;
         Value ->
             binary_to_integer(Value)
+    end.
+
+gv(QsVals, Key, Default) ->
+    case gv(QsVals, Key) of
+        undefined ->
+            Default;
+        Value ->
+            Value
     end.
 
 gv(QsVals, Key) ->

@@ -21,7 +21,7 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--spec handle_unsubscribe_from_delivery_notifications(sender_address(), subscription_id(), state()) ->
+-spec handle_unsubscribe_from_delivery_notifications(subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.

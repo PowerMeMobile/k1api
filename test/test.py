@@ -24,7 +24,7 @@ RECIPIENT = '375296543210'
 BAD_RECIPIENT = '999999999999'
 
 REQUEST_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
-BAD_REQUEST_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+BAD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
 PORT1=50101
 PORT2=50102
@@ -306,7 +306,7 @@ def test_sub_wait_push_unsub_inbound_notifications():
 def test_raw_send_outbound_bad_username():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(BAD_USERNAME, PASSWORD)
-    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 401
@@ -314,7 +314,7 @@ def test_raw_send_outbound_bad_username():
 def test_raw_send_outbound_bad_password():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, BAD_PASSWORD)
-    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 401
@@ -322,7 +322,7 @@ def test_raw_send_outbound_bad_password():
 def test_raw_send_outbound_bad_senderAddress():
     url = SERVER + '1/smsmessaging/outbound/' + BAD_ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+BAD_ORIGINATOR, 'message':'Test'}
+    params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+BAD_ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 400
@@ -333,7 +333,7 @@ def test_raw_send_outbound_bad_senderAddress():
 def test_raw_send_outbound_no_recipients():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    params = {'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 400
@@ -344,7 +344,7 @@ def test_raw_send_outbound_no_recipients():
 def test_raw_send_outbound_bad_recipient():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+BAD_RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    params = {'address':'tel:'+BAD_RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 400
@@ -355,7 +355,7 @@ def test_raw_send_outbound_bad_recipient():
 def test_raw_send_outbound():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address': 'tel:'+RECIPIENT, 'senderAddress': 'tel:'+ORIGINATOR, 'message':'Test'}
+    params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 201
@@ -367,7 +367,7 @@ def test_raw_send_outbound():
 #
 
 def test_raw_query_delivery_status_bad_request_id():
-    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + BAD_REQUEST_ID + '/deliveryInfos'
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + BAD_ID + '/deliveryInfos'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     req = requests.get(url, auth=auth)
     print(req.text)
@@ -384,3 +384,29 @@ def test_raw_query_delivery_status():
     assert req.status_code == 200
     data = req.json()
     assert data['deliveryInfoList']['deliveryInfo'][0]['deliveryStatus'] == 'DeliveredToTerminal'
+
+#
+# Raw sub/unsub delivery notifications
+#
+
+def test_raw_subscribe_to_delivery_notifications_wo_notify_url():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/subscriptions'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'clientCorrelator':id_generator()}
+    req = requests.post(url, auth=auth, data=params)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    assert data['requestError']['serviceException']['variables'] == ['notifyURL']
+
+def test_raw_unsubscribe_from_delivery_notifications_w_bad_sub_id():
+    url = SERVER + '1/smsmessaging/outbound/subscriptions/' + BAD_ID
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    req = requests.delete(url, auth=auth)
+    print(req.text)
+    ## SubID checking not implemented yet
+    assert req.status_code == 204
+    #data = req.json()
+    #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
