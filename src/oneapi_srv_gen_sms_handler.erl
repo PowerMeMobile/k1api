@@ -17,6 +17,7 @@
 
 -include("application.hrl").
 -include("oneapi_srv.hrl").
+-include_lib("alley_common/include/logging.hrl").
 
 -record(state, {
     req         :: term(),
@@ -659,5 +660,6 @@ parse_credential_header(Header, Delimiter) ->
         [CustomerId, UserId, Password] ->
             {ok, {CustomerId, UserId, Password}};
         _ ->
+            ?log_error("Parse credentials: ~p failed", [Creds]),
             {error, authentication}
     end.
