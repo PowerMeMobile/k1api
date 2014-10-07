@@ -262,7 +262,6 @@ process_send_outbound(_, State = #state{
     },
     case Mod:handle_send_outbound(SendSmsReq, MState) of
         {ok, ReqId} ->
-            ContentType = <<"application/json">>,
             Location = build_resource_url(Req2, ReqId),
             Body = [
                 {<<"resourceReference">>, [
@@ -270,7 +269,10 @@ process_send_outbound(_, State = #state{
                 ]}
             ],
             JsonBody = jsx:encode(Body),
-            Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
+            Headers = [
+                {<<"content-type">>, <<"application/json">>},
+                {<<"location">>, Location}
+            ],
             {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
         {error, originator_not_found} ->
@@ -352,7 +354,6 @@ process_subscribe_to_delivery_notifications(_, State = #state{
             CallBackData = gv(QsVals, <<"callbackData">>),
             NotifyURL = gv(QsVals, <<"notifyURL">>),
             Location = build_resource_url(Req, SubscribeId),
-            ContentType = <<"application/json">>,
             Criteria = gv(QsVals, <<"criteria">>),
             Body = [
                 {<<"deliveryReceiptSubscription">>, [
@@ -365,7 +366,10 @@ process_subscribe_to_delivery_notifications(_, State = #state{
                 ]}
             ],
             JsonBody = jsx:encode(Body),
-            Headers = [{<<"content-type">>, ContentType}, {<<"location">>, Location}],
+            Headers = [
+                {<<"content-type">>, <<"application/json">>},
+                {<<"location">>, Location}
+            ],
             {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
         {exception, Exception} ->
@@ -466,14 +470,16 @@ process_subscribe_to_inbound_notifications( _, State = #state{
     case Mod:handle_subscribe_to_inbound_notifications(SubscribeInbound, MState) of
         {ok, SubId} ->
             Location = build_resource_url(Req, SubId),
-            ContentType = <<"application/json">>,
             Body = [
                 {<<"resourceReference">>, [
                     {<<"resourceURL">>, Location}
                 ]}
             ],
             JsonBody = jsx:encode(Body),
-            Headers = [{<<"location">>, Location}, {<<"content-type">>, ContentType}],
+            Headers = [
+                {<<"content-type">>, <<"application/json">>},
+                {<<"location">>, Location}
+            ],
             {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
         {exception, Exception} ->
