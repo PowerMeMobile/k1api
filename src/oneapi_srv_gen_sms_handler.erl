@@ -48,12 +48,12 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_subscribe_delivery_notifications(subscribe_delivery_notifications(), state()) ->
+-callback handle_subscribe_to_delivery_notifications(subscribe_delivery_notifications(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_unsubscribe_delivery_notifications(sender_address(), subscription_id(), state()) ->
+-callback handle_unsubscribe_from_delivery_notifications(sender_address(), subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
@@ -63,12 +63,12 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_subscribe_inbound_notifications(subscribe_inbound(), state()) ->
+-callback handle_subscribe_to_inbound_notifications(subscribe_inbound(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--callback handle_unsubscribe_inbound_notifications(subscription_id(), state()) ->
+-callback handle_unsubscribe_from_inbound_notifications(subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
@@ -144,7 +144,7 @@ handle_req(<<"POST">>,
 ) ->
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
     SenderAddr = convert_addr(RawSenderAddr),
-    AfterInit = fun(Args, St) -> process_subscribe_delivery_notifications(Args, St) end,
+    AfterInit = fun(Args, St) -> process_subscribe_to_delivery_notifications(Args, St) end,
     Args = [],
     do_init(State#state{
         req = Req2,
@@ -161,7 +161,7 @@ handle_req(<<"DELETE">>,
     {RawSenderAddr, Req2} = cowboy_req:binding(sender_addr, Req),
     {SubId, Req3} = cowboy_req:binding(subscription_id, Req2),
     SenderAddr = convert_addr(RawSenderAddr),
-    AfterInit = fun(Args, St) -> process_unsubscribe_delivery_notifications(Args, St) end,
+    AfterInit = fun(Args, St) -> process_unsubscribe_from_delivery_notifications(Args, St) end,
     Args = SubId,
     do_init(State#state{
         req = Req3,
@@ -191,7 +191,7 @@ handle_req(<<"POST">>,
     [_Ver,<<"smsmessaging">>,<<"inbound">>,<<"subscriptions">>],
     State = #state{creds = Creds}
 ) ->
-    AfterInit = fun(Args, St) -> process_subscribe_inbound_notifications(Args, St) end,
+    AfterInit = fun(Args, St) -> process_subscribe_to_inbound_notifications(Args, St) end,
     Args = [],
     do_init(State#state{
         thendo = AfterInit,
@@ -204,7 +204,7 @@ handle_req(<<"DELETE">>,
     State = #state{req = Req, creds = Creds}
 ) ->
     {SubId, Req2} = cowboy_req:binding(subscription_id, Req),
-    AfterInit = fun(Args, St) -> process_unsubscribe_inbound_notifications(Args, St) end,
+    AfterInit = fun(Args, St) -> process_unsubscribe_from_inbound_notifications(Args, St) end,
     Args = SubId,
     do_init(State#state{
         req = Req2,
@@ -330,7 +330,7 @@ process_query_delivery_status(ReqId, State = #state{
 %% Subscribe to delivery notifications
 %% ===================================================================
 
-process_subscribe_delivery_notifications(_, State = #state{
+process_subscribe_to_delivery_notifications(_, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState,
@@ -347,7 +347,7 @@ process_subscribe_delivery_notifications(_, State = #state{
         %% other
         sender_addr   = SenderAddr
     },
-    case Mod:handle_subscribe_delivery_notifications(Request, MState) of
+    case Mod:handle_subscribe_to_delivery_notifications(Request, MState) of
         {ok, SubscribeId} ->
             CallBackData = gv(QsVals, <<"callbackData">>),
             NotifyURL = gv(QsVals, <<"notifyURL">>),
@@ -375,10 +375,10 @@ process_subscribe_delivery_notifications(_, State = #state{
     end.
 
 %% ===================================================================
-%% Unsubscribe delivery notifications
+%% Unsubscribe from delivery notifications
 %% ===================================================================
 
-process_unsubscribe_delivery_notifications(SubscribeId, State = #state{
+process_unsubscribe_from_delivery_notifications(SubscribeId, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState,
@@ -447,10 +447,10 @@ process_retrieve_inbound(RegId, State = #state{
     end.
 
 %% ===================================================================
-%% Subscribe inbound notifications
+%% Subscribe to inbound notifications
 %% ===================================================================
 
-process_subscribe_inbound_notifications( _, State = #state{
+process_subscribe_to_inbound_notifications( _, State = #state{
     req = Req,
     mod = Mod,
     mstate = MState
@@ -463,7 +463,7 @@ process_subscribe_inbound_notifications( _, State = #state{
         callback_data = gv(QsVals, <<"callbackData">>),
         correlator    = gv(QsVals, <<"clientCorrelator">>)
     },
-    case Mod:handle_subscribe_inbound_notifications(SubscribeInbound, MState) of
+    case Mod:handle_subscribe_to_inbound_notifications(SubscribeInbound, MState) of
         {ok, SubId} ->
             Location = build_resource_url(Req, SubId),
             ContentType = <<"application/json">>,
@@ -483,15 +483,15 @@ process_subscribe_inbound_notifications( _, State = #state{
     end.
 
 %% ===================================================================
-%% Unsubscribe inbound notifications
+%% Unsubscribe from inbound notifications
 %% ===================================================================
 
-process_unsubscribe_inbound_notifications(SubId, State = #state{
+process_unsubscribe_from_inbound_notifications(SubId, State = #state{
     mod = Mod,
     mstate = MState,
     req = Req
 }) ->
-    case Mod:handle_unsubscribe_inbound_notifications(SubId, MState) of
+    case Mod:handle_unsubscribe_from_inbound_notifications(SubId, MState) of
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};

@@ -16,12 +16,12 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--spec handle_subscribe_delivery_notifications(subscribe_delivery_notifications(), state()) ->
+-spec handle_subscribe_to_delivery_notifications(subscribe_delivery_notifications(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--spec handle_unsubscribe_delivery_notifications(sender_address(), subscription_id(), state()) ->
+-spec handle_unsubscribe_from_delivery_notifications(sender_address(), subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
@@ -31,12 +31,12 @@
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--spec handle_subscribe_inbound_notifications(subscribe_inbound(), state()) ->
+-spec handle_subscribe_to_inbound_notifications(subscribe_inbound(), state()) ->
     {ok, subscription_id()} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.
 
--spec handle_unsubscribe_inbound_notifications(subscription_id(), state()) ->
+-spec handle_unsubscribe_from_inbound_notifications(subscription_id(), state()) ->
     {ok, deleted} |
     {exception, exception()} |
     {exception, exception(), excep_params()}.

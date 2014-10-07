@@ -14,11 +14,11 @@
     init/1,
     handle_send_outbound/2,
     handle_query_delivery_status/3,
-    handle_subscribe_delivery_notifications/2,
-    handle_unsubscribe_delivery_notifications/3,
+    handle_subscribe_to_delivery_notifications/2,
+    handle_unsubscribe_from_delivery_notifications/3,
     handle_retrieve_inbound/2,
-    handle_subscribe_inbound_notifications/2,
-    handle_unsubscribe_inbound_notifications/2
+    handle_subscribe_to_inbound_notifications/2,
+    handle_unsubscribe_from_inbound_notifications/2
 ]).
 
 -record(state, {
@@ -106,7 +106,7 @@ handle_query_delivery_status(SenderAddr, RequestId, #state{
             {error, Error}
     end.
 
-handle_subscribe_delivery_notifications(Req, #state{
+handle_subscribe_to_delivery_notifications(Req, #state{
     creds = Creds,
     customer = Customer
 }) ->
@@ -133,7 +133,7 @@ handle_subscribe_delivery_notifications(Req, #state{
             {ok, OrigReqID}
     end.
 
-handle_unsubscribe_delivery_notifications(_SenderAdress, SubscriptionID, #state{
+handle_unsubscribe_from_delivery_notifications(_SenderAdress, SubscriptionID, #state{
     creds = Creds,
     customer = Customer
 }) ->
@@ -185,7 +185,7 @@ handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
     ?log_debug("Retrieved messages: ~p", [Messages]),
     {ok, Messages, Total}.
 
-handle_subscribe_inbound_notifications(Req, #state{
+handle_subscribe_to_inbound_notifications(Req, #state{
     creds = Creds,
     customer = Customer
 }) ->
@@ -216,7 +216,7 @@ handle_subscribe_inbound_notifications(Req, #state{
             {ok, OrigReqID}
     end.
 
-handle_unsubscribe_inbound_notifications(SubscribeID, #state{
+handle_unsubscribe_from_inbound_notifications(SubscribeID, #state{
     creds = Creds,
     customer = Customer
 }) ->
