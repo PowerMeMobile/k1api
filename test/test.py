@@ -410,3 +410,29 @@ def test_raw_unsubscribe_from_delivery_notifications_w_bad_sub_id():
     #data = req.json()
     #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
+
+#
+# Raw retrive inbound
+#
+
+def test_raw_retrieve_inbound_negative_max_batch_size():
+    url = SERVER + '1/smsmessaging/inbound/registrations/' + ORIGINATOR + '/messages'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'maxBatchSize':-1}
+    req = requests.get(url, auth=auth, params=params)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    assert data['requestError']['serviceException']['variables'] == ['maxBatchSize']
+
+def test_raw_retrieve_inbound_invalid_max_batch_size():
+    url = SERVER + '1/smsmessaging/inbound/registrations/' + ORIGINATOR + '/messages'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'maxBatchSize':'invalid'}
+    req = requests.get(url, auth=auth, params=params)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    assert data['requestError']['serviceException']['variables'] == ['maxBatchSize']

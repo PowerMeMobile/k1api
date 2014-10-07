@@ -465,10 +465,12 @@ process_retrieve_inbound(RegId, State = #state{
             Headers = [{<<"content-type">>, <<"application/json">>}],
             {ok, Req3} = cowboy_req:reply(200, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req2, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req2, State)
+        {error, invalid_bax_match_size} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"maxBatchSize">>], Req, State);
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req2, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req2, State)
     end.
 
 %% ===================================================================
@@ -599,7 +601,9 @@ giv(QsVals, Key) ->
         undefined ->
             undefined;
         Value ->
-            binary_to_integer(Value)
+            try binary_to_integer(Value)
+            catch _:_ -> -1
+            end
     end.
 
 gv(QsVals, Key, Default) ->

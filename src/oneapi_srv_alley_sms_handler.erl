@@ -85,7 +85,7 @@ handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
             {error, Error}
     end.
 
-handle_query_delivery_status(SenderAddr, RequestId, #state{
+handle_query_delivery_status(SenderAddr, ReqId, #state{
     creds = Creds,
     customer = Customer
 }) ->
@@ -94,11 +94,11 @@ handle_query_delivery_status(SenderAddr, RequestId, #state{
 
     ?log_debug("Got query delivery status "
         "(customer_id: ~p, user_id: ~p, sender_addr: ~p, req_id: ~p)",
-        [CustomerId, UserId, SenderAddr, RequestId]),
+        [CustomerId, UserId, SenderAddr, ReqId]),
 
     SenderAddr2 = alley_services_utils:addr_to_dto(SenderAddr),
     case alley_services_api:get_delivery_status(
-            CustomerId, UserId, RequestId, SenderAddr2) of
+            CustomerId, UserId, ReqId, SenderAddr2) of
         {ok, Response} ->
             Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
             DeliveryStatuses = convert_delivery_statuses(Statuses),
@@ -147,7 +147,6 @@ handle_unsubscribe_from_delivery_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from delivery notifications: ~p", [SubId]),
-
     CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
@@ -161,45 +160,49 @@ handle_unsubscribe_from_delivery_notifications(SubId, #state{
             {error, Error}
     end.
 
-handle_retrieve_inbound(Request = #retrieve_sms_req{}, #state{
+handle_retrieve_inbound(Req, #state{
     creds = Creds,
     customer = Customer
 }) ->
+    ?log_debug("Got retrieve inboud: ~p", [Req]),
     #retrieve_sms_req{
-        reg_id = RegID,
+        reg_id = RegId,
         batch_size = BatchSize
-    } = Request,
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
+    } = Req,
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    UserId = Creds#credentials.user_id,
 
     %% !!! registrationID agreed with the OneAPI operator !!!
     %% !!! We use Sender Address for this !!!
-    DestAddr = alley_services_utils:addr_to_dto(RegID),
+    DestAddr = alley_services_utils:addr_to_dto(RegId),
 
-    {ok, Response} =
-        alley_services_api:retrieve_sms(CustomerUUID, UserID, DestAddr, BatchSize),
-    #k1api_retrieve_sms_response_dto{
-        messages = MessagesDTO,
-        total = Total
-    } = Response,
-    Messages = lists:map(
-        fun(MessageDTO) ->
-            #k1api_retrieved_sms_dto{
-                datetime = {MegaSecs, Secs, _MicroSecs},
-                sender_addr = SenderAddr,
-                message_id = MessageID,
-                message = Message
-            } = MessageDTO,
-            UnixEpochDateTime = MegaSecs * 1000000 + Secs,
-            #inbound_sms{
-                date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
-                message_id = MessageID,
-                message = Message,
-                sender_addr = SenderAddr#addr.addr
-            }
-         end, MessagesDTO),
-    ?log_debug("Retrieved messages: ~p", [Messages]),
-    {ok, Messages, Total}.
+    case alley_services_api:retrieve_sms(CustomerId, UserId, DestAddr, BatchSize) of
+        {ok, #k1api_retrieve_sms_response_dto{
+            messages = MessagesDTO,
+            total = Total
+        }} ->
+            Messages = lists:map(
+                fun(MessageDTO) ->
+                    #k1api_retrieved_sms_dto{
+                        datetime = {MegaSecs, Secs, _MicroSecs},
+                        sender_addr = SenderAddr,
+                        message_id = MsgId,
+                        message = Message
+                    } = MessageDTO,
+                    UnixEpochDateTime = MegaSecs * 1000000 + Secs,
+                    #inbound_sms{
+                        date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
+                        message_id = MsgId,
+                        message = Message,
+                        sender_addr = SenderAddr#addr.addr
+                    }
+                 end, MessagesDTO),
+            ?log_debug("Retrieved messages: ~p", [Messages]),
+            {ok, Messages, Total};
+        {error, Error} ->
+            ?log_error("Retrieve inbound failed with: ~p", [Error]),
+            {error, Error}
+    end.
 
 handle_subscribe_to_inbound_notifications(Req, #state{
     creds = Creds,
