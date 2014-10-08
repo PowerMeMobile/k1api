@@ -113,7 +113,7 @@ def test_sub_unsub_outbound_notifications():
 
     resource_url = result.resource_url
 
-    time.sleep(5)
+    time.sleep(1)
 
     result = sms_client.delete_delivery_status_subscription(resource_url)
     print(result)
@@ -255,7 +255,7 @@ def test_sub_unsub_inbound_notifications():
 
     resource_url = result.resource_url
 
-    time.sleep(5)
+    time.sleep(1)
 
     result = sms_client.delete_messages_sent_subscription(resource_url)
     print(result)

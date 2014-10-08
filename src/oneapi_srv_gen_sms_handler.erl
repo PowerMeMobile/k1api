@@ -302,6 +302,8 @@ process_send_outbound(_, State = #state{
             oneapi_srv_protocol:exception('svc0002', [<<"message">>], Req2, State);
         {error, credit_limit_exceeded} ->
             oneapi_srv_protocol:exception('svc0001', [?E_CREDIT_LIMIT_EXCEEDED], Req2, State);
+        {error, receipts_not_allowed} ->
+            oneapi_srv_protocol:exception('svc0283', [], Req2, State);
         {error, timeout} ->
             oneapi_srv_protocol:code(503, Req2, State);
         {error, Error} ->
@@ -339,6 +341,8 @@ process_query_delivery_status(ReqId, State = #state{
             oneapi_srv_protocol:exception('svc0002', [<<"requestId">>], Req, State);
         {error, invalid_request_id} ->
             oneapi_srv_protocol:exception('svc0002', [<<"requestId">>], Req, State);
+        {error, receipts_not_allowed} ->
+            oneapi_srv_protocol:exception('svc0283', [], Req, State);
         {error, timeout} ->
             oneapi_srv_protocol:code(503, Req, State);
         {error, Error} ->
@@ -393,6 +397,8 @@ process_subscribe_to_delivery_notifications(_, State = #state{
         {error, already_exists} ->
             Correlator = gv(QsVals, <<"clientCorrelator">>, <<>>),
             oneapi_srv_protocol:exception('svc0005', [Correlator, <<"clientCorrelator">>], Req, State);
+        {error, receipts_not_allowed} ->
+            oneapi_srv_protocol:exception('svc0283', [], Req2, State);
         {error, timeout} ->
             oneapi_srv_protocol:code(503, Req, State);
         {error, Error} ->

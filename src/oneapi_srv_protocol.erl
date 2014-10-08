@@ -11,7 +11,6 @@
     init/0,
     deliver_sms_status/1,
     deliver_sms/1,
-    exception/3,
     exception/4,
     code/3
 ]).
@@ -145,11 +144,6 @@ code(404, Req, State) ->
 %% ===================================================================
 %% Exceptions
 %% ===================================================================
-
--spec exception(ExceptionTag::atom(), Req::term(), State::term()) ->
-    {ok, Req2::term(), State::term()}.
-exception(ExceptionTag, Req, State) ->
-    exception(ExceptionTag, [], Req, State).
 
 -spec exception(ExceptionTag::atom(), ExceptionVars::[term()], Req::term(), State::term()) ->
     {ok, Req2::term(), State::term()}.

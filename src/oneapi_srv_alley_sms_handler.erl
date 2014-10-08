@@ -45,22 +45,33 @@ init(Creds = #credentials{}) ->
             {error, Error}
     end.
 
-handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
+handle_send_outbound(#outbound_sms{notify_url = NotifyUrl} = Req, #state{
+    customer = #k1api_auth_response_customer_dto{
+        uuid = CustomerId,
+        receipts_allowed = ReceiptsAllowed
+    }
+}) when (NotifyUrl =/= undefined andalso NotifyUrl =/= <<>>) andalso
+        (not ReceiptsAllowed) ->
+    ?log_debug("Got send outbound: ~p", [Req]),
+    ?log_error("Delivery notifications are not allowed for customer_id: ~p",
+        [CustomerId]),
+    {error, receipts_not_allowed};
+handle_send_outbound(Req, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    ?log_debug("Got send outbound: ~p", [OutboundSms]),
+    ?log_debug("Got send outbound: ~p", [Req]),
 
     CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
     UserId     = Creds#credentials.user_id,
 
     %% mandatory
-    Recipients = oneapi_srv_utils:reformat_addrs(OutboundSms#outbound_sms.address),
-    Originator = oneapi_srv_utils:reformat_addr(OutboundSms#outbound_sms.sender_address),
-    Message    = OutboundSms#outbound_sms.message,
+    Recipients = oneapi_srv_utils:reformat_addrs(Req#outbound_sms.address),
+    Originator = oneapi_srv_utils:reformat_addr(Req#outbound_sms.sender_address),
+    Message    = Req#outbound_sms.message,
 
     %% optional
-    Params = outbound_sms_optional_params(OutboundSms),
+    Params = outbound_sms_optional_params(Req),
 
     SendReq = #send_req{
         action = send_sms,
@@ -85,6 +96,15 @@ handle_send_outbound(OutboundSms = #outbound_sms{}, #state{
             {error, Error}
     end.
 
+handle_query_delivery_status(_SenderAddr, _ReqId, #state{
+    customer = #k1api_auth_response_customer_dto{
+        uuid = CustomerId,
+        receipts_allowed = false
+    }
+}) ->
+    ?log_debug("Got query delivery status (customer_id: ~p)", [CustomerId]),
+    ?log_error("Delivery notifications are not allowed for customer_id: ~p", [CustomerId]),
+    {error, receipts_not_allowed};
 handle_query_delivery_status(SenderAddr, ReqId, #state{
     creds = Creds,
     customer = Customer
@@ -108,6 +128,15 @@ handle_query_delivery_status(SenderAddr, ReqId, #state{
             {error, Error}
     end.
 
+handle_subscribe_to_delivery_notifications(Req, #state{
+    customer = #k1api_auth_response_customer_dto{
+        uuid = CustomerId,
+        receipts_allowed = false
+    }
+}) ->
+    ?log_debug("Got subscribe to delivery notifications: ~p", [Req]),
+    ?log_error("Delivery notifications are not allowed for customer_id: ~p", [CustomerId]),
+    {error, receipts_not_allowed};
 handle_subscribe_to_delivery_notifications(Req, #state{
     creds = Creds,
     customer = Customer
