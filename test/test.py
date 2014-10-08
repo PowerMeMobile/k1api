@@ -436,3 +436,43 @@ def test_raw_retrieve_inbound_invalid_max_batch_size():
     data = req.json()
     assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     assert data['requestError']['serviceException']['variables'] == ['maxBatchSize']
+
+#
+# Sub/unsub inbound notifications
+#
+
+def test_raw_subscribe_to_inbound_notifications_wo_dest_addr():
+    url = SERVER + '1/smsmessaging/inbound/subscriptions'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'clientCorrelator':id_generator()}
+    req = requests.post(url, auth=auth, data=params)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    assert data['requestError']['serviceException']['variables'] == ['destinationAddress']
+
+def test_raw_subscribe_to_inbound_notifications_wo_notify_url():
+    url = SERVER + '1/smsmessaging/inbound/subscriptions'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'clientCorrelator':id_generator(),'destinationAddress':'someaddress'}
+    req = requests.post(url, auth=auth, data=params)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    assert data['requestError']['serviceException']['variables'] == ['notifyURL']
+
+def test_raw_unsubscribe_from_inbound_notifications_w_bad_sub_id():
+    url = SERVER + '1/smsmessaging/inbound/subscriptions/' + BAD_ID
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    req = requests.delete(url, auth=auth)
+    print(req.text)
+    ## SubID checking not implemented yet
+    assert req.status_code == 204
+    #data = req.json()
+    #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
+    #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
+
+# notification format ONLY json
+# only json for POST operations

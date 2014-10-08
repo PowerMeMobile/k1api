@@ -484,7 +484,7 @@ process_subscribe_to_inbound_notifications( _, State = #state{
 }) ->
     {QsVals, Req2} = get_qs_vals(Req),
     SubscribeInbound = #subscribe_inbound{
-        dest_addr     = convert_addr(gv(QsVals, <<"destinationAddress">>)),
+        dest_addr     = convert_addr(gv(QsVals, <<"destinationAddress">>, <<>>)),
         notify_url    = gv(QsVals, <<"notifyURL">>),
         criteria      = gv(QsVals, <<"criteria">>),
         callback_data = gv(QsVals, <<"callbackData">>),
@@ -505,10 +505,17 @@ process_subscribe_to_inbound_notifications( _, State = #state{
             ],
             {ok, Req3} = cowboy_req:reply(201, Headers, JsonBody, Req2),
             {ok, Req3, State#state{req = Req3}};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+        {error, empty_dest_addr} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"destinationAddress">>], Req, State);
+        {error, empty_notify_url} ->
+            oneapi_srv_protocol:exception('svc0002', [<<"notifyURL">>], Req, State);
+        {error, already_exists} ->
+            Correlator = gv(QsVals, <<"clientCorrelator">>, <<>>),
+            oneapi_srv_protocol:exception('svc0005', [Correlator, <<"clientCorrelator">>], Req, State);
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
 
 %% ===================================================================
@@ -524,10 +531,10 @@ process_unsubscribe_from_inbound_notifications(SubId, State = #state{
         {ok, deleted} ->
             {ok, Req2} = cowboy_req:reply(204, [], <<>>, Req),
             {ok, Req2, State};
-        {exception, Exception} ->
-            oneapi_srv_protocol:exception(Exception, Req, State);
-        {exception, Exception, Vars} ->
-            oneapi_srv_protocol:exception(Exception, Vars, Req, State)
+        {error, timeout} ->
+            oneapi_srv_protocol:code(503, Req, State);
+        {error, Error} ->
+            oneapi_srv_protocol:exception('svc0001', [Error], Req, State)
     end.
 
 %% ===================================================================

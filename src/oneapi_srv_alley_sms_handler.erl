@@ -153,7 +153,7 @@ handle_unsubscribe_from_delivery_notifications(SubId, #state{
     case alley_services_api:unsubscribe_sms_receipts(
             ReqId, CustomerId, UserId, SubId) of
         {ok, _Resp} ->
-            ?log_debug("Subscription (id: ~p) was successfully removed", [SubId]),
+            ?log_debug("Delivery sub (id: ~p) removed", [SubId]),
             {ok, deleted};
         {error, Error} ->
             ?log_error("Unsubscribe from delivery notifications failed with: ~p", [Error]),
@@ -208,9 +208,7 @@ handle_subscribe_to_inbound_notifications(Req, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    ?log_debug("Got inbound subscribe event: ~p", [Req]),
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
+    ?log_debug("Got subscribe to inbound notifications: ~p", [Req]),
     #subscribe_inbound{
         dest_addr = DestAddr,
         notify_url = NotifyURL,
@@ -218,37 +216,46 @@ handle_subscribe_to_inbound_notifications(Req, #state{
         callback_data = CallbackData,
         correlator = Correlator
     } = Req,
-    ReqID = uuid:unparse(uuid:generate()),
-    ?log_debug("Got correlator: ~p", [Correlator]),
-    case oneapi_srv_db:write_correlator(CustomerUUID, UserID, Correlator, ReqID) of
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    UserId = Creds#credentials.user_id,
+    ReqId = uuid:unparse(uuid:generate()),
+    case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr2 = #addr{addr = DestAddr, ton = 1, npi = 1},
-            {ok, Resp} = alley_services_api:subscribe_incoming_sms(
-                ReqID, CustomerUUID, UserID, DestAddr2,
-                NotifyURL, Criteria, Correlator, CallbackData),
-            SubscriptionID = Resp#k1api_subscribe_incoming_sms_response_dto.subscription_id,
-%                    ok = oneapi_srv_db:delete_correlator(CustomerId, UserId, ClientCorrelator),
-%                    ?log_debug("Correlator deleted", []),
-
-            ?log_debug("Got subscriptionID: ~p", [SubscriptionID]),
-            {ok, SubscriptionID};
-        {error, {already_exists, OrigReqID}} ->
-            ?log_debug("Correlator exist: ~p", [OrigReqID]),
-            {ok, OrigReqID}
+            case alley_services_api:subscribe_incoming_sms(
+                    ReqId, CustomerId, UserId, DestAddr2,
+                    NotifyURL, Criteria, Correlator, CallbackData) of
+                {ok, _Response} ->
+                    {ok, ReqId};
+                {error, Error} ->
+                    ?log_error("Subscribe to inbound notifications failed with: ~p", [Error]),
+                    ok = oneapi_srv_db:delete_correlator(CustomerId, UserId, Correlator),
+                    ?log_debug("Correlator deleted", []),
+                    {error, Error}
+            end;
+        {error, {already_exists, OrigReqId}} ->
+            ?log_debug("Correlator already exists: ~p", [OrigReqId]),
+            {error, already_exists}
     end.
 
-handle_unsubscribe_from_inbound_notifications(SubscribeID, #state{
+handle_unsubscribe_from_inbound_notifications(SubId, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    ?log_debug("Got inbound unsubscribe event: ~p", [SubscribeID]),
-    CustomerUUID = Customer#k1api_auth_response_customer_dto.uuid,
-    UserID = Creds#credentials.user_id,
-    RequestID = uuid:unparse(uuid:generate()),
-    {ok, _Resp} = alley_services_api:unsubscribe_incoming_sms(
-        RequestID, CustomerUUID, UserID, SubscribeID),
-    {ok, deleted}.
+    ?log_debug("Got unsubscribe from inbound notifications: ~p", [SubId]),
+    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    UserId = Creds#credentials.user_id,
+    ReqId = uuid:unparse(uuid:generate()),
+    case alley_services_api:unsubscribe_incoming_sms(
+            ReqId, CustomerId, UserId, SubId) of
+        {ok, _Resp} ->
+            ?log_debug("Inbound sub (id: ~p) removed", [SubId]),
+            {ok, deleted};
+        {error, Error} ->
+            ?log_error("Unsubscribe from inbound notifications failed with: ~p", [Error]),
+            {error, Error}
+    end.
 
 %% ===================================================================
 %% Internal
