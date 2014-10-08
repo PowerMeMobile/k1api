@@ -511,3 +511,45 @@ def test_raw_content_type_unknown():
     assert req.status_code == 400
     data = req.json()
     assert data['requestError']['serviceException']['messageId'] == 'SVC0001'
+
+#
+# Check delivery statuses
+#
+# You need smppsink (https://github.com/PowerMeMobile/smppsink) to run these tests
+#
+
+def check_delivery_status(command, status):
+    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
+    sms = models.SMSRequest()
+    sms.sender_address = ORIGINATOR
+    sms.address = RECIPIENT
+    sms.message = command
+
+    req_fmt = 'url'
+    result = sms_client.send_sms(sms, {'accept':'json'}, req_fmt)
+    print(result)
+    assert result.is_success() == True
+
+    time.sleep(1)
+
+    delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
+    print(delivery_info_list)
+    assert delivery_info_list.is_success() == True
+    assert delivery_info_list.exception == None
+    assert delivery_info_list.delivery_info[0].delivery_status == status
+
+
+def test_check_delivery_statuses():
+    statuses = [
+        ('receipt:enroute',       'DeliveredToNetwork'),
+        ('receipt:delivered',     'DeliveredToTerminal'),
+        ('receipt:expired',       'DeliveryImpossible'),
+        ('receipt:deleted',       'DeliveryImpossible'),
+        ('receipt:undeliverable', 'DeliveryImpossible'),
+        ('receipt:accepted',      'DeliveredToNetwork'),
+        ('receipt:unknown',       'DeliveryUncertain'),
+        ('receipt:rejected',      'DeliveryImpossible')
+    ]
+
+    for (command, status) in statuses:
+        check_delivery_status(command, status)
