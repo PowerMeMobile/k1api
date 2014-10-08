@@ -486,5 +486,28 @@ def test_raw_unsubscribe_from_inbound_notifications_w_bad_sub_id():
     #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
 
-# notification format ONLY json
-# only json for POST operations
+#
+# Check post Content-Type
+#
+
+def test_raw_content_type_json():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
+    headers = {'content-type': 'application/json'}
+    req = requests.post(url, data=params, auth=auth, headers=headers)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0001'
+
+def test_raw_content_type_unknown():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
+    headers = {'content-type':'unknown/unknown'}
+    req = requests.post(url, data=params, auth=auth, headers=headers)
+    print(req.text)
+    assert req.status_code == 400
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0001'

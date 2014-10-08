@@ -29,7 +29,10 @@
     thendo_args :: term()
 }).
 
--define(E_CREDIT_LIMIT_EXCEEDED, <<"Customer's postpaid credit limit is exceeded">>).
+-define(E_CREDIT_LIMIT_EXCEEDED,           <<"Customer's postpaid credit limit is exceeded">>).
+-define(E_POST_JSON_NOT_IMPLEMENTED,       <<"JSON not implemented for POST operations">>).
+-define(E_POST_NOT_SUPPORTED_CONTENT_TYPE, <<"Not supported Content-Type for POST operations">>).
+-define(E_POST_NOT_SPECIFIED_CONTENT_TYPE, <<"Not specified Content-Type for POST operations">>).
 
 %% ===================================================================
 %% Behaviour Callbacks
@@ -75,20 +78,7 @@ init({_Any, http}, Req, [Module]) ->
     {ok, Req, #state{mod = Module, req = Req}}.
 
 handle(Req, State = #state{}) ->
-    {Path, Req} = cowboy_req:path(Req),
-    {Method, Req} = cowboy_req:method(Req),
-    case get_credentials(Req) of
-        {ok, {CustomerId, UserId, Password}} ->
-            Creds = #credentials{
-                customer_id = CustomerId,
-                user_id = UserId,
-                password = Password
-            },
-            [<<>> | Segments] = binary:split(Path, <<"/">>, [global]),
-            handle_req(Method, Segments, State#state{creds = Creds});
-        {error, authentication} ->
-            oneapi_srv_protocol:code(401, Req, [])
-    end.
+    handle_init(check_post_content_type, Req, State).
 
 terminate(_Reason, _Req, _State) ->
     clean_body(),       %% Need to cleanup body record in proc dict
@@ -98,6 +88,44 @@ terminate(_Reason, _Req, _State) ->
 %% ===================================================================
 %% Parsing http requests
 %% ===================================================================
+
+handle_init(check_post_content_type, Req, State) ->
+    {Method, Req2} = cowboy_req:method(Req),
+    case Method of
+        <<"POST">> ->
+            {ContentType, Req3} = cowboy_req:header(<<"content-type">>, Req2),
+            case ContentType of
+                <<"application/x-www-form-urlencoded">> ->
+                    handle_init(check_credentials, Req3, State);
+                <<"application/json">> ->
+                    oneapi_srv_protocol:exception('svc0001',
+                        [?E_POST_JSON_NOT_IMPLEMENTED], Req3, State);
+                undefined ->
+                    oneapi_srv_protocol:exception('svc0001',
+                        [?E_POST_NOT_SPECIFIED_CONTENT_TYPE], Req3, State);
+                _ ->
+                    oneapi_srv_protocol:exception('svc0001',
+                        [?E_POST_NOT_SUPPORTED_CONTENT_TYPE], Req3, State)
+            end;
+        _ ->
+            handle_init(check_credentials, Req2, State)
+    end;
+
+handle_init(check_credentials, Req, State) ->
+    case get_credentials(Req) of
+        {ok, {CustomerId, UserId, Password}} ->
+            Creds = #credentials{
+                customer_id = CustomerId,
+                user_id = UserId,
+                password = Password
+            },
+            {Method, Req2} = cowboy_req:method(Req),
+            {Path, Req3} = cowboy_req:path(Req2),
+            [<<>> | Segments] = binary:split(Path, <<"/">>, [global]),
+            handle_req(Method, Segments, State#state{creds = Creds, req = Req3});
+        {error, authentication} ->
+            oneapi_srv_protocol:code(401, Req, [])
+    end.
 
 handle_req(<<"POST">>,
     [_Ver, <<"smsmessaging">>, <<"outbound">>, _RawSenderAddr, <<"requests">>],
