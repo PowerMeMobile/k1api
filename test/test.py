@@ -21,6 +21,8 @@ BAD_PASSWORD = 'intentionally wrong password'
 ORIGINATOR = '375296660003'
 BAD_ORIGINATOR = '999999999999'
 RECIPIENT = '375296543210'
+RECIPIENT2 = '375296543211'
+RECIPIENT3 = '375296543212'
 BAD_RECIPIENT = '999999999999'
 
 REQUEST_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
@@ -356,6 +358,16 @@ def test_raw_send_outbound():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':'tel:'+RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 201
+    data = req.json()
+    assert data['resourceReference']['resourceURL']
+
+def test_raw_send_outbound_mult_addresses():
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':['tel:'+RECIPIENT, 'tel:'+RECIPIENT2, 'tel:'+RECIPIENT3], 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 201
