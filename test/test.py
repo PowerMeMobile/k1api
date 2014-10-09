@@ -25,11 +25,12 @@ import oneapi.models as models
 import oneapi.dummyserver as dummyserver
 
 SERVER = 'http://127.0.0.1:8081/'
-
 USERNAME = 'oneapi-postpaid@user'
 BAD_USERNAME = 'bad_user_name'
 PASSWORD = 'password'
 BAD_PASSWORD = 'intentionally wrong password'
+
+SMPPSIM_SERVER = 'http://127.0.0.1:8071/'
 
 ORIGINATOR = '375296660003'
 BAD_ORIGINATOR = '999999999999'
@@ -50,8 +51,24 @@ PORT5=50105
 PORT6=50106
 PORT7=50107
 
+#
+# Utils
+#
+
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
+def send_inbound_via_smppsim(src_addr, dst_addr, message):
+    url = SMPPSIM_SERVER + 'inject_mo'
+    params = {'short_message':message,
+              'source_addr':src_addr, 'source_addr_ton':'1', 'source_addr_npi':'1',
+              'destination_addr':dst_addr, 'dest_addr_ton':'1', 'dest_addr_npi':'1'}
+    req = requests.get(url, params=params)
+    assert req.status_code == 200
+
+#
+# Tests
+#
 
 def test_send_outbound_wo_notify_url_and_query_status():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
@@ -242,14 +259,32 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
     print(result)
     assert result == (True, '')
 
-def test_retrieve_inbound():
+def test_retrieve_inbound_1():
+    body = "Msg #1"
+    send_inbound_via_smppsim(SIM_RECIPIENT,  ORIGINATOR, body)
+
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     result = sms_client.retrieve_inbound_messages(ORIGINATOR)
     print(result)
-    assert result.exception == None
-    assert result.number_of_messages_in_this_batch >= 0
-    assert result.total_number_of_pending_messages >= 0
-    assert result.inbound_sms_message == []
+
+    assert result.number_of_messages_in_this_batch == 1
+    assert result.total_number_of_pending_messages == 0
+    inbound_message = result.inbound_sms_message[0]
+    assert inbound_message.sender_address == SIM_RECIPIENT
+    assert inbound_message.destination_address == ORIGINATOR
+    assert inbound_message.message == body
+
+def test_retrieve_inbound_3():
+    send_inbound_via_smppsim(SIM_RECIPIENT,  ORIGINATOR, "Msg #1")
+    send_inbound_via_smppsim(SIM_RECIPIENT2, ORIGINATOR, "Msg #2")
+    send_inbound_via_smppsim(SIM_RECIPIENT3, ORIGINATOR, "Msg #3")
+
+    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
+    result = sms_client.retrieve_inbound_messages(ORIGINATOR)
+    print(result)
+
+    assert result.number_of_messages_in_this_batch == 3
+    assert result.total_number_of_pending_messages == 0
 
 def test_sub_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
@@ -295,22 +330,27 @@ def test_sub_wait_push_unsub_inbound_notifications():
 
     resource_url = result.resource_url
 
+    # send inbound
+    body = "Msg #"
+    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
+
     # wait for push-es
     server = dummyserver.DummyWebServer(PORT5)
     server.start_wait_and_shutdown(10)
 
     requests = server.get_requests()
     print(requests)
-    #assert requests
+    assert len(requests) == 3
 
     server = None
-    for method, path, http_body in requests:
+    for (_, _, http_body) in requests:
         inbound_message = oneapi.SmsClient.unserialize_inbound_messages(http_body)
         print(inbound_message)
-        #assert delivery_info_notification.is_success() == True
-        #assert delivery_info_notification.callback_data == callback_data
-        #assert delivery_info_notification.delivery_info.exception == None
-        #assert delivery_info_notification.delivery_info.delivery_status == 'DeliveredToTerminal'
+        #assert inbound_message.sender_address == SIM_RECIPIENT
+        #assert inbound_message.destination_address == ORIGINATOR
+        #assert inbound_message.message == body
 
     result = sms_client.delete_messages_sent_subscription(resource_url)
     print(result)
