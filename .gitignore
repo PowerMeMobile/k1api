@@ -4,5 +4,8 @@ ebin
 deps
 rel/erl_crash.dump
 rel/oneapi_srv
+test/__pycache__/
+test/env/
+test/*.pyc
 priv
 TAGS
