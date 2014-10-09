@@ -82,7 +82,7 @@ def test_send_outbound_wo_notify_url_and_query_status():
     print(result)
     assert result.is_success() == True
 
-    time.sleep(5)
+    time.sleep(1)
 
     delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
     print(delivery_info_list)
@@ -111,7 +111,7 @@ def test_send_outbound_w_notify_url():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(PORT1)
-    server.start_wait_and_shutdown(5)
+    server.start_wait_and_shutdown(2)
 
     requests = server.get_requests()
     assert requests
@@ -184,7 +184,7 @@ def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(PORT2)
-    server.start_wait_and_shutdown(5)
+    server.start_wait_and_shutdown(2)
 
     requests = server.get_requests()
     assert requests
@@ -240,7 +240,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 
     # wait for push-es
     server = dummyserver.DummyWebServer(PORT4)
-    server.start_wait_and_shutdown(5)
+    server.start_wait_and_shutdown(2)
 
     requests = server.get_requests()
     assert requests
@@ -311,7 +311,7 @@ def test_sub_unsub_inbound_notifications():
     print(result)
     assert result == (True, '')
 
-def test_sub_wait_push_unsub_inbound_notifications():
+def test_sub_send_inbount_wait_push_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.address = ORIGINATOR
@@ -335,14 +335,16 @@ def test_sub_wait_push_unsub_inbound_notifications():
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
 
     # wait for push-es
     server = dummyserver.DummyWebServer(PORT5)
-    server.start_wait_and_shutdown(10)
+    server.start_wait_and_shutdown(15)
 
     requests = server.get_requests()
     print(requests)
-    assert len(requests) == 3
+    assert len(requests) == 5
 
     server = None
     for (_, _, http_body) in requests:
