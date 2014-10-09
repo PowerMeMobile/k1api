@@ -42,7 +42,7 @@ init() ->
     {ok, _Pid} = cowboy:start_http(
         ?MODULE, AcceptorsNum, TransOpts, ProtoOpts
     ),
-    ?log_info("http server is listening to ~p:~p", [Addr, Port]),
+    ?log_info("HTTP server is listening on ~p:~p", [Addr, Port]),
     ok.
 
 -spec build_sms_handle_spec(atom()) -> [term()].
@@ -89,7 +89,7 @@ deliver_sms_status(#delivery_receipt{
     JsonBody = jsx:encode(Body),
     httpc:request(post,
         {binary_to_list(NotifyURL), [], ContentType, JsonBody},
-        [{timeout, 5000}], [{body_format, binary}]).
+        [{timeout, 5000}, {connect_timeout, 1000}], [{body_format, binary}]).
 
 -spec deliver_sms(inbound_sms()) -> {ok, term()} | {error, term()}.
 deliver_sms(#inbound_sms{
@@ -118,7 +118,7 @@ deliver_sms(#inbound_sms{
     ContentType = "application/json",
     httpc:request(post,
         {binary_to_list(NotifyURL), [], ContentType, JsonBody},
-        [{timeout, 5000}], [{body_format, binary}]).
+        [{timeout, 5000}, {connect_timeout, 1000}], [{body_format, binary}]).
 
 %% ===================================================================
 %% HTTP Response Codes

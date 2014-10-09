@@ -1,0 +1,47 @@
+#!/bin/bash
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=oneapi-postpaid
+USER=user
+PASSWORD=password
+
+SENDER_ADDR=tel%3A%2B375296660003
+INVALID_SENDER_ADDR=tel%3A%2B375396660003
+
+
+#161 symbols message
+#MESSAGE_BODY=Hello%20Worldafdgjlkfjgafdlkgjaflkgblaadkagjflkgjmalfmgvblaflvbkamlfkvbamlfckvbalfkgblakfblkamflbkanmflbknalkfnblakfnlbkanmflkbamlbkmalfkmbalkfbalfkbalfkbabaarfhfg
+
+#160 symbols message
+#MESSAGE_BODY=Hello%20Worldafdgjlkfjgafdlkgjaflkgblaadkagjflkgjmalfmgvblaflvbkamlfkvbamlfckvbalfkgblakfblkamflbkanmflbknalkfnblakfnlbkanmflkbamlbkmalfkmbalkfbalfkbalfkbabaarfhf
+
+#90 not only gsm
+#MESSAGE_BODY=Hello%20Worldприветdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
+
+#90 only gsm
+#MESSAGE_BODY=Hello%20Worldghbdncdsgakjfdjkgbalfkjglkajfcfbavcknblvkacfnlbkacmbvalkcvnlbkanvclkbanmdlvbkna
+
+#6 not gsm
+MESSAGE_BODY=Привет
+
+CORRELATOR=$RANDOM
+#CORRELATOR=25024
+
+#REQUEST_BODY="address=tel%3A%2B375296543210&address=tel%3A%2B375296543211&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://localhost:1234&callbackData=some-data&senderName=Sender%20Name";
+
+#REQUEST_BODY="address=tel%3A%2B375296543210&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://localhost:1234&callbackData=some-data&senderName=Sender%20Name";
+#REQUEST_BODY="address=tel%3A%2B375296543210&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://localhost:1234&callbackData=some-data";
+#REQUEST_BODY="address=tel%3A%2B375296543210&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR&notifyURL=http://localhost:1234";
+
+#REQUEST_BODY="senderAddress=$INVALID_SENDER_ADDR&address=tel%3A%2B375296543210&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR";
+#REQUEST_BODY="address=tel%3A%2B375396543210&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR";
+#REQUEST_BODY="senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR";
+REQUEST_BODY="address=tel%3A%2B375296543210&senderAddress=$SENDER_ADDR&message=$MESSAGE_BODY&clientCorrelator=$CORRELATOR";
+
+echo "Correlator: $CORRELATOR";
+echo "Request body: $REQUEST_BODY";
+echo "==========================="
+
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$SENDER_ADDR/requests -d $REQUEST_BODY
+echo

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=oneapi-postpaid
+USER=user
+PASSWORD=password
+SENDER_ADDR=tel%3A%2B375296660003
+
+MAX_BATCH_SIZE=${1-1}
+
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X GET $HOST:$PORT/1/smsmessaging/inbound/registrations/$SENDER_ADDR/messages?maxBatchSize=$MAX_BATCH_SIZE
+echo

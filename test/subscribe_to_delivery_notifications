@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [[ $# != 1 ]]; then
+    echo "usage: subscribe_to_delivery_notifications <notify port>"
+    exit 1
+fi
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=oneapi-postpaid
+USER=user
+PASSWORD=password
+DEST_ADDR=tel%3A%2B375296660003
+
+NOTIFY_PORT=$1
+NOTIFY_URL="http://localhost:${NOTIFY_PORT}"
+CORRELATOR=$RANDOM
+CRITERIA="GIGPICS"
+CALLBACK_DATA="somedata"
+
+REQ_BODY="clientCorrelator=${CORRELATOR}&notifyURL=${NOTIFY_URL}&criteria=${CRITERIA}&callbackData=${CALLBACK_DATA}"
+
+echo "Request body: $REQ_BODY";
+echo "==========================="
+
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$DEST_ADDR/subscriptions -d $REQ_BODY
+echo

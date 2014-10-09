@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [[ $# != 1 ]]; then
+    echo "usage: unsubscribe_from_delivery_notifications <sub_id>"
+    exit 1
+fi
+
+HOST=127.0.0.1
+PORT=8081
+CUSTOMER=oneapi-postpaid
+USER=user
+PASSWORD=password
+
+SUB_ID=$1
+
+curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/1/smsmessaging/outbound/subscriptions/${SUB_ID}
+echo
