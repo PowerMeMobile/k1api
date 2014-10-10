@@ -13,13 +13,11 @@
 %% ===================================================================
 
 -spec translate_status_name(binary()) -> binary().
+translate_status_name(<<"pending">>) ->
+    <<"DeliveryUncertain">>;
 translate_status_name(<<"submitted">>) ->
-    <<"MessageWaiting">>;
-translate_status_name(<<"success_waiting_delivery">>) ->
-    <<"MessageWaiting">>;
-translate_status_name(<<"success_no_delivery">>) ->
     <<"DeliveredToNetwork">>;
-translate_status_name(<<"failure">>) ->
+translate_status_name(<<"failed">>) ->
     <<"DeliveryImpossible">>;
 translate_status_name(<<"enroute">>) ->
     <<"DeliveredToNetwork">>;
@@ -38,7 +36,9 @@ translate_status_name(<<"unknown">>) ->
 translate_status_name(<<"rejected">>) ->
     <<"DeliveryImpossible">>;
 translate_status_name(<<"unrecognized">>) ->
-    <<"DeliveryImpossible">>.
+    <<"DeliveryImpossible">>;
+translate_status_name(Unknown) ->
+    Unknown.
 
 -spec reformat_addr(binary()) -> #addr{}.
 reformat_addr(<<"tel:+", Addr/binary>>) ->

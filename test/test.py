@@ -575,7 +575,7 @@ def test_raw_content_type_unknown():
 # You need smppsink (https://github.com/PowerMeMobile/smppsink) to run these tests
 #
 
-def check_delivery_status(command, status):
+def check_delivery_status(command, status, timeout):
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -587,7 +587,7 @@ def check_delivery_status(command, status):
     print(result)
     assert result.is_success() == True
 
-    time.sleep(1)
+    time.sleep(timeout)
 
     delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
     print(delivery_info_list)
@@ -598,15 +598,17 @@ def check_delivery_status(command, status):
 
 def test_check_delivery_statuses():
     statuses = [
-        ('receipt:enroute',       'DeliveredToNetwork'),
-        ('receipt:delivered',     'DeliveredToTerminal'),
-        ('receipt:expired',       'DeliveryImpossible'),
-        ('receipt:deleted',       'DeliveryImpossible'),
-        ('receipt:undeliverable', 'DeliveryImpossible'),
-        ('receipt:accepted',      'DeliveredToNetwork'),
-        ('receipt:unknown',       'DeliveryUncertain'),
-        ('receipt:rejected',      'DeliveryImpossible')
+        ('receipt:enroute',       'DeliveredToNetwork',  1),
+        ('receipt:delivered',     'DeliveredToTerminal', 1),
+        ('receipt:expired',       'DeliveryImpossible',  1),
+        ('receipt:deleted',       'DeliveryImpossible',  1),
+        ('receipt:undeliverable', 'DeliveryImpossible',  1),
+        ('receipt:accepted',      'DeliveredToNetwork',  1),
+        ('receipt:unknown',       'DeliveryUncertain',   1),
+        ('receipt:rejected',      'DeliveryImpossible',  1),
+        # ('submit:{timeout:43200}','DeliveryUncertain', 1), # in 12 hrs # smppsink is not ready for this yet
+        ('submit:1',              'DeliveryImpossible',  3)
     ]
 
-    for (command, status) in statuses:
-        check_delivery_status(command, status)
+    for (command, status, timeout) in statuses:
+        check_delivery_status(command, status, timeout)
