@@ -618,7 +618,7 @@ def test_check_sink_delivery_statuses():
 # Check encondings
 #
 
-def check_message_parts_count(message, count, timeout):
+def check_message_parts_count(message, count):
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -629,8 +629,6 @@ def check_message_parts_count(message, count, timeout):
     result = sms_client.send_sms(sms, {'accept':'json'}, req_fmt)
     print(result)
     assert result.is_success() == True
-
-    time.sleep(timeout)
 
     delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
     print(delivery_info_list)
@@ -646,14 +644,14 @@ def test_encodings():
     latin1_459 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxy'
     latin1_460 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz'
     checks = [
-        (latin1_160, 1, 1),
-        (latin1_161, 2, 1),
-        (latin1_306, 2, 1),
-        (latin1_307, 3, 1),
-        (latin1_459, 3, 1),
-        (latin1_460, 4, 1)
+        (latin1_160, 1),
+        (latin1_161, 2),
+        (latin1_306, 2),
+        (latin1_307, 3),
+        (latin1_459, 3),
+        (latin1_460, 4)
         ## utf-8 encoding is not supported by oneapi-python yet
     ]
 
-    for (message, count, timeout) in checks:
-        check_message_parts_count(message, count, timeout)
+    for (message, count) in checks:
+        check_message_parts_count(message, count)
