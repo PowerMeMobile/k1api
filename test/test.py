@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # setup python's virtualenv as described here
 # https://gist.github.com/ten0s/ac6c573ba249b4ae5373
 
@@ -575,7 +577,7 @@ def test_raw_content_type_unknown():
 # You need smppsink (https://github.com/PowerMeMobile/smppsink) to run these tests
 #
 
-def check_delivery_status(command, status, timeout):
+def check_sink_delivery_status(command, status, timeout):
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -595,9 +597,8 @@ def check_delivery_status(command, status, timeout):
     assert delivery_info_list.exception == None
     assert delivery_info_list.delivery_info[0].delivery_status == status
 
-
-def test_check_delivery_statuses():
-    statuses = [
+def test_check_sink_delivery_statuses():
+    checks = [
         ('receipt:enroute',       'DeliveredToNetwork',  1),
         ('receipt:delivered',     'DeliveredToTerminal', 1),
         ('receipt:expired',       'DeliveryImpossible',  1),
@@ -610,5 +611,49 @@ def test_check_delivery_statuses():
         ('submit:1',              'DeliveryImpossible',  3)
     ]
 
-    for (command, status, timeout) in statuses:
-        check_delivery_status(command, status, timeout)
+    for (command, status, timeout) in checks:
+        check_sink_delivery_status(command, status, timeout)
+
+#
+# Check encondings
+#
+
+def check_message_parts_count(message, count, timeout):
+    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
+    sms = models.SMSRequest()
+    sms.sender_address = ORIGINATOR
+    sms.address = SIM_RECIPIENT
+    sms.message = message
+
+    req_fmt = 'url'
+    result = sms_client.send_sms(sms, {'accept':'json'}, req_fmt)
+    print(result)
+    assert result.is_success() == True
+
+    time.sleep(timeout)
+
+    delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
+    print(delivery_info_list)
+    assert delivery_info_list.is_success() == True
+    assert delivery_info_list.exception == None
+    assert len(delivery_info_list.delivery_info) == count
+
+def test_encodings():
+    latin1_160 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJ'
+    latin1_161 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJK'
+    latin1_306 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345'
+    latin1_307 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456'
+    latin1_459 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxy'
+    latin1_460 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz'
+    checks = [
+        (latin1_160, 1, 1),
+        (latin1_161, 2, 1),
+        (latin1_306, 2, 1),
+        (latin1_307, 3, 1),
+        (latin1_459, 3, 1),
+        (latin1_460, 4, 1)
+        ## utf-8 encoding is not supported by oneapi-python yet
+    ]
+
+    for (message, count, timeout) in checks:
+        check_message_parts_count(message, count, timeout)
