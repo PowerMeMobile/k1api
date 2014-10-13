@@ -619,22 +619,25 @@ def test_check_sink_delivery_statuses():
 #
 
 def check_message_parts_count(message, count):
-    sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
-    sms = models.SMSRequest()
-    sms.sender_address = ORIGINATOR
-    sms.address = SIM_RECIPIENT
-    sms.message = message
+    send_url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':'tel:'+SIM_RECIPIENT, 'senderAddress':'tel:'+ORIGINATOR, 'message':message}
+    req = requests.post(send_url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 201
+    data = req.json()
+    assert data['resourceReference']['resourceURL']
 
-    req_fmt = 'url'
-    result = sms_client.send_sms(sms, {'accept':'json'}, req_fmt)
-    print(result)
-    assert result.is_success() == True
+    res_url = data['resourceReference']['resourceURL']
+    req_id = res_url[len(res_url)-36:]
+    print(req_id)
 
-    delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
-    print(delivery_info_list)
-    assert delivery_info_list.is_success() == True
-    assert delivery_info_list.exception == None
-    assert len(delivery_info_list.delivery_info) == count
+    query_url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + req_id + '/deliveryInfos'
+    req = requests.get(query_url, auth=auth)
+    print(req.text)
+    assert req.status_code == 200
+    data = req.json()
+    assert len(data['deliveryInfoList']['deliveryInfo']) == count
 
 def test_encodings():
     latin1_160 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJ'
@@ -643,14 +646,25 @@ def test_encodings():
     latin1_307 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456'
     latin1_459 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxy'
     latin1_460 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz'
+    utf8_70 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123'
+    utf8_71 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ01234'
+    utf8_134 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧ'
+    utf8_135 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШ'
+    utf8_201 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНО'
+    utf8_202 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОП'
     checks = [
         (latin1_160, 1),
         (latin1_161, 2),
         (latin1_306, 2),
         (latin1_307, 3),
         (latin1_459, 3),
-        (latin1_460, 4)
-        ## utf-8 encoding is not supported by oneapi-python yet
+        (latin1_460, 4),
+        (utf8_70,    1),
+        (utf8_71,    2),
+        (utf8_134,   2),
+        (utf8_135,   3),
+        (utf8_201,   3),
+        (utf8_202,   4)
     ]
 
     for (message, count) in checks:
