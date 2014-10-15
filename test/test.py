@@ -45,13 +45,12 @@ BAD_RECIPIENT = '000123457689'
 REQUEST_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
 BAD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
-PORT1=50101
-PORT2=50102
-PORT3=50103
-PORT4=50104
-PORT5=50105
-PORT6=50106
-PORT7=50107
+LISTEN_HOST  = "SEE BELOW local_ip()"
+LISTEN_PORT1 = 1231
+LISTEN_PORT2 = 1232
+LISTEN_PORT3 = 1233
+LISTEN_PORT4 = 1234
+LISTEN_PORT5 = 1235
 
 #
 # Utils
@@ -67,6 +66,13 @@ def send_inbound_via_smppsim(src_addr, dst_addr, message):
               'destination_addr':dst_addr, 'dest_addr_ton':'1', 'dest_addr_npi':'1'}
     req = requests.get(url, params=params)
     assert req.status_code == 200
+
+def local_ip():
+    import commands
+    ips = commands.getoutput("hostname -I")
+    return ips[:ips.find(' ')]
+
+LISTEN_HOST  = local_ip()
 
 #
 # Tests
@@ -84,7 +90,7 @@ def test_send_outbound_wo_notify_url_and_query_status():
     print(result)
     assert result.is_success() == True
 
-    time.sleep(1)
+    time.sleep(2)
 
     delivery_info_list = sms_client.query_delivery_status(result.client_correlator, result.sender)
     print(delivery_info_list)
@@ -98,7 +104,7 @@ def test_send_outbound_w_notify_url():
     sms.sender_address = ORIGINATOR
     sms.address = SIM_RECIPIENT
     sms.message = 'Test'
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT1)
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT1)
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -112,8 +118,8 @@ def test_send_outbound_w_notify_url():
     #assert result.sender == 'tel:' + ORIGINATOR
 
     # wait for push-es
-    server = dummyserver.DummyWebServer(PORT1)
-    server.start_wait_and_shutdown(2)
+    server = dummyserver.DummyWebServer(LISTEN_PORT1)
+    server.start_wait_and_shutdown(5)
 
     requests = server.get_requests()
     assert requests
@@ -132,7 +138,7 @@ def test_sub_unsub_outbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT1)
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT1)
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -147,7 +153,7 @@ def test_sub_unsub_outbound_notifications():
 
     resource_url = result.resource_url
 
-    time.sleep(1)
+    time.sleep(2)
 
     result = sms_client.delete_delivery_status_subscription(resource_url)
     print(result)
@@ -157,7 +163,7 @@ def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT2)
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT2)
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -172,7 +178,7 @@ def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
 
     resource_url = result.resource_url
 
-    time.sleep(1)
+    time.sleep(2)
 
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -185,8 +191,8 @@ def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
     assert result.is_success() == True
 
     # wait for push-es
-    server = dummyserver.DummyWebServer(PORT2)
-    server.start_wait_and_shutdown(2)
+    server = dummyserver.DummyWebServer(LISTEN_PORT2)
+    server.start_wait_and_shutdown(5)
 
     requests = server.get_requests()
     assert requests
@@ -209,7 +215,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT3) # we setup, but not listen
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT3) # we setup, but not listen
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -224,13 +230,13 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 
     resource_url = result.resource_url
 
-    time.sleep(1)
+    time.sleep(2)
 
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
     sms.address = SIM_RECIPIENT
     sms.message = 'Test'
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT4)
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT4)
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -241,8 +247,8 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
     assert result.is_success() == True
 
     # wait for push-es
-    server = dummyserver.DummyWebServer(PORT4)
-    server.start_wait_and_shutdown(2)
+    server = dummyserver.DummyWebServer(LISTEN_PORT4)
+    server.start_wait_and_shutdown(5)
 
     requests = server.get_requests()
     assert requests
@@ -292,7 +298,7 @@ def test_sub_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.address = ORIGINATOR
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT5)
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT5)
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -307,7 +313,7 @@ def test_sub_unsub_inbound_notifications():
 
     resource_url = result.resource_url
 
-    time.sleep(1)
+    time.sleep(2)
 
     result = sms_client.delete_messages_sent_subscription(resource_url)
     print(result)
@@ -317,7 +323,7 @@ def test_sub_send_inbount_wait_push_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.address = ORIGINATOR
-    notify_url = 'http://{0}:{1}'.format('localhost', PORT5)
+    notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT5)
     sms.notify_url = notify_url
     callback_data = id_generator()
     sms.callback_data = callback_data
@@ -341,7 +347,7 @@ def test_sub_send_inbount_wait_push_unsub_inbound_notifications():
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
 
     # wait for push-es
-    server = dummyserver.DummyWebServer(PORT5)
+    server = dummyserver.DummyWebServer(LISTEN_PORT5)
     server.start_wait_and_shutdown(15)
 
     requests = server.get_requests()
