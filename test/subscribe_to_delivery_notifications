@@ -23,5 +23,5 @@ REQ_BODY="clientCorrelator=${CORRELATOR}&notifyURL=${NOTIFY_URL}&criteria=${CRIT
 echo "Request body: $REQ_BODY";
 echo "==========================="
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$DEST_ADDR/subscriptions -d $REQ_BODY
+curl -v --user $CUSTOMER:$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$DEST_ADDR/subscriptions -d $REQ_BODY
 echo

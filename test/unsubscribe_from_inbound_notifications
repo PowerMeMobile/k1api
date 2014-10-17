@@ -13,5 +13,5 @@ PASSWORD=password
 
 SUB_ID=$1
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X DELETE $HOST:$PORT/1/smsmessaging/inbound/subscriptions/${SUB_ID}
+curl -v --user $CUSTOMER:$USER:$PASSWORD -X DELETE $HOST:$PORT/1/smsmessaging/inbound/subscriptions/${SUB_ID}
 echo

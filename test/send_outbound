@@ -20,5 +20,5 @@ echo "Correlator: $CORRELATOR";
 echo "Request body: $REQUEST_BODY";
 echo "==========================="
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$SENDER_ADDR/requests -d $REQUEST_BODY
+curl -v --user $CUSTOMER:$USER:$PASSWORD -X POST $HOST:$PORT/1/smsmessaging/outbound/$SENDER_ADDR/requests -d $REQUEST_BODY
 echo

@@ -27,7 +27,7 @@ import oneapi.models as models
 import oneapi.dummyserver as dummyserver
 
 SERVER = 'http://127.0.0.1:8081/'
-USERNAME = 'oneapi-postpaid@user'
+USERNAME = 'oneapi-postpaid:user'
 BAD_USERNAME = 'bad_user_name'
 PASSWORD = 'password'
 BAD_PASSWORD = 'intentionally wrong password'

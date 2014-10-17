@@ -9,5 +9,5 @@ SENDER_ADDR=tel%3A%2B375296660003
 
 MAX_BATCH_SIZE=${1-1}
 
-curl -v --user $CUSTOMER@$USER:$PASSWORD -X GET $HOST:$PORT/1/smsmessaging/inbound/registrations/$SENDER_ADDR/messages?maxBatchSize=$MAX_BATCH_SIZE
+curl -v --user $CUSTOMER:$USER:$PASSWORD -X GET $HOST:$PORT/1/smsmessaging/inbound/registrations/$SENDER_ADDR/messages?maxBatchSize=$MAX_BATCH_SIZE
 echo
