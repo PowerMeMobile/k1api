@@ -119,7 +119,7 @@ def test_send_outbound_w_notify_url():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT1)
-    server.start_wait_and_shutdown(5)
+    server.start_wait_and_shutdown(10)
 
     requests = server.get_requests()
     assert requests
@@ -192,7 +192,7 @@ def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT2)
-    server.start_wait_and_shutdown(5)
+    server.start_wait_and_shutdown(10)
 
     requests = server.get_requests()
     assert requests
@@ -248,7 +248,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT4)
-    server.start_wait_and_shutdown(5)
+    server.start_wait_and_shutdown(10)
 
     requests = server.get_requests()
     assert requests
@@ -348,11 +348,12 @@ def test_sub_send_inbount_wait_push_unsub_inbound_notifications():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT5)
-    server.start_wait_and_shutdown(15)
+    server.start_wait_and_shutdown(20)
 
     requests = server.get_requests()
     print(requests)
-    assert len(requests) == 5
+    # some messages may be left from previous sessions
+    assert len(requests) >= 5
 
     server = None
     for (_, _, http_body) in requests:
