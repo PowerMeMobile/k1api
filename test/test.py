@@ -140,9 +140,9 @@ def test_sub_unsub_outbound_notifications():
     sms.sender_address = ORIGINATOR
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT1)
     sms.notify_url = notify_url
-    callback_data = id_generator()
-    sms.callback_data = callback_data
-    sms.filter_criteria = ""
+    sms.callback_data = ''
+    sms.client_correlator = ''
+    sms.filter_criteria = ''
 
     req_fmt = 'url'
     result = sms_client.subscribe_delivery_status(sms, {'accept':'json'}, req_fmt)
@@ -217,8 +217,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
     sms.sender_address = ORIGINATOR
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT3) # we setup, but not listen
     sms.notify_url = notify_url
-    callback_data = id_generator()
-    sms.callback_data = callback_data
+    sms.callback_data = ''
     sms.filter_criteria = ''
 
     req_fmt = 'url'
@@ -300,9 +299,8 @@ def test_sub_unsub_inbound_notifications():
     sms.address = ORIGINATOR
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT5)
     sms.notify_url = notify_url
-    callback_data = id_generator()
-    sms.callback_data = callback_data
-    sms.filter_criteria = ""
+    sms.callback_data = ''
+    sms.filter_criteria = ''
 
     req_fmt = 'url'
     result = sms_client.subscribe_messages_sent_notification(sms, {'accept':'json'}, req_fmt)
@@ -325,9 +323,8 @@ def test_sub_send_inbount_wait_push_unsub_inbound_notifications():
     sms.address = ORIGINATOR
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT5)
     sms.notify_url = notify_url
-    callback_data = id_generator()
-    sms.callback_data = callback_data
-    sms.filter_criteria = ""
+    sms.callback_data = ''
+    sms.filter_criteria = ''
 
     req_fmt = 'url'
     result = sms_client.subscribe_messages_sent_notification(sms, {'accept':'json'}, req_fmt)

@@ -388,7 +388,7 @@ process_subscribe_to_delivery_notifications(_, State = #state{
         %% optional
         client_correlator = gv(QsVals, <<"clientCorrelator">>),
         criteria          = gv(QsVals, <<"criteria">>),
-        callback_data     = gv(QsVals, <<"callbackData">>)
+        callback_data     = gv(QsVals, <<"callbackData">>, <<>>)
     },
     case Mod:handle_subscribe_to_delivery_notifications(Request, MState) of
         {ok, SubId} ->
