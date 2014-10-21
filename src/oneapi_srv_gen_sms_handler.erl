@@ -325,6 +325,9 @@ process_send_outbound(_, State = #state{
             oneapi_srv_protocol:exception('svc0001', [?E_CREDIT_LIMIT_EXCEEDED], Req2, State);
         {error, receipts_not_allowed} ->
             oneapi_srv_protocol:exception('svc0283', [], Req2, State);
+        {error, correlator_already_exists} ->
+            Correlator = gv(QsVals, <<"clientCorrelator">>, <<>>),
+            oneapi_srv_protocol:exception('svc0005', [Correlator, <<"clientCorrelator">>], Req, State);
         {error, timeout} ->
             oneapi_srv_protocol:code(503, Req2, State);
         {error, Error} ->
@@ -415,7 +418,7 @@ process_subscribe_to_delivery_notifications(_, State = #state{
             {ok, Req3, State#state{req = Req3}};
         {error, empty_notify_url} ->
             oneapi_srv_protocol:exception('svc0002', [<<"notifyURL">>], Req, State);
-        {error, already_exists} ->
+        {error, correlator_already_exists} ->
             Correlator = gv(QsVals, <<"clientCorrelator">>, <<>>),
             oneapi_srv_protocol:exception('svc0005', [Correlator, <<"clientCorrelator">>], Req, State);
         {error, receipts_not_allowed} ->
@@ -536,7 +539,7 @@ process_subscribe_to_inbound_notifications( _, State = #state{
             oneapi_srv_protocol:exception('svc0002', [<<"destinationAddress">>], Req, State);
         {error, empty_notify_url} ->
             oneapi_srv_protocol:exception('svc0002', [<<"notifyURL">>], Req, State);
-        {error, already_exists} ->
+        {error, correlator_already_exists} ->
             Correlator = gv(QsVals, <<"clientCorrelator">>, <<>>),
             oneapi_srv_protocol:exception('svc0005', [Correlator, <<"clientCorrelator">>], Req, State);
         {error, timeout} ->

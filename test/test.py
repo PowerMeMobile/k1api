@@ -441,12 +441,36 @@ def test_raw_send_outbound():
 def test_raw_send_outbound_mult_addresses():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':['tel:'+SIM_RECIPIENT, 'tel:'+SIM_RECIPIENT2, 'tel:'+SIM_RECIPIENT3], 'senderAddress':'tel:'+ORIGINATOR, 'message':'Test'}
+    params = {'address':['tel:'+SIM_RECIPIENT, 'tel:'+SIM_RECIPIENT2, 'tel:'+SIM_RECIPIENT3],
+              'senderAddress':'tel:'+ORIGINATOR,
+              'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
     print(req.text)
     assert req.status_code == 201
     data = req.json()
     assert data['resourceReference']['resourceURL']
+
+def test_raw_send_outbound_same_client_correlator():
+    client_correlator = id_generator()
+
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':'tel:'+SIM_RECIPIENT,
+              'senderAddress':'tel:'+ORIGINATOR,
+              'message':'Test',
+              'clientCorrelator':client_correlator}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 201
+    data = req.json()
+    assert data['resourceReference']['resourceURL']
+
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 409
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0005'
+    assert data['requestError']['serviceException']['variables'] == [client_correlator, 'clientCorrelator']
 
 #
 # Raw query delivery status
@@ -478,8 +502,9 @@ def test_raw_query_delivery_status():
 def test_raw_subscribe_to_delivery_notifications_wo_notify_url():
     url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/subscriptions'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'clientCorrelator':id_generator()}
-    req = requests.post(url, auth=auth, data=params)
+    params = {}
+    headers = {'content-type':'application/x-www-form-urlencoded'}
+    req = requests.post(url, auth=auth, data=params, headers=headers)
     print(req.text)
     assert req.status_code == 400
     data = req.json()
@@ -496,6 +521,32 @@ def test_raw_unsubscribe_from_delivery_notifications_w_bad_sub_id():
     #data = req.json()
     #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
+
+def test_raw_subscribe_to_delivery_notifications_same_client_correlator():
+    client_correlator = id_generator()
+
+    # send first sub request
+    url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/subscriptions'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'notifyURL':'someurl',
+              'clientCorrelator':client_correlator}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 201
+    data = req.json()
+    unsub_url = data['deliveryReceiptSubscription']['resourceURL']
+
+    # send second sub request with the same correlator
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 409
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0005'
+    assert data['requestError']['serviceException']['variables'] == [client_correlator, 'clientCorrelator']
+
+    # cleanup
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    req = requests.delete(unsub_url, auth=auth)
 
 #
 # Raw retrieve inbound
@@ -530,8 +581,9 @@ def test_raw_retrieve_inbound_invalid_max_batch_size():
 def test_raw_subscribe_to_inbound_notifications_wo_dest_addr():
     url = SERVER + '1/smsmessaging/inbound/subscriptions'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'clientCorrelator':id_generator()}
-    req = requests.post(url, auth=auth, data=params)
+    params = {}
+    headers = {'content-type':'application/x-www-form-urlencoded'}
+    req = requests.post(url, auth=auth, data=params, headers=headers)
     print(req.text)
     assert req.status_code == 400
     data = req.json()
@@ -541,7 +593,7 @@ def test_raw_subscribe_to_inbound_notifications_wo_dest_addr():
 def test_raw_subscribe_to_inbound_notifications_wo_notify_url():
     url = SERVER + '1/smsmessaging/inbound/subscriptions'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'clientCorrelator':id_generator(),'destinationAddress':'someaddress'}
+    params = {'destinationAddress':'someaddress'}
     req = requests.post(url, auth=auth, data=params)
     print(req.text)
     assert req.status_code == 400
@@ -559,6 +611,33 @@ def test_raw_unsubscribe_from_inbound_notifications_w_bad_sub_id():
     #data = req.json()
     #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
+
+def test_raw_subscribe_to_inbound_notifications_same_client_correlator():
+    client_correlator = id_generator()
+
+    # send first sub request
+    url = SERVER + '1/smsmessaging/inbound/subscriptions'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'destinationAddress':'someaddress',
+              'notifyURL':'someurl',
+              'clientCorrelator':client_correlator}
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 201
+    data = req.json()
+    unsub_url = data['resourceReference']['resourceURL']
+
+    # send second sub request with the same correlator
+    req = requests.post(url, data=params, auth=auth)
+    print(req.text)
+    assert req.status_code == 409
+    data = req.json()
+    assert data['requestError']['serviceException']['messageId'] == 'SVC0005'
+    assert data['requestError']['serviceException']['variables'] == [client_correlator, 'clientCorrelator']
+
+    # cleanup
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    req = requests.delete(unsub_url, auth=auth)
 
 #
 # Check post Content-Type

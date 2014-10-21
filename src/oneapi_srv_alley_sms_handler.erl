@@ -71,29 +71,38 @@ handle_send_outbound(Req, #state{
     Message    = Req#outbound_sms.message,
 
     %% optional
-    Params = outbound_sms_optional_params(Req),
+    Correlator = Req#outbound_sms.client_correlator,
+    SmppParams = outbound_sms_optional_params(Req),
 
-    SendReq = #send_req{
-        action = send_sms,
-        customer_id = CustomerId,
-        user_id = UserId,
-        client_type = oneapi,
-        customer = Customer,
-        recipients = Recipients,
-        originator = Originator,
-        text = Message,
-        flash = false,
-        smpp_params = Params
-    },
-    {ok, Result} = alley_services_mt:send(SendReq),
-    ?log_debug("Got submit result: ~p", [Result]),
-
-    case Result#send_result.result of
+    ReqId = uuid:unparse(uuid:generate()),
+    case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
         ok ->
-            {ok, Result#send_result.req_id};
-        Error ->
-            ?log_error("Send outbound failed with: ~p", [Error]),
-            {error, Error}
+            ?log_debug("Correlator saved", []),
+            SendReq = #send_req{
+                action = send_sms,
+                customer_id = CustomerId,
+                user_id = UserId,
+                client_type = oneapi,
+                customer = Customer,
+                recipients = Recipients,
+                originator = Originator,
+                text = Message,
+                flash = false,
+                smpp_params = SmppParams
+            },
+            {ok, Result} = alley_services_mt:send(SendReq),
+            ?log_debug("Got submit result: ~p", [Result]),
+
+            case Result#send_result.result of
+                ok ->
+                    {ok, Result#send_result.req_id};
+                Error ->
+                    ?log_error("Send outbound failed with: ~p", [Error]),
+                    {error, Error}
+            end;
+        {error, {already_exists, OrigReqId}} ->
+            ?log_debug("Correlator already exists: ~p", [OrigReqId]),
+            {error, correlator_already_exists}
     end.
 
 handle_query_delivery_status(_SenderAddr, _ReqId, #state{
@@ -168,7 +177,7 @@ handle_subscribe_to_delivery_notifications(Req, #state{
             end;
         {error, {already_exists, OrigReqId}} ->
             ?log_debug("Correlator already exists: ~p", [OrigReqId]),
-            {error, already_exists}
+            {error, correlator_already_exists}
     end.
 
 handle_unsubscribe_from_delivery_notifications(SubId, #state{
@@ -265,7 +274,7 @@ handle_subscribe_to_inbound_notifications(Req, #state{
             end;
         {error, {already_exists, OrigReqId}} ->
             ?log_debug("Correlator already exists: ~p", [OrigReqId]),
-            {error, already_exists}
+            {error, correlator_already_exists}
     end.
 
 handle_unsubscribe_from_inbound_notifications(SubId, #state{
@@ -300,8 +309,7 @@ outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
                     [{Name, Value} | Acc]
             end
         end,
-    Params = [{<<"oneapi_client_correlator">>, #outbound_sms.client_correlator},
-              {<<"oneapi_notify_url">>, #outbound_sms.notify_url},
+    Params = [{<<"oneapi_notify_url">>, #outbound_sms.notify_url},
               {<<"oneapi_callback_data">>, #outbound_sms.callback_data}],
     lists:foldl(Fun, [], Params).
 
