@@ -159,7 +159,7 @@ def test_sub_unsub_outbound_notifications():
     print(result)
     assert result == (True, '')
 
-def test_sub_send_outbound_wo_notify_url_wait_push_unsub_notifications():
+def test_sub_send_outbound_w_notify_url_wait_push_unsub_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
@@ -317,7 +317,7 @@ def test_sub_unsub_inbound_notifications():
     print(result)
     assert result == (True, '')
 
-def test_sub_send_inbount_wait_push_unsub_inbound_notifications():
+def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, SERVER)
     sms = models.SMSRequest()
     sms.address = ORIGINATOR
