@@ -1,4 +1,6 @@
 #!/bin/sh
+# -*- tab-width:4;indent-tabs-mode:nil -*-
+# ex: ts=4 sw=4 et
 
 ENTOP_NODE_ARG="-name entop-oneapi_srv@127.0.0.1"
 
@@ -155,8 +157,8 @@ case "$1" in
             console)        BOOTFILE=$SCRIPT ;;
             console_clean)  BOOTFILE=start_clean ;;
             develop)
-                BOOTFILE=develop
-                DEV_HOOK="-run oneapi_srv_app set_debug_level" ;;
+                BOOTFILE=$SCRIPT
+                DEV_HOOK="-run oneapi_srv_develop init" ;;
         esac
         # Setup beam-required vars
         ROOTDIR=$RUNNER_BASE_DIR
@@ -194,7 +196,7 @@ case "$1" in
         ;;
 
     *)
-        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|develop|top|console_clean|attach}"
+        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|attach|console|console_clean|develop|top}"
         exit 1
         ;;
 esac
