@@ -697,15 +697,15 @@ def check_sink_delivery_status(command, status, timeout):
 
 def test_check_sink_delivery_statuses():
     checks = [
-        ('receipt:enroute',       'DeliveredToNetwork',  1),
-        ('receipt:delivered',     'DeliveredToTerminal', 1),
-        ('receipt:expired',       'DeliveryImpossible',  1),
-        ('receipt:deleted',       'DeliveryImpossible',  1),
-        ('receipt:undeliverable', 'DeliveryImpossible',  1),
-        ('receipt:accepted',      'DeliveredToNetwork',  1),
-        ('receipt:unknown',       'DeliveryUncertain',   1),
-        ('receipt:rejected',      'DeliveryImpossible',  1),
-        # ('submit:{timeout:43200}','DeliveryUncertain', 1), # in 12 hrs # smppsink is not ready for this yet
+        ('receipt:enroute',       'DeliveredToNetwork',  2),
+        ('receipt:delivered',     'DeliveredToTerminal', 2),
+        ('receipt:expired',       'DeliveryImpossible',  2),
+        ('receipt:deleted',       'DeliveryImpossible',  2),
+        ('receipt:undeliverable', 'DeliveryImpossible',  2),
+        ('receipt:accepted',      'DeliveredToNetwork',  2),
+        ('receipt:unknown',       'DeliveryUncertain',   2),
+        ('receipt:rejected',      'DeliveryImpossible',  2),
+        # ('submit:{timeout:43200}','DeliveryUncertain', 2), # in 12 hrs # smppsink is not ready for this yet
         ('submit:1',              'DeliveryImpossible',  3)
     ]
 
