@@ -6,7 +6,7 @@
     reformat_addrs/1
 ]).
 
--include_lib("alley_dto/include/adto.hrl").
+-include_lib("alley_dto/include/addr.hrl").
 
 %% ===================================================================
 %% API

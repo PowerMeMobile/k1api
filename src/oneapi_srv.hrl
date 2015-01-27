@@ -1,7 +1,8 @@
 -ifndef(oneapi_srv_hrl).
 -define(oneapi_srv_hrl, included).
 
--type uuid()            :: binary().
+-include_lib("alley_dto/include/adto.hrl").
+
 -type state()           :: term().
 -type date()            :: {integer(), integer(), integer()}.
 -type time()            :: {integer(), integer(), integer()}.

@@ -35,19 +35,22 @@ init(Creds = #credentials{}) ->
     UserId = Creds#credentials.user_id,
     Password = Creds#credentials.password,
     case alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password) of
-        {ok, #k1api_auth_response_dto{result = {customer, Customer}}} ->
-            {ok, #state{creds = Creds, customer = Customer}};
-        {ok, #k1api_auth_response_dto{result = {error, Error}}} ->
-            ?log_error("Authenticate response error: ~p", [Error]),
-            {error, authentication};
+        {ok, #auth_resp_v1{result = Result}} ->
+            case Result of
+                #auth_customer_v1{} ->
+                    {ok, #state{creds = Creds, customer = Result}};
+                #auth_error_v1{message = Error} ->
+                    ?log_error("Authenticate response error: ~p", [Error]),
+                    {error, authentication}
+            end;
         {error, Error} ->
             ?log_error("Authenticate failed with: ~p", [Error]),
             {error, Error}
     end.
 
 handle_send_outbound(#outbound_sms{notify_url = NotifyUrl} = Req, #state{
-    customer = #k1api_auth_response_customer_dto{
-        uuid = CustomerId,
+    customer = #auth_customer_v1{
+        customer_uuid = CustomerId,
         receipts_allowed = ReceiptsAllowed
     }
 }) when (NotifyUrl =/= undefined andalso NotifyUrl =/= <<>>) andalso
@@ -62,7 +65,7 @@ handle_send_outbound(Req, #state{
 }) ->
     ?log_debug("Got send outbound: ~p", [Req]),
 
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId     = Creds#credentials.user_id,
 
     %% mandatory
@@ -106,8 +109,8 @@ handle_send_outbound(Req, #state{
     end.
 
 handle_query_delivery_status(_SenderAddr, _ReqId, #state{
-    customer = #k1api_auth_response_customer_dto{
-        uuid = CustomerId,
+    customer = #auth_customer_v1{
+        customer_uuid = CustomerId,
         receipts_allowed = false
     }
 }) ->
@@ -118,19 +121,18 @@ handle_query_delivery_status(SenderAddr, ReqId, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     ?log_debug("Got query delivery status "
         "(customer_id: ~p, user_id: ~p, sender_addr: ~p, req_id: ~p)",
         [CustomerId, UserId, SenderAddr, ReqId]),
 
-    SenderAddr2 = alley_services_utils:addr_to_dto(SenderAddr),
-    case alley_services_api:get_delivery_status(
-            CustomerId, UserId, ReqId, SenderAddr2) of
+    case alley_services_api:get_sms_status(
+            CustomerId, UserId, ReqId) of
         {ok, Response} ->
-            Statuses = Response#k1api_sms_delivery_status_response_dto.statuses,
-            DeliveryStatuses = convert_delivery_statuses(Statuses),
+            Statuses = Response#sms_status_resp_v1.statuses,
+            DeliveryStatuses = convert_sms_statuses(Statuses),
             {ok, DeliveryStatuses};
         {error, Error} ->
             ?log_error("Query delivery status failed with: ~p", [Error]),
@@ -138,13 +140,14 @@ handle_query_delivery_status(SenderAddr, ReqId, #state{
     end.
 
 handle_subscribe_to_delivery_notifications(Req, #state{
-    customer = #k1api_auth_response_customer_dto{
-        uuid = CustomerId,
+    customer = #auth_customer_v1{
+        customer_uuid = CustomerId,
         receipts_allowed = false
     }
 }) ->
     ?log_debug("Got subscribe to delivery notifications: ~p", [Req]),
-    ?log_error("Delivery notifications are not allowed for customer_id: ~p", [CustomerId]),
+    ?log_error("Delivery notifications are not allowed for customer_id: ~p",
+        [CustomerId]),
     {error, receipts_not_allowed};
 handle_subscribe_to_delivery_notifications(Req, #state{
     creds = Creds,
@@ -158,7 +161,7 @@ handle_subscribe_to_delivery_notifications(Req, #state{
         callback_data = CallbackData,
         sender_addr = SenderAddr
     } = Req,
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case oneapi_srv_db:write_correlator(CustomerId, UserId, ClientCorrelator, ReqId) of
@@ -185,7 +188,7 @@ handle_unsubscribe_from_delivery_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from delivery notifications: ~p", [SubId]),
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case alley_services_api:unsubscribe_sms_receipts(
@@ -207,7 +210,7 @@ handle_retrieve_inbound(Req, #state{
         reg_id = RegId,
         batch_size = BatchSize
     } = Req,
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     %% !!! registrationID agreed with the OneAPI operator !!!
@@ -254,7 +257,7 @@ handle_subscribe_to_inbound_notifications(Req, #state{
         callback_data = CallbackData,
         correlator = Correlator
     } = Req,
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
@@ -282,7 +285,7 @@ handle_unsubscribe_from_inbound_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from inbound notifications: ~p", [SubId]),
-    CustomerId = Customer#k1api_auth_response_customer_dto.uuid,
+    CustomerId = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case alley_services_api:unsubscribe_incoming_sms(
@@ -313,9 +316,9 @@ outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
               {<<"oneapi_callback_data">>, #outbound_sms.callback_data}],
     lists:foldl(Fun, [], Params).
 
-convert_delivery_statuses(#k1api_sms_status_dto{
+convert_sms_statuses(#sms_status_v1{
     address = Addr, status = Status
 }) ->
     {Addr#addr.addr, oneapi_srv_utils:translate_status_name(Status)};
-convert_delivery_statuses(Statuses) ->
-    [convert_delivery_statuses(Status) || Status <- Statuses].
+convert_sms_statuses(Statuses) ->
+    [convert_sms_statuses(Status) || Status <- Statuses].
