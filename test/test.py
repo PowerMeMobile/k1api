@@ -345,7 +345,7 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT5)
-    server.start_wait_and_shutdown(20)
+    server.start_wait_and_shutdown(30)
 
     requests = server.get_requests()
     print(requests)

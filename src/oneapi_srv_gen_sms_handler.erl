@@ -467,12 +467,12 @@ process_retrieve_inbound(RegId, State = #state{
         {ok, ListOfInboundSms, PendingSms} ->
             Messages = lists:map(
                 fun(#inbound_sms{
-                        date_time = DateTime,
+                        datetime = Datetime,
                         message_id = MsgId,
                         message = Message,
                         sender_addr = SenderAddr
                     })->
-                        ISO8601 = ac_datetime:datetime_to_iso8601(DateTime),
+                        ISO8601 = ac_datetime:datetime_to_iso8601(Datetime),
                         LocationUrl = build_resource_url(Req, MsgId),
                         [{<<"dateTime">>, ISO8601},
                          {<<"destinationAddress">>, RegId},

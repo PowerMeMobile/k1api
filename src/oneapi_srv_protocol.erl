@@ -94,7 +94,7 @@ deliver_sms_status(#delivery_receipt{
 -spec deliver_sms(inbound_sms()) -> {ok, term()} | {error, term()}.
 deliver_sms(#inbound_sms{
     notify_url = NotifyURL,
-    date_time = DateTime,
+    datetime = DateTime,
     dest_addr = DestAddr,
     message_id = MessageId,
     message = Message,

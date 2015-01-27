@@ -218,28 +218,27 @@ handle_retrieve_inbound(Req, #state{
     DestAddr = alley_services_utils:addr_to_dto(RegId),
 
     case alley_services_api:retrieve_sms(CustomerId, UserId, DestAddr, BatchSize) of
-        {ok, #k1api_retrieve_sms_response_dto{
+        {ok, #retrieve_sms_resp_v1{
             messages = MessagesDTO,
-            total = Total
+            pending = Pending
         }} ->
             Messages = lists:map(
                 fun(MessageDTO) ->
-                    #k1api_retrieved_sms_dto{
-                        datetime = {MegaSecs, Secs, _MicroSecs},
-                        sender_addr = SenderAddr,
-                        message_id = MsgId,
-                        message = Message
+                    #msg_info_v1{
+                        msg_id = MsgId,
+                        src_addr = SenderAddr,
+                        body = Body,
+                        recv_time = RecvTime
                     } = MessageDTO,
-                    UnixEpochDateTime = MegaSecs * 1000000 + Secs,
                     #inbound_sms{
-                        date_time = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
                         message_id = MsgId,
-                        message = Message,
-                        sender_addr = SenderAddr#addr.addr
+                        sender_addr = SenderAddr#addr.addr,
+                        message = Body,
+                        datetime = RecvTime
                     }
                  end, MessagesDTO),
             ?log_debug("Retrieved messages: ~p", [Messages]),
-            {ok, Messages, Total};
+            {ok, Messages, Pending};
         {error, Error} ->
             ?log_error("Retrieve inbound failed with: ~p", [Error]),
             {error, Error}
