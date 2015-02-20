@@ -75,23 +75,27 @@ handle_send_outbound(Req, #state{
 
     %% optional
     Correlator = Req#outbound_sms.client_correlator,
-    SmppParams = outbound_sms_optional_params(Req),
+
+    {Encoding, Size} = alley_services_utils:encoding_size(Message),
+    Params = common_smpp_params(Customer) ++ outbound_sms_optional_params(Req),
 
     ReqId = uuid:unparse(uuid:generate()),
     case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
             SendReq = #send_req{
-                action = send_sms,
+                customer = Customer,
                 customer_id = CustomerId,
                 user_id = UserId,
-                client_type = oneapi,
-                customer = Customer,
-                recipients = Recipients,
+                interface = oneapi,
                 originator = Originator,
-                text = Message,
-                flash = false,
-                smpp_params = SmppParams
+                recipients = Recipients,
+
+                req_type = one_to_many,
+                message = Message,
+                encoding = Encoding,
+                size = Size,
+                params = Params
             },
             {ok, Result} = alley_services_mt:send(SendReq),
             ?log_debug("Got submit result: ~p", [Result]),
@@ -301,6 +305,21 @@ handle_unsubscribe_from_inbound_notifications(SubId, #state{
 %% Internal
 %% ===================================================================
 
+common_smpp_params(Customer) ->
+    ReceiptsAllowed = Customer#auth_customer_v1.receipts_allowed,
+    NoRetry = Customer#auth_customer_v1.no_retry,
+    Validity = alley_services_utils:fmt_validity(
+        Customer#auth_customer_v1.default_validity),
+    [
+        {registered_delivery, ReceiptsAllowed},
+        {service_type, <<>>},
+        {no_retry, NoRetry},
+        {validity_period, Validity},
+        {priority_flag, 0},
+        {esm_class, 3},
+        {protocol_id, 0}
+    ].
+
 outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
     Fun =
         fun({Name, Index}, Acc) ->
@@ -311,8 +330,8 @@ outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
                     [{Name, Value} | Acc]
             end
         end,
-    Params = [{<<"oneapi_notify_url">>, #outbound_sms.notify_url},
-              {<<"oneapi_callback_data">>, #outbound_sms.callback_data}],
+    Params = [{oneapi_notify_url, #outbound_sms.notify_url},
+              {oneapi_callback_data, #outbound_sms.callback_data}],
     lists:foldl(Fun, [], Params).
 
 convert_sms_statuses(#sms_status_v1{
