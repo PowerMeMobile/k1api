@@ -76,7 +76,8 @@ handle_send_outbound(Req, #state{
     %% optional
     Correlator = Req#outbound_sms.client_correlator,
 
-    {Encoding, Size} = alley_services_utils:encoding_size(Message),
+    {ok, Encoding} = alley_services_utils:guess_encoding(Message),
+    Size = alley_services_utils:chars_size(Encoding, Message),
     Params = common_smpp_params(Customer) ++ outbound_sms_optional_params(Req),
 
     ReqId = uuid:unparse(uuid:generate()),

@@ -33,6 +33,7 @@ PASSWORD = 'password'
 BAD_PASSWORD = 'intentionally wrong password'
 
 SMPPSIM_SERVER = 'http://127.0.0.1:8071/'
+KELLY_HOST = 'http://localhost:8080'
 
 ORIGINATOR = '375296660003'
 BAD_ORIGINATOR = '999999999999'
@@ -66,6 +67,12 @@ def send_inbound_via_smppsim(src_addr, dst_addr, message):
               'destination_addr':dst_addr, 'dest_addr_ton':'1', 'dest_addr_npi':'1'}
     req = requests.get(url, params=params)
     assert req.status_code == 200
+
+def get_batch_info(req_id):
+    url = KELLY_HOST + '/v1/batches/' + req_id
+    req = requests.get(url)
+    print("{0}".format(req.request.url))
+    return req.json()
 
 def local_ip():
     import commands
@@ -727,17 +734,15 @@ def check_message_parts_count(message, count):
     assert req.status_code == 201
     data = req.json()
     assert data['resourceReference']['resourceURL']
-
     res_url = data['resourceReference']['resourceURL']
+
+    time.sleep(1)
+
     req_id = res_url[len(res_url)-36:]
     print(req_id)
 
-    query_url = SERVER + '1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + req_id + '/deliveryInfos'
-    req = requests.get(query_url, auth=auth)
-    print(req.text)
-    assert req.status_code == 200
-    data = req.json()
-    assert len(data['deliveryInfoList']['deliveryInfo']) == count
+    res = get_batch_info(req_id)
+    assert res['messages'] == count
 
 def test_encodings():
     latin1_160 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJ'
@@ -752,13 +757,15 @@ def test_encodings():
     utf8_135 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШ'
     utf8_201 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНО'
     utf8_202 = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОП'
-    checks = [
+    latin1_checks = [
         (latin1_160, 1),
         (latin1_161, 2),
         (latin1_306, 2),
         (latin1_307, 3),
         (latin1_459, 3),
-        (latin1_460, 4),
+        (latin1_460, 4)
+    ]
+    utf8_checks = [
         (utf8_70,    1),
         (utf8_71,    2),
         (utf8_134,   2),
@@ -767,5 +774,8 @@ def test_encodings():
         (utf8_202,   4)
     ]
 
-    for (message, count) in checks:
+    for (message, count) in latin1_checks:
+        check_message_parts_count(message, count)
+
+    for (message, count) in utf8_checks:
         check_message_parts_count(message, count)
