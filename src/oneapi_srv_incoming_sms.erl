@@ -105,17 +105,16 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
     ?log_debug("Got InboundSms: ~p", [DTO]),
     #k1api_sms_notification_request_dto{
         callback_data = CallbackData,
-        datetime = {MegaSecs, Secs, _MicroSecs},
+        datetime = Datetime,
         dest_addr = DestAddr,
         message_id = MessageID,
         message = Message,
         sender_addr = SenderAddr,
         notify_url  = URL
     } = DTO,
-    UnixEpochDateTime = MegaSecs * 1000000 + Secs,
     InboundSms = #inbound_sms{
         notify_url = URL,
-        datetime = ac_datetime:unixepoch_to_datetime(UnixEpochDateTime),
+        datetime = Datetime,
         dest_addr = DestAddr#addr.addr,
         message_id = MessageID,
         message = Message,

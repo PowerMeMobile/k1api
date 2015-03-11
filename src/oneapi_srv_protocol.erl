@@ -94,13 +94,14 @@ deliver_sms_status(#delivery_receipt{
 -spec deliver_sms(inbound_sms()) -> {ok, term()} | {error, term()}.
 deliver_sms(#inbound_sms{
     notify_url = NotifyURL,
-    datetime = DateTime,
+    datetime = Timestamp,
     dest_addr = DestAddr,
     message_id = MessageId,
     message = Message,
     sender_addr = SenderAddr,
     callback_data = CallBackData
 }) ->
+    DateTime = ac_datetime:timestamp_to_datetime(Timestamp),
     ISO8601 = ac_datetime:datetime_to_iso8601(DateTime),
     Body = [
         {<<"inboundSMSMessageNotification">>, [

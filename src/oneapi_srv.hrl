@@ -4,7 +4,6 @@
 -include_lib("alley_dto/include/adto.hrl").
 
 -type state()           :: term().
--type datetime()        :: calendar:datetime().
 -type request_id()      :: uuid().
 -type address()         :: binary().
 -type sender_address()  :: address().
@@ -58,7 +57,7 @@
 
 -record(inbound_sms, {
     notify_url          :: binary(),
-    datetime            :: datetime(),
+    datetime            :: os:timestamp(),
     dest_addr           :: binary(),
     message_id          :: binary(),
     message             :: binary(),
