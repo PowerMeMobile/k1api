@@ -92,7 +92,7 @@ handle_send_outbound(Req, #state{
                 originator = Originator,
                 recipients = Recipients,
 
-                req_type = one_to_many,
+                req_type = single,
                 message = Message,
                 encoding = Encoding,
                 size = Size,
