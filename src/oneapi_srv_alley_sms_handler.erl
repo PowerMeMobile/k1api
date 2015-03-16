@@ -39,7 +39,7 @@ init(Creds = #credentials{}) ->
             case Result of
                 #auth_customer_v1{} ->
                     {ok, #state{creds = Creds, customer = Result}};
-                #auth_error_v1{message = Error} ->
+                #auth_error_v1{code = Error} ->
                     ?log_error("Authenticate response error: ~p", [Error]),
                     {error, authentication}
             end;
