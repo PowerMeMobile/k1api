@@ -87,7 +87,7 @@ def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 def send_inbound_via_smppsim(src_addr, dst_addr, message):
-    url = SMPPSIM_SERVER + 'inject_mo'
+    url = SMPPSIM_SERVER + '/inject_mo'
     params = {'short_message':message,
               'source_addr':src_addr, 'source_addr_ton':'1', 'source_addr_npi':'1',
               'destination_addr':dst_addr, 'dest_addr_ton':'1', 'dest_addr_npi':'1'}
