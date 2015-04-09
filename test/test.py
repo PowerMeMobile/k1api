@@ -404,7 +404,7 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
 # Raw send outbound
 #
 
-def test_raw_send_outbound_bad_username():
+def test_raw_send_outbound_bad_username_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(BAD_USERNAME, PASSWORD)
     params = {'address':'tel:'+SIM_RECIPIENT,
@@ -414,7 +414,7 @@ def test_raw_send_outbound_bad_username():
     print(req.text)
     assert req.status_code == 401
 
-def test_raw_send_outbound_bad_password():
+def test_raw_send_outbound_bad_password_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, BAD_PASSWORD)
     params = {'address':'tel:'+SIM_RECIPIENT,
@@ -424,7 +424,7 @@ def test_raw_send_outbound_bad_password():
     print(req.text)
     assert req.status_code == 401
 
-def test_raw_send_outbound_bad_senderAddress():
+def test_raw_send_outbound_bad_senderAddress_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + BAD_ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':'tel:'+SIM_RECIPIENT,
@@ -437,7 +437,7 @@ def test_raw_send_outbound_bad_senderAddress():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0004'
     assert data['requestError']['serviceException']['variables'] == ['senderAddress']
 
-def test_raw_send_outbound_no_recipients():
+def test_raw_send_outbound_no_recipients_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'senderAddress':'tel:'+ORIGINATOR,
@@ -449,7 +449,7 @@ def test_raw_send_outbound_no_recipients():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0004'
     assert data['requestError']['serviceException']['variables'] == ['address']
 
-def test_raw_send_outbound_bad_recipient():
+def test_raw_send_outbound_bad_recipient_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':'tel:'+BAD_RECIPIENT,
@@ -462,7 +462,7 @@ def test_raw_send_outbound_bad_recipient():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0004'
     assert data['requestError']['serviceException']['variables'] == ['address']
 
-def test_raw_send_outbound():
+def test_raw_send_outbound_succ():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':'tel:'+SIM_RECIPIENT,
@@ -474,7 +474,7 @@ def test_raw_send_outbound():
     data = req.json()
     assert data['resourceReference']['resourceURL']
 
-def test_raw_send_outbound_mult_addresses():
+def test_raw_send_outbound_mult_addresses_succ():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':['tel:'+SIM_RECIPIENT, 'tel:'+SIM_RECIPIENT2, 'tel:'+SIM_RECIPIENT3],
@@ -486,7 +486,7 @@ def test_raw_send_outbound_mult_addresses():
     data = req.json()
     assert data['resourceReference']['resourceURL']
 
-def test_raw_send_outbound_same_client_correlator():
+def test_raw_send_outbound_same_client_correlator_fail():
     client_correlator = id_generator()
 
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
@@ -512,7 +512,7 @@ def test_raw_send_outbound_same_client_correlator():
 # Raw query delivery status
 #
 
-def test_raw_query_delivery_status_bad_request_id():
+def test_raw_query_delivery_status_bad_request_id_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + BAD_ID + '/deliveryInfos'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     req = requests.get(url, auth=auth)
@@ -522,7 +522,7 @@ def test_raw_query_delivery_status_bad_request_id():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     assert data['requestError']['serviceException']['variables'] == ['requestId']
 
-def test_raw_query_delivery_status():
+def test_raw_query_delivery_status_succ():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + REQUEST_ID + '/deliveryInfos'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     req = requests.get(url, auth=auth)
@@ -535,7 +535,7 @@ def test_raw_query_delivery_status():
 # Raw sub/unsub delivery notifications
 #
 
-def test_raw_subscribe_to_delivery_notifications_wo_notify_url():
+def test_raw_subscribe_to_delivery_notifications_wo_notify_url_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/subscriptions'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {}
@@ -547,7 +547,7 @@ def test_raw_subscribe_to_delivery_notifications_wo_notify_url():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     assert data['requestError']['serviceException']['variables'] == ['notifyURL']
 
-def test_raw_unsubscribe_from_delivery_notifications_w_bad_sub_id():
+def test_raw_unsubscribe_from_delivery_notifications_w_bad_sub_id_IMPLEMENT_ME():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/subscriptions/' + BAD_ID
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     req = requests.delete(url, auth=auth)
@@ -558,7 +558,7 @@ def test_raw_unsubscribe_from_delivery_notifications_w_bad_sub_id():
     #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
 
-def test_raw_subscribe_to_delivery_notifications_same_client_correlator():
+def test_raw_subscribe_to_delivery_notifications_same_client_correlator_fail():
     client_correlator = id_generator()
 
     # send first sub request
@@ -588,7 +588,7 @@ def test_raw_subscribe_to_delivery_notifications_same_client_correlator():
 # Raw retrieve inbound
 #
 
-def test_raw_retrieve_inbound_negative_max_batch_size():
+def test_raw_retrieve_inbound_negative_max_batch_size_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/inbound/registrations/' + ORIGINATOR + '/messages'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'maxBatchSize':-1}
@@ -599,7 +599,7 @@ def test_raw_retrieve_inbound_negative_max_batch_size():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     assert data['requestError']['serviceException']['variables'] == ['maxBatchSize']
 
-def test_raw_retrieve_inbound_invalid_max_batch_size():
+def test_raw_retrieve_inbound_invalid_max_batch_size_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/inbound/registrations/' + ORIGINATOR + '/messages'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'maxBatchSize':'invalid'}
@@ -614,7 +614,7 @@ def test_raw_retrieve_inbound_invalid_max_batch_size():
 # Sub/unsub inbound notifications
 #
 
-def test_raw_subscribe_to_inbound_notifications_wo_dest_addr():
+def test_raw_subscribe_to_inbound_notifications_wo_dest_addr_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/inbound/subscriptions'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {}
@@ -626,7 +626,7 @@ def test_raw_subscribe_to_inbound_notifications_wo_dest_addr():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     assert data['requestError']['serviceException']['variables'] == ['destinationAddress']
 
-def test_raw_subscribe_to_inbound_notifications_wo_notify_url():
+def test_raw_subscribe_to_inbound_notifications_wo_notify_url_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/inbound/subscriptions'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'destinationAddress':'someaddress'}
@@ -637,7 +637,7 @@ def test_raw_subscribe_to_inbound_notifications_wo_notify_url():
     assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     assert data['requestError']['serviceException']['variables'] == ['notifyURL']
 
-def test_raw_unsubscribe_from_inbound_notifications_w_bad_sub_id():
+def test_raw_unsubscribe_from_inbound_notifications_w_bad_sub_id_IMPLEMENT_ME():
     url = ONEAPI_SERVER + '/1/smsmessaging/inbound/subscriptions/' + BAD_ID
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     req = requests.delete(url, auth=auth)
@@ -648,7 +648,7 @@ def test_raw_unsubscribe_from_inbound_notifications_w_bad_sub_id():
     #assert data['requestError']['serviceException']['messageId'] == 'SVC0002'
     #assert data['requestError']['serviceException']['variables'] == ['subscriptionId']
 
-def test_raw_subscribe_to_inbound_notifications_same_client_correlator():
+def test_raw_subscribe_to_inbound_notifications_same_client_correlator_fail():
     client_correlator = id_generator()
 
     # send first sub request
@@ -679,7 +679,7 @@ def test_raw_subscribe_to_inbound_notifications_same_client_correlator():
 # Check post Content-Type
 #
 
-def test_raw_content_type_json():
+def test_raw_content_type_json_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':'tel:'+SIM_RECIPIENT,
@@ -692,7 +692,7 @@ def test_raw_content_type_json():
     data = req.json()
     assert data['requestError']['serviceException']['messageId'] == 'SVC0001'
 
-def test_raw_content_type_unknown():
+def test_raw_content_type_unknown_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'address':'tel:'+SIM_RECIPIENT,
