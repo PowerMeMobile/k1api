@@ -1,0 +1,3 @@
+pytest==2.6.1
+requests==2.3.0
+git+https://github.com/ten0s/oneapi-python.git@my_changes

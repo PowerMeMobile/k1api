@@ -1,18 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# setup python's virtualenv as described here
-# https://gist.github.com/ten0s/ac6c573ba249b4ae5373
-
-# $ . env/bin/activate
-# $ py.test test.py
-# $ py.test test.py -k test_send_outbound
-# $ py.test --pdb
-# $ py.test -v
-
-# make standalone test script and then run it in verbose mode
-# $ py.test --genscript=runtests.py
-# $ python runtests.py -v
-
 import pytest
 
 import os
