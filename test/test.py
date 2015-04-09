@@ -302,6 +302,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 def test_retrieve_inbound_1():
     body = "Msg #1"
     send_inbound_via_smppsim(SIM_RECIPIENT,  ORIGINATOR, body)
+    time.sleep(1)
 
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     result = sms_client.retrieve_inbound_messages(ORIGINATOR)
@@ -318,6 +319,7 @@ def test_retrieve_inbound_3():
     send_inbound_via_smppsim(SIM_RECIPIENT,  ORIGINATOR, "Msg #1")
     send_inbound_via_smppsim(SIM_RECIPIENT2, ORIGINATOR, "Msg #2")
     send_inbound_via_smppsim(SIM_RECIPIENT3, ORIGINATOR, "Msg #3")
+    time.sleep(3)
 
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     result = sms_client.retrieve_inbound_messages(ORIGINATOR)
@@ -375,6 +377,7 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
     send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
+    time.sleep(5)
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT5)
