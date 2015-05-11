@@ -172,7 +172,7 @@ handle_subscribe_to_delivery_notifications(Req, #state{
     case oneapi_srv_db:write_correlator(CustomerId, UserId, ClientCorrelator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
-            SourceAddr = #addr{addr = SenderAddr, ton = 1, npi = 1},
+            SourceAddr = alley_services_utils:addr_to_dto(SenderAddr),
             case alley_services_api:subscribe_sms_receipts(
                     ReqId, CustomerId, UserId, NotifyUrl, SourceAddr, CallbackData) of
                 {ok, _Response} ->
@@ -267,7 +267,7 @@ handle_subscribe_to_inbound_notifications(Req, #state{
     case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
-            DestAddr2 = #addr{addr = DestAddr, ton = 1, npi = 1},
+            DestAddr2 = alley_services_utils:addr_to_dto(DestAddr),
             case alley_services_api:subscribe_incoming_sms(
                     ReqId, CustomerId, UserId, DestAddr2,
                     NotifyURL, Criteria, Correlator, CallbackData) of
