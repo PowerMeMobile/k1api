@@ -49,6 +49,7 @@ PASSWORD = 'password'
 BAD_PASSWORD = 'intentionally wrong password'
 
 ORIGINATOR = '375296660003'
+SHORT_CODE = '0031'
 BAD_ORIGINATOR = '999999999999'
 SIM_RECIPIENT = '375296543210'
 SIM_RECIPIENT2 = '375296543211'
@@ -77,7 +78,7 @@ def send_inbound_via_smppsim(src_addr, dst_addr, message):
     url = SMPPSIM_SERVER + '/inject_mo'
     params = {'short_message':message,
               'source_addr':src_addr, 'source_addr_ton':'1', 'source_addr_npi':'1',
-              'destination_addr':dst_addr, 'dest_addr_ton':'1', 'dest_addr_npi':'1'}
+              'destination_addr':dst_addr, 'dest_addr_ton':'6', 'dest_addr_npi':'0'}
     req = requests.get(url, params=params)
     assert req.status_code == 200
 
@@ -288,28 +289,28 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 
 def test_retrieve_inbound_1():
     body = "Msg #1"
-    send_inbound_via_smppsim(SIM_RECIPIENT,  ORIGINATOR, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
     time.sleep(1)
 
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
-    result = sms_client.retrieve_inbound_messages(ORIGINATOR)
+    result = sms_client.retrieve_inbound_messages(SHORT_CODE)
     print(result)
 
     assert result.number_of_messages_in_this_batch == 1
     assert result.total_number_of_pending_messages == 0
     inbound_message = result.inbound_sms_message[0]
     assert inbound_message.sender_address == SIM_RECIPIENT
-    assert inbound_message.destination_address == ORIGINATOR
+    assert inbound_message.destination_address == SHORT_CODE
     assert inbound_message.message == body
 
 def test_retrieve_inbound_3():
-    send_inbound_via_smppsim(SIM_RECIPIENT,  ORIGINATOR, "Msg #1")
-    send_inbound_via_smppsim(SIM_RECIPIENT2, ORIGINATOR, "Msg #2")
-    send_inbound_via_smppsim(SIM_RECIPIENT3, ORIGINATOR, "Msg #3")
+    send_inbound_via_smppsim(SIM_RECIPIENT,  SHORT_CODE, "Msg #1")
+    send_inbound_via_smppsim(SIM_RECIPIENT2, SHORT_CODE, "Msg #2")
+    send_inbound_via_smppsim(SIM_RECIPIENT3, SHORT_CODE, "Msg #3")
     time.sleep(3)
 
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
-    result = sms_client.retrieve_inbound_messages(ORIGINATOR)
+    result = sms_client.retrieve_inbound_messages(SHORT_CODE)
     print(result)
 
     assert result.number_of_messages_in_this_batch == 3
@@ -318,7 +319,7 @@ def test_retrieve_inbound_3():
 def test_sub_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     sms = models.SMSRequest()
-    sms.address = ORIGINATOR
+    sms.address = SHORT_CODE
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT5)
     sms.notify_url = notify_url
     sms.callback_data = ''
@@ -342,7 +343,7 @@ def test_sub_unsub_inbound_notifications():
 def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     sms = models.SMSRequest()
-    sms.address = ORIGINATOR
+    sms.address = SHORT_CODE
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT5)
     sms.notify_url = notify_url
     sms.callback_data = ''
@@ -354,21 +355,21 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
     assert result.is_success()
     assert result.exception == None
     assert result.resource_url != None
+    time.sleep(2)
 
     resource_url = result.resource_url
 
     # send inbound
     body = "Msg #"
-    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, ORIGINATOR, body)
-    time.sleep(5)
+    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT5)
-    server.start_wait_and_shutdown(30)
+    server.start_wait_and_shutdown(20)
 
     requests = server.get_requests()
     print(requests)
@@ -380,7 +381,7 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
         inbound_message = oneapi.SmsClient.unserialize_inbound_messages(http_body)
         print(inbound_message)
         #assert inbound_message.sender_address == SIM_RECIPIENT
-        #assert inbound_message.destination_address == ORIGINATOR
+        #assert inbound_message.destination_address == SHORT_CODE
         #assert inbound_message.message == body
 
     result = sms_client.delete_messages_sent_subscription(resource_url)
@@ -576,7 +577,7 @@ def test_raw_subscribe_to_delivery_notifications_same_client_correlator_fail():
 #
 
 def test_raw_retrieve_inbound_negative_max_batch_size_fail():
-    url = ONEAPI_SERVER + '/1/smsmessaging/inbound/registrations/' + ORIGINATOR + '/messages'
+    url = ONEAPI_SERVER + '/1/smsmessaging/inbound/registrations/' + SHORT_CODE + '/messages'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'maxBatchSize':-1}
     req = requests.get(url, auth=auth, params=params)
@@ -587,7 +588,7 @@ def test_raw_retrieve_inbound_negative_max_batch_size_fail():
     assert data['requestError']['serviceException']['variables'] == ['maxBatchSize']
 
 def test_raw_retrieve_inbound_invalid_max_batch_size_fail():
-    url = ONEAPI_SERVER + '/1/smsmessaging/inbound/registrations/' + ORIGINATOR + '/messages'
+    url = ONEAPI_SERVER + '/1/smsmessaging/inbound/registrations/' + SHORT_CODE + '/messages'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     params = {'maxBatchSize':'invalid'}
     req = requests.get(url, auth=auth, params=params)
