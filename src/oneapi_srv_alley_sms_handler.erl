@@ -65,8 +65,8 @@ handle_send_outbound(Req, #state{
 }) ->
     ?log_debug("Got send outbound: ~p", [Req]),
 
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
-    UserId     = Creds#credentials.user_id,
+    CustomerUuid = Customer#auth_customer_v1.customer_uuid,
+    UserId = Creds#credentials.user_id,
 
     %% mandatory
     Recipients = oneapi_srv_utils:reformat_addrs(Req#outbound_sms.address),
@@ -81,12 +81,12 @@ handle_send_outbound(Req, #state{
     Params = common_smpp_params(Customer) ++ outbound_sms_optional_params(Req),
 
     ReqId = uuid:unparse(uuid:generate()),
-    case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
+    case oneapi_srv_db:write_correlator(CustomerUuid, UserId, Correlator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
             SendReq = #send_req{
                 customer = Customer,
-                customer_id = CustomerId,
+                customer_uuid = CustomerUuid,
                 user_id = UserId,
                 interface = oneapi,
                 originator = Originator,
@@ -215,14 +215,14 @@ handle_retrieve_inbound(Req, #state{
         reg_id = RegId,
         batch_size = BatchSize
     } = Req,
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v1.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     %% !!! registrationID agreed with the OneAPI operator !!!
     %% !!! We use Sender Address for this !!!
     DestAddr = alley_services_utils:addr_to_dto(RegId),
 
-    case alley_services_api:retrieve_sms(CustomerId, UserId, DestAddr, BatchSize) of
+    case alley_services_api:retrieve_sms(CustomerUuid, UserId, DestAddr, BatchSize) of
         {ok, #retrieve_sms_resp_v1{
             messages = MessagesDTO,
             pending = Pending
