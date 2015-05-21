@@ -222,18 +222,18 @@ handle_retrieve_inbound(Req, #state{
     %% !!! We use Sender Address for this !!!
     DestAddr = alley_services_utils:addr_to_dto(RegId),
 
-    case alley_services_api:retrieve_sms(CustomerUuid, UserId, DestAddr, BatchSize) of
-        {ok, #retrieve_sms_resp_v1{
+    case alley_services_api:retrieve_incoming(CustomerUuid, UserId, DestAddr, BatchSize) of
+        {ok, #retrieve_incoming_resp_v1{
             messages = MessagesDTO,
             pending = Pending
         }} ->
             Messages = lists:map(
                 fun(MessageDTO) ->
-                    #msg_info_v1{
+                    #inbox_msg_info_v1{
                         msg_id = MsgId,
                         src_addr = SenderAddr,
                         body = Body,
-                        recv_time = RecvTime
+                        rcv_time = RecvTime
                     } = MessageDTO,
                     #inbound_sms{
                         message_id = MsgId,
