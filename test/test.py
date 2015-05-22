@@ -57,7 +57,6 @@ SIM_RECIPIENT3 = '375296543212'
 SINK_RECIPIENT = '999296543210'
 BAD_RECIPIENT = '000123457689'
 
-REQUEST_ID = '85ccccbf-f854-4898-86b1-5072d3e33da1'
 BAD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
 LISTEN_HOST  = "SEE BELOW local_ip()"
@@ -511,7 +510,16 @@ def test_raw_query_delivery_status_bad_request_id_fail():
     assert data['requestError']['serviceException']['variables'] == ['requestId']
 
 def test_raw_query_delivery_status_succ():
-    url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests/' + REQUEST_ID + '/deliveryInfos'
+    url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
+    auth = HTTPBasicAuth(USERNAME, PASSWORD)
+    params = {'address':'tel:'+SIM_RECIPIENT,
+              'senderAddress':'tel:'+ORIGINATOR,
+              'message':'Test'}
+    req = requests.post(url, data=params, auth=auth)
+    data = req.json()
+    resource_url = data['resourceReference']['resourceURL']
+    time.sleep(2)
+    url = resource_url + '/deliveryInfos'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
     req = requests.get(url, auth=auth)
     print(req.text)
