@@ -590,24 +590,34 @@ process_unsubscribe_from_inbound_notifications(SubId, State = #state{
 onrequest_hook(Req) ->
     %% 2k recipients = 28k body for HTTP POST x-www-form-urlencoded
     {ok, Body, Req2} = cowboy_req:body(Req, [{length, 800000}]),
-    put(req_body, Body),
+    store_body(Body),
     Req2.
 
 -spec onresponse_hook(non_neg_integer(),
     list(), binary(), cowboy_req:req()) -> cowboy_req:req().
 onresponse_hook(RespCode, RespHeaders, RespBody, Req) ->
     ReqBody = get_body(),
+    ReqTime = get_req_time(),
+    RespTime = calendar:universal_time(),
     alley_services_http_in_logger:log(
-        RespCode, RespHeaders, RespBody, Req, ReqBody),
+        RespCode, RespHeaders, RespBody, RespTime, Req, ReqBody, ReqTime),
     {ok, Req2} =
         cowboy_req:reply(RespCode, RespHeaders, RespBody, Req),
     Req2.
 
+store_body(Body) ->
+    put(req_body, Body),
+    put(req_time, calendar:universal_time()).
+
 get_body() ->
     get(req_body).
 
+get_req_time() ->
+    get(req_time).
+
 clean_body() ->
-    put(req_body, undefined).
+    put(req_body, undefined),
+    put(req_time, undefined).
 
 %% ===================================================================
 %% Internal
