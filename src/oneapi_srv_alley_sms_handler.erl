@@ -331,8 +331,8 @@ outbound_sms_optional_params(OutboundSms = #outbound_sms{}) ->
                     [{Name, Value} | Acc]
             end
         end,
-    Params = [{oneapi_notify_url, #outbound_sms.notify_url},
-              {oneapi_callback_data, #outbound_sms.callback_data}],
+    Params = [{x_oneapi_notify_url, #outbound_sms.notify_url},
+              {x_oneapi_callback_data, #outbound_sms.callback_data}],
     lists:foldl(Fun, [], Params).
 
 convert_sms_statuses(#sms_status_v1{
