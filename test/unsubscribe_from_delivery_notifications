@@ -7,7 +7,7 @@ fi
 
 HOST=127.0.0.1
 PORT=8081
-CUSTOMER=oneapi-postpaid
+CUSTOMER=10007
 USER=user
 PASSWORD=password
 

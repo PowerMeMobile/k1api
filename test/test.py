@@ -15,6 +15,10 @@ import oneapi as oneapi
 import oneapi.models as models
 import oneapi.dummyserver as dummyserver
 
+LISTEN_HOST = os.getenv('LISTEN_HOST')
+if LISTEN_HOST == None or LISTEN_HOST == '':
+    LISTEN_HOST = '127.0.0.1'
+
 ONEAPI_HOST = os.getenv('ONEAPI_HOST')
 if ONEAPI_HOST == None or ONEAPI_HOST == '':
     ONEAPI_HOST = '127.0.0.1'
@@ -43,13 +47,13 @@ ONEAPI_SERVER = 'http://{0}:{1}'.format(ONEAPI_HOST, ONEAPI_PORT)
 KELLY_SERVER = 'http://{0}:{1}'.format(KELLY_HOST, KELLY_PORT)
 SMPPSIM_SERVER = 'http://{0}:{1}'.format(SMPPSIM_HOST, SMPPSIM_PORT)
 
-USERNAME = 'oneapi-postpaid:user'
+USERNAME = '10007:user'
 BAD_USERNAME = 'bad_user_name'
 PASSWORD = 'password'
 BAD_PASSWORD = 'intentionally wrong password'
 
-ORIGINATOR = '375296660003'
-SHORT_CODE = '0031'
+ORIGINATOR = '375296660007'
+SHORT_CODE = '0071'
 BAD_ORIGINATOR = '999999999999'
 SIM_RECIPIENT = '375296543210'
 SIM_RECIPIENT2 = '375296543211'
@@ -59,7 +63,6 @@ BAD_RECIPIENT = '000123457689'
 
 BAD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
-LISTEN_HOST  = "SEE BELOW local_ip()"
 LISTEN_PORT1 = 1231
 LISTEN_PORT2 = 1232
 LISTEN_PORT3 = 1233
@@ -86,13 +89,6 @@ def get_batch_info(req_id):
     req = requests.get(url)
     print("{0}".format(req.request.url))
     return req.json()
-
-def local_ip():
-    import commands
-    ips = commands.getoutput("hostname -I")
-    return ips[:ips.find(' ')]
-
-LISTEN_HOST  = local_ip()
 
 #
 # Tests
