@@ -1,11 +1,12 @@
-*.eunit
 oneapi_srv.plt
 ebin
 deps
 rel/erl_crash.dump
 rel/oneapi_srv
+priv
+.eunit/
 test/__pycache__/
 test/env/
 test/*.pyc
-priv
+test/*ipynb*
 TAGS
