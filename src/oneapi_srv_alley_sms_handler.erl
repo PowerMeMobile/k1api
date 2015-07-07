@@ -34,12 +34,12 @@ init(Creds = #credentials{}) ->
     CustomerId = Creds#credentials.customer_id,
     UserId = Creds#credentials.user_id,
     Password = Creds#credentials.password,
-    case alley_services_auth:authenticate(CustomerId, UserId, oneapi, Password) of
-        {ok, #auth_resp_v1{result = Result}} ->
+    case alley_services_auth:authenticate(CustomerId, UserId, Password, oneapi) of
+        {ok, #auth_resp_v2{result = Result}} ->
             case Result of
                 #auth_customer_v1{} ->
                     {ok, #state{creds = Creds, customer = Result}};
-                #auth_error_v1{code = Error} ->
+                #auth_error_v2{code = Error} ->
                     ?log_error("Authenticate response error: ~p", [Error]),
                     {error, authentication}
             end;
