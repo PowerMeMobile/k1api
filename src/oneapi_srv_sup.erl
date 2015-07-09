@@ -10,6 +10,8 @@
 
 -include_lib("alley_common/include/supervisor_spec.hrl").
 
+-define(CHILD(I, Restart, Timeout, Type), {I, {I, start_link, []}, Restart, Timeout, Type, [I]}).
+
 %% ===================================================================
 %% API functions
 %% ===================================================================
@@ -24,8 +26,8 @@ start_link() ->
 
 init([]) ->
     {ok, {{one_for_one, 5, 10}, [
-        {oneapi_srv_db, {oneapi_srv_db, start_link, []},
-            permanent, 5000, worker, [oneapi_srv_db]},
-        {oneapi_srv_incoming_sms, {oneapi_srv_incoming_sms, start_link, []},
-            permanent, 5000, worker, [oneapi_srv_incoming_sms]}
+        ?CHILD(alley_services_http_in_logger, permanent, 5000, worker),
+        ?CHILD(alley_services_http_out_logger, permanent, 5000, worker),
+        ?CHILD(oneapi_srv_db, permanent, 5000, worker),
+        ?CHILD(oneapi_srv_incoming_sms, permanent, 5000, worker)
     ]}}.
