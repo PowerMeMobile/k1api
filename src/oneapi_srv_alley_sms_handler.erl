@@ -37,7 +37,7 @@ init(Creds = #credentials{}) ->
     case alley_services_auth:authenticate(CustomerId, UserId, Password, oneapi) of
         {ok, #auth_resp_v2{result = Result}} ->
             case Result of
-                #auth_customer_v1{} ->
+                #auth_customer_v2{} ->
                     {ok, #state{creds = Creds, customer = Result}};
                 #auth_error_v2{code = Error} ->
                     ?log_error("Authenticate response error: ~p", [Error]),
@@ -49,7 +49,7 @@ init(Creds = #credentials{}) ->
     end.
 
 handle_send_outbound(#outbound_sms{notify_url = NotifyUrl} = Req, #state{
-    customer = #auth_customer_v1{
+    customer = #auth_customer_v2{
         customer_uuid = CustomerId,
         receipts_allowed = ReceiptsAllowed
     }
@@ -65,7 +65,7 @@ handle_send_outbound(Req, #state{
 }) ->
     ?log_debug("Got send outbound: ~p", [Req]),
 
-    CustomerUuid = Customer#auth_customer_v1.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     %% mandatory
@@ -114,7 +114,7 @@ handle_send_outbound(Req, #state{
     end.
 
 handle_query_delivery_status(_SenderAddr, _ReqId, #state{
-    customer = #auth_customer_v1{
+    customer = #auth_customer_v2{
         customer_uuid = CustomerId,
         receipts_allowed = false
     }
@@ -126,7 +126,7 @@ handle_query_delivery_status(SenderAddr, ReqId, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
+    CustomerId = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     ?log_debug("Got query delivery status "
@@ -145,7 +145,7 @@ handle_query_delivery_status(SenderAddr, ReqId, #state{
     end.
 
 handle_subscribe_to_delivery_notifications(Req, #state{
-    customer = #auth_customer_v1{
+    customer = #auth_customer_v2{
         customer_uuid = CustomerId,
         receipts_allowed = false
     }
@@ -166,7 +166,7 @@ handle_subscribe_to_delivery_notifications(Req, #state{
         callback_data = CallbackData,
         sender_addr = SenderAddr
     } = Req,
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
+    CustomerId = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case oneapi_srv_db:write_correlator(CustomerId, UserId, ClientCorrelator, ReqId) of
@@ -193,7 +193,7 @@ handle_unsubscribe_from_delivery_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from delivery notifications: ~p", [SubId]),
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
+    CustomerId = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case alley_services_api:unsubscribe_sms_receipts(
@@ -215,7 +215,7 @@ handle_retrieve_inbound(Req, #state{
         reg_id = RegId,
         batch_size = BatchSize
     } = Req,
-    CustomerUuid = Customer#auth_customer_v1.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     %% !!! registrationID agreed with the OneAPI operator !!!
@@ -261,7 +261,7 @@ handle_subscribe_to_inbound_notifications(Req, #state{
         callback_data = CallbackData,
         correlator = Correlator
     } = Req,
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
+    CustomerId = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
@@ -289,7 +289,7 @@ handle_unsubscribe_from_inbound_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from inbound notifications: ~p", [SubId]),
-    CustomerId = Customer#auth_customer_v1.customer_uuid,
+    CustomerId = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case alley_services_api:unsubscribe_incoming_sms(
@@ -307,10 +307,10 @@ handle_unsubscribe_from_inbound_notifications(SubId, #state{
 %% ===================================================================
 
 common_smpp_params(Customer) ->
-    ReceiptsAllowed = Customer#auth_customer_v1.receipts_allowed,
-    NoRetry = Customer#auth_customer_v1.no_retry,
+    ReceiptsAllowed = Customer#auth_customer_v2.receipts_allowed,
+    NoRetry = Customer#auth_customer_v2.no_retry,
     Validity = alley_services_utils:fmt_validity(
-        Customer#auth_customer_v1.default_validity),
+        Customer#auth_customer_v2.default_validity),
     [
         {registered_delivery, ReceiptsAllowed},
         {service_type, <<>>},
