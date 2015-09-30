@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/PowerMeMobile/oneapi_srv.svg?branch=master)](https://travis-ci.org/PowerMeMobile/oneapi_srv)
 
 It is a [OneAPI] interface to send and receive sms messages
-through the [OpenAlley] smpp gateway.
+through the [OpenAlley] Gateway.
 
 ## Requirements ##
 
