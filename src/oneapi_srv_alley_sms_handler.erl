@@ -50,14 +50,14 @@ init(Creds = #credentials{}) ->
 
 handle_send_outbound(#outbound_sms{notify_url = NotifyUrl} = Req, #state{
     customer = #auth_customer_v2{
-        customer_uuid = CustomerId,
+        customer_uuid = CustomerUuid,
         receipts_allowed = ReceiptsAllowed
     }
 }) when (NotifyUrl =/= undefined andalso NotifyUrl =/= <<>>) andalso
         (not ReceiptsAllowed) ->
     ?log_debug("Got send outbound: ~p", [Req]),
-    ?log_error("Delivery notifications are not allowed for customer_id: ~p",
-        [CustomerId]),
+    ?log_error("Delivery notifications are not allowed for customer_uuid: ~p",
+        [CustomerUuid]),
     {error, receipts_not_allowed};
 handle_send_outbound(Req, #state{
     creds = Creds,
@@ -115,26 +115,26 @@ handle_send_outbound(Req, #state{
 
 handle_query_delivery_status(_SenderAddr, _ReqId, #state{
     customer = #auth_customer_v2{
-        customer_uuid = CustomerId,
+        customer_uuid = CustomerUuid,
         receipts_allowed = false
     }
 }) ->
-    ?log_debug("Got query delivery status (customer_id: ~p)", [CustomerId]),
-    ?log_error("Delivery notifications are not allowed for customer_id: ~p", [CustomerId]),
+    ?log_debug("Got query delivery status (customer_uuid: ~p)", [CustomerUuid]),
+    ?log_error("Delivery notifications are not allowed for customer_uuid: ~p", [CustomerUuid]),
     {error, receipts_not_allowed};
 handle_query_delivery_status(SenderAddr, ReqId, #state{
     creds = Creds,
     customer = Customer
 }) ->
-    CustomerId = Customer#auth_customer_v2.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
 
     ?log_debug("Got query delivery status "
-        "(customer_id: ~p, user_id: ~p, sender_addr: ~p, req_id: ~p)",
-        [CustomerId, UserId, SenderAddr, ReqId]),
+        "(customer_uuid: ~p, user_id: ~p, sender_addr: ~p, req_id: ~p)",
+        [CustomerUuid, UserId, SenderAddr, ReqId]),
 
     case alley_services_api:get_sms_status(
-            CustomerId, UserId, ReqId) of
+            CustomerUuid, UserId, ReqId) of
         {ok, Response} ->
             Statuses = Response#sms_status_resp_v1.statuses,
             DeliveryStatuses = convert_sms_statuses(Statuses),
@@ -146,13 +146,13 @@ handle_query_delivery_status(SenderAddr, ReqId, #state{
 
 handle_subscribe_to_delivery_notifications(Req, #state{
     customer = #auth_customer_v2{
-        customer_uuid = CustomerId,
+        customer_uuid = CustomerUuid,
         receipts_allowed = false
     }
 }) ->
     ?log_debug("Got subscribe to delivery notifications: ~p", [Req]),
-    ?log_error("Delivery notifications are not allowed for customer_id: ~p",
-        [CustomerId]),
+    ?log_error("Delivery notifications are not allowed for customer_uuid: ~p",
+        [CustomerUuid]),
     {error, receipts_not_allowed};
 handle_subscribe_to_delivery_notifications(Req, #state{
     creds = Creds,
@@ -166,20 +166,20 @@ handle_subscribe_to_delivery_notifications(Req, #state{
         callback_data = CallbackData,
         sender_addr = SenderAddr
     } = Req,
-    CustomerId = Customer#auth_customer_v2.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
-    case oneapi_srv_db:write_correlator(CustomerId, UserId, ClientCorrelator, ReqId) of
+    case oneapi_srv_db:write_correlator(CustomerUuid, UserId, ClientCorrelator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
             SourceAddr = alley_services_utils:addr_to_dto(SenderAddr),
             case alley_services_api:subscribe_sms_receipts(
-                    ReqId, CustomerId, UserId, NotifyUrl, SourceAddr, CallbackData) of
+                    ReqId, CustomerUuid, UserId, NotifyUrl, SourceAddr, CallbackData) of
                 {ok, _Response} ->
                     {ok, ReqId};
                 {error, Error} ->
                     ?log_error("Subscribe to delivery notifications failed with: ~p", [Error]),
-                    ok = oneapi_srv_db:delete_correlator(CustomerId, UserId, ClientCorrelator),
+                    ok = oneapi_srv_db:delete_correlator(CustomerUuid, UserId, ClientCorrelator),
                     ?log_debug("Correlator deleted", []),
                     {error, Error}
             end;
@@ -193,11 +193,11 @@ handle_unsubscribe_from_delivery_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from delivery notifications: ~p", [SubId]),
-    CustomerId = Customer#auth_customer_v2.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case alley_services_api:unsubscribe_sms_receipts(
-            ReqId, CustomerId, UserId, SubId) of
+            ReqId, CustomerUuid, UserId, SubId) of
         {ok, _Resp} ->
             ?log_debug("Delivery sub (id: ~p) removed", [SubId]),
             {ok, deleted};
@@ -261,21 +261,21 @@ handle_subscribe_to_inbound_notifications(Req, #state{
         callback_data = CallbackData,
         correlator = Correlator
     } = Req,
-    CustomerId = Customer#auth_customer_v2.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
-    case oneapi_srv_db:write_correlator(CustomerId, UserId, Correlator, ReqId) of
+    case oneapi_srv_db:write_correlator(CustomerUuid, UserId, Correlator, ReqId) of
         ok ->
             ?log_debug("Correlator saved", []),
             DestAddr2 = alley_services_utils:addr_to_dto(DestAddr),
             case alley_services_api:subscribe_incoming_sms(
-                    ReqId, CustomerId, UserId, DestAddr2,
+                    ReqId, CustomerUuid, UserId, DestAddr2,
                     NotifyURL, Criteria, Correlator, CallbackData) of
                 {ok, _Response} ->
                     {ok, ReqId};
                 {error, Error} ->
                     ?log_error("Subscribe to inbound notifications failed with: ~p", [Error]),
-                    ok = oneapi_srv_db:delete_correlator(CustomerId, UserId, Correlator),
+                    ok = oneapi_srv_db:delete_correlator(CustomerUuid, UserId, Correlator),
                     ?log_debug("Correlator deleted", []),
                     {error, Error}
             end;
@@ -289,11 +289,11 @@ handle_unsubscribe_from_inbound_notifications(SubId, #state{
     customer = Customer
 }) ->
     ?log_debug("Got unsubscribe from inbound notifications: ~p", [SubId]),
-    CustomerId = Customer#auth_customer_v2.customer_uuid,
+    CustomerUuid = Customer#auth_customer_v2.customer_uuid,
     UserId = Creds#credentials.user_id,
     ReqId = uuid:unparse(uuid:generate()),
     case alley_services_api:unsubscribe_incoming_sms(
-            ReqId, CustomerId, UserId, SubId) of
+            ReqId, CustomerUuid, UserId, SubId) of
         {ok, _Resp} ->
             ?log_debug("Inbound sub (id: ~p) removed", [SubId]),
             {ok, deleted};
