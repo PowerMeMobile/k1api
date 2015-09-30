@@ -106,7 +106,7 @@ process_dto(DTO = #incoming_sms_notification_v1{}) ->
     #incoming_sms_notification_v1{
         callback_data = CallbackData,
         datetime = Datetime,
-        dest_addr = DestAddr,
+        dst_addr = DestAddr,
         message_id = MessageID,
         message = Message,
         sender_addr = SenderAddr,
@@ -133,7 +133,7 @@ process_dto(DTO = #sms_receipt_notification_v1{}) ->
         id = ItemID,
         url = NotifyURL,
         callback_data = CallbackData,
-        dest_addr = DestAddr,
+        dst_addr = DestAddr,
         status = Status
     } = DTO,
     Receipt = #delivery_receipt{
