@@ -97,13 +97,13 @@ respond_and_ack(ID, MsgId, ReplyTo, Chan) ->
     rmql:basic_publish(Chan, ReplyTo, Encoded, RespProps).
 
 decode_dto(Bin, <<"OutgoingBatch">>) ->
-    adto:decode(#k1api_sms_notification_request_dto{}, Bin);
+    adto:decode(#incoming_sms_notification_v1{}, Bin);
 decode_dto(Bin, <<"ReceiptBatch">>) ->
-    adto:decode(#k1api_sms_delivery_receipt_notification_dto{}, Bin).
+    adto:decode(#sms_receipt_notification_v1{}, Bin).
 
-process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
+process_dto(DTO = #incoming_sms_notification_v1{}) ->
     ?log_debug("Got InboundSms: ~p", [DTO]),
-    #k1api_sms_notification_request_dto{
+    #incoming_sms_notification_v1{
         callback_data = CallbackData,
         datetime = Datetime,
         dest_addr = DestAddr,
@@ -127,9 +127,9 @@ process_dto(DTO = #k1api_sms_notification_request_dto{}) ->
         {error, _Error} ->
             noreply
     end;
-process_dto(DTO = #k1api_sms_delivery_receipt_notification_dto{}) ->
+process_dto(DTO = #sms_receipt_notification_v1{}) ->
     ?log_debug("Got Receipt: ~p", [DTO]),
-    #k1api_sms_delivery_receipt_notification_dto{
+    #sms_receipt_notification_v1{
         id = ItemID,
         url = NotifyURL,
         callback_data = CallbackData,
