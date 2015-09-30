@@ -10,7 +10,7 @@ Install, configure and run the next apps using this [guide]:
 1. Erlang R16B03-1
 2. RabbitMQ 3.x.x
 3. MongoDB >= 2.6
-4. [Kelly] OpenAlley SMPP middleware
+4. [Kelly] OpenAlley middleware
 5. [Just] SMPP gateway
 6. SMPPSim gateway
 
