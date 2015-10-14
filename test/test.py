@@ -55,10 +55,9 @@ BAD_PASSWORD = 'intentionally wrong password'
 ORIGINATOR = '375296660007'
 SHORT_CODE = '0071'
 BAD_ORIGINATOR = '999999999999'
-SIM_RECIPIENT = '375296543210'
-SIM_RECIPIENT2 = '375296543211'
-SIM_RECIPIENT3 = '375296543212'
-SINK_RECIPIENT = '999296543210'
+RECIPIENT = '375296543210'
+RECIPIENT2 = '375296543211'
+RECIPIENT3 = '375296543212'
 BAD_RECIPIENT = '000123457689'
 
 BAD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
@@ -98,7 +97,7 @@ def test_send_outbound_wo_notify_url_and_query_status():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    sms.address = SIM_RECIPIENT
+    sms.address = RECIPIENT
     sms.message = 'Test'
 
     req_fmt = 'url'
@@ -118,7 +117,7 @@ def test_send_outbound_w_notify_url():
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    sms.address = SIM_RECIPIENT
+    sms.address = RECIPIENT
     sms.message = 'Test'
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT1)
     sms.notify_url = notify_url
@@ -198,7 +197,7 @@ def test_sub_send_outbound_w_notify_url_wait_push_unsub_notifications():
 
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    sms.address = SIM_RECIPIENT
+    sms.address = RECIPIENT
     sms.message = 'Test'
 
     req_fmt = 'url'
@@ -249,7 +248,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    sms.address = SIM_RECIPIENT
+    sms.address = RECIPIENT
     sms.message = 'Test'
     notify_url = 'http://{0}:{1}'.format(LISTEN_HOST, LISTEN_PORT4)
     sms.notify_url = notify_url
@@ -284,7 +283,7 @@ def test_sub_send_outbound_w_notify_url_wait_specific_push_unsub_notifications()
 
 def test_retrieve_inbound_1():
     body = "Msg #1"
-    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(RECIPIENT, SHORT_CODE, body)
     time.sleep(1)
 
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
@@ -294,14 +293,14 @@ def test_retrieve_inbound_1():
     assert result.number_of_messages_in_this_batch == 1
     assert result.total_number_of_pending_messages == 0
     inbound_message = result.inbound_sms_message[0]
-    assert inbound_message.sender_address == SIM_RECIPIENT
+    assert inbound_message.sender_address == RECIPIENT
     assert inbound_message.destination_address == SHORT_CODE
     assert inbound_message.message == body
 
 def test_retrieve_inbound_3():
-    send_inbound_via_smppsim(SIM_RECIPIENT,  SHORT_CODE, "Msg #1")
-    send_inbound_via_smppsim(SIM_RECIPIENT2, SHORT_CODE, "Msg #2")
-    send_inbound_via_smppsim(SIM_RECIPIENT3, SHORT_CODE, "Msg #3")
+    send_inbound_via_smppsim(RECIPIENT,  SHORT_CODE, "Msg #1")
+    send_inbound_via_smppsim(RECIPIENT2, SHORT_CODE, "Msg #2")
+    send_inbound_via_smppsim(RECIPIENT3, SHORT_CODE, "Msg #3")
     time.sleep(3)
 
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
@@ -356,11 +355,11 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
 
     # send inbound
     body = "Msg #"
-    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
-    send_inbound_via_smppsim(SIM_RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(RECIPIENT, SHORT_CODE, body)
+    send_inbound_via_smppsim(RECIPIENT, SHORT_CODE, body)
 
     # wait for push-es
     server = dummyserver.DummyWebServer(LISTEN_PORT5)
@@ -375,7 +374,7 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
     for (_, _, http_body) in requests:
         inbound_message = oneapi.SmsClient.unserialize_inbound_messages(http_body)
         print(inbound_message)
-        #assert inbound_message.sender_address == SIM_RECIPIENT
+        #assert inbound_message.sender_address == RECIPIENT
         #assert inbound_message.destination_address == SHORT_CODE
         #assert inbound_message.message == body
 
@@ -390,7 +389,7 @@ def test_sub_send_inbound_wait_push_unsub_inbound_notifications():
 def test_raw_send_outbound_bad_username_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(BAD_USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
@@ -400,7 +399,7 @@ def test_raw_send_outbound_bad_username_fail():
 def test_raw_send_outbound_bad_password_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, BAD_PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
@@ -410,7 +409,7 @@ def test_raw_send_outbound_bad_password_fail():
 def test_raw_send_outbound_bad_senderAddress_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + BAD_ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+BAD_ORIGINATOR,
               'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
@@ -448,7 +447,7 @@ def test_raw_send_outbound_bad_recipient_fail():
 def test_raw_send_outbound_succ():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
@@ -460,7 +459,7 @@ def test_raw_send_outbound_succ():
 def test_raw_send_outbound_mult_addresses_succ():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':['tel:'+SIM_RECIPIENT, 'tel:'+SIM_RECIPIENT2, 'tel:'+SIM_RECIPIENT3],
+    params = {'address':['tel:'+RECIPIENT, 'tel:'+RECIPIENT2, 'tel:'+RECIPIENT3],
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
@@ -474,7 +473,7 @@ def test_raw_send_outbound_same_client_correlator_fail():
 
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test',
               'clientCorrelator':client_correlator}
@@ -508,7 +507,7 @@ def test_raw_query_delivery_status_bad_request_id_fail():
 def test_raw_query_delivery_status_succ():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     req = requests.post(url, data=params, auth=auth)
@@ -674,7 +673,7 @@ def test_raw_subscribe_to_inbound_notifications_same_client_correlator_fail():
 def test_raw_content_type_json_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     headers = {'content-type': 'application/json'}
@@ -687,7 +686,7 @@ def test_raw_content_type_json_fail():
 def test_raw_content_type_unknown_fail():
     url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':'Test'}
     headers = {'content-type':'unknown/unknown'}
@@ -707,7 +706,7 @@ def check_sink_delivery_status(command, status, timeout):
     sms_client = oneapi.SmsClient(USERNAME, PASSWORD, ONEAPI_SERVER)
     sms = models.SMSRequest()
     sms.sender_address = ORIGINATOR
-    sms.address = SINK_RECIPIENT
+    sms.address = RECIPIENT
     sms.message = command
 
     req_fmt = 'url'
@@ -747,7 +746,7 @@ def test_check_sink_delivery_statuses():
 def check_message_parts_count(message, count):
     send_url = ONEAPI_SERVER + '/1/smsmessaging/outbound/' + ORIGINATOR + '/requests'
     auth = HTTPBasicAuth(USERNAME, PASSWORD)
-    params = {'address':'tel:'+SIM_RECIPIENT,
+    params = {'address':'tel:'+RECIPIENT,
               'senderAddress':'tel:'+ORIGINATOR,
               'message':message}
     req = requests.post(send_url, data=params, auth=auth)
